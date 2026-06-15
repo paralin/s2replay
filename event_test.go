@@ -283,9 +283,7 @@ func traceEntityIdentityFields(e *Entity) []string {
 			}
 			var fp fieldPath
 			fp.last = len(path) - 1
-			for i, part := range path {
-				fp.path[i] = part
-			}
+			copy(fp.path[:], path)
 			name := e.class.fieldName(fp)
 			lower := strings.ToLower(name)
 			if strings.Contains(lower, "player") ||

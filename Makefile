@@ -8,8 +8,8 @@ GOLANGCI_LINT=tools/bin/golangci-lint
 GO_MOD_OUTDATED=tools/bin/go-mod-outdated
 
 export GO111MODULE=on
-undefine GOARCH
-undefine GOOS
+unexport GOARCH
+unexport GOOS
 
 all:
 

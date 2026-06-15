@@ -316,21 +316,6 @@ func findFieldDecoder(f *field) fieldDecoder {
 	}
 }
 
-func findDecoderByBase(base string) fieldDecoder {
-	switch base {
-	case "float32", "CNetworkedQuantizedFloat":
-		return noScaleDecoder
-	case "bool":
-		return boolDecoder
-	case "int8", "int16", "int32", "int64":
-		return intDecoder
-	case "char", "CUtlString", "CUtlSymbolLarge":
-		return stringDecoder
-	default:
-		return uintDecoder
-	}
-}
-
 func floatDecoder(f *field) fieldDecoder {
 	switch f.encoder {
 	case "coord":
