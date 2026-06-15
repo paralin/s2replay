@@ -28,3 +28,9 @@ var errUnknownFieldPath = errors.New("s2replay: packet entity referenced unknown
 
 // errUnknownStringTable indicates a string-table update referenced a missing table.
 var errUnknownStringTable = errors.New("s2replay: string-table update referenced unknown table")
+
+// errModifierRefreshWithoutAdd indicates a refresh arrived before an active entry.
+var errModifierRefreshWithoutAdd = errors.New("s2replay: modifier refresh without prior add")
+
+// errModifierRemoveWithoutAdd indicates a removal arrived before an active entry.
+var errModifierRemoveWithoutAdd = errors.New("s2replay: modifier remove without prior add")

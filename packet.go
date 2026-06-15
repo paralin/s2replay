@@ -120,17 +120,17 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 	case *protocol.CDemoClassInfo:
 		p.applyDemoClassInfo(m)
 	case *protocol.CDemoStringTables:
-		p.applyDemoStringTables(m)
+		return p.applyDemoStringTables(tick, m)
 	case *protocol.CDemoFullPacket:
 		if tables := m.GetStringTable(); tables != nil {
-			p.applyDemoStringTables(tables)
+			return p.applyDemoStringTables(tick, tables)
 		}
 	case *protocol.CSVCMsg_ClassInfo:
 		p.applySvcClassInfo(m)
 	case *protocol.CSVCMsg_CreateStringTable:
-		return p.applyCreateStringTable(m)
+		return p.applyCreateStringTable(tick, m)
 	case *protocol.CSVCMsg_UpdateStringTable:
-		return p.applyUpdateStringTable(m)
+		return p.applyUpdateStringTable(tick, m)
 	case *protocol.CSVCMsg_PacketEntities:
 		if err := p.applyPacketEntities(tick, m); err != nil {
 			if p.firstEntityError == "" {

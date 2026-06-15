@@ -35,11 +35,12 @@ type Command struct {
 // Packet unpacking, message dispatch, and entity decoding layer on top of this
 // container in later phases.
 type Parser struct {
-	r              reader
-	clock          *Clock
-	pending        []*Message
-	pendingSamples []EntitySample
-	stopped        bool
+	r                reader
+	clock            *Clock
+	pending          []*Message
+	pendingSamples   []EntitySample
+	pendingModifiers []ModifierEvent
+	stopped          bool
 
 	classIDBits        uint8
 	classesByID        map[int32]*entityClass
@@ -47,6 +48,7 @@ type Parser struct {
 	classBaselines     map[int32][]byte
 	serializers        map[string]*serializer
 	entities           map[int32]*Entity
+	modifiers          map[int32]modifierState
 	stringTables       *stringTables
 	entityStateErrors  map[string]int
 	firstEntityError   string
@@ -72,6 +74,7 @@ func NewParser(demo []byte) (*Parser, error) {
 		classBaselines:    make(map[int32][]byte),
 		serializers:       make(map[string]*serializer),
 		entities:          make(map[int32]*Entity),
+		modifiers:         make(map[int32]modifierState),
 		stringTables:      newStringTables(),
 		entityStateErrors: make(map[string]int),
 	}, nil

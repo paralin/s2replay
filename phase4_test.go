@@ -167,7 +167,9 @@ func TestPhase4FirstSnapshotTrace(t *testing.T) {
 			tracePacketEntities(t, cmd.Tick, "packet", msg.GetData())
 		case *protocol.CDemoFullPacket:
 			if tables := msg.GetStringTable(); tables != nil {
-				p.applyDemoStringTables(tables)
+				if err := p.applyDemoStringTables(cmd.Tick, tables); err != nil {
+					t.Fatal(err)
+				}
 			}
 			packet := msg.GetPacket()
 			if packet == nil {

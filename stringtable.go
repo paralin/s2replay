@@ -54,7 +54,7 @@ func (ts *stringTables) getOrCreate(name string) *stringTable {
 	return t
 }
 
-func (p *Parser) applyCreateStringTable(msg *protocol.CSVCMsg_CreateStringTable) error {
+func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_CreateStringTable) error {
 	t := p.stringTables.getOrCreate(msg.GetName())
 	t.userDataFixedSize = msg.GetUserDataFixedSize()
 	t.userDataSizeBits = msg.GetUserDataSizeBits()
@@ -78,6 +78,11 @@ func (p *Parser) applyCreateStringTable(msg *protocol.CSVCMsg_CreateStringTable)
 	}
 	for _, item := range items {
 		t.items[item.index] = item
+		if t.name == "ActiveModifiers" {
+			if err := p.applyActiveModifierItem(tick, item); err != nil {
+				return err
+			}
+		}
 	}
 	if t.name == "instancebaseline" {
 		p.updateInstanceBaseline()
@@ -85,7 +90,7 @@ func (p *Parser) applyCreateStringTable(msg *protocol.CSVCMsg_CreateStringTable)
 	return nil
 }
 
-func (p *Parser) applyUpdateStringTable(msg *protocol.CSVCMsg_UpdateStringTable) error {
+func (p *Parser) applyUpdateStringTable(tick uint32, msg *protocol.CSVCMsg_UpdateStringTable) error {
 	t := p.stringTables.tables[msg.GetTableId()]
 	if t == nil {
 		return errUnknownStringTable
@@ -102,9 +107,19 @@ func (p *Parser) applyUpdateStringTable(msg *protocol.CSVCMsg_UpdateStringTable)
 			if len(item.value) != 0 {
 				old.value = item.value
 			}
+			if t.name == "ActiveModifiers" {
+				if err := p.applyActiveModifierItem(tick, old); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		t.items[item.index] = item
+		if t.name == "ActiveModifiers" {
+			if err := p.applyActiveModifierItem(tick, item); err != nil {
+				return err
+			}
+		}
 	}
 	if t.name == "instancebaseline" {
 		p.updateInstanceBaseline()
@@ -112,7 +127,7 @@ func (p *Parser) applyUpdateStringTable(msg *protocol.CSVCMsg_UpdateStringTable)
 	return nil
 }
 
-func (p *Parser) applyDemoStringTables(msg *protocol.CDemoStringTables) {
+func (p *Parser) applyDemoStringTables(tick uint32, msg *protocol.CDemoStringTables) error {
 	for _, incoming := range msg.GetTables() {
 		t := p.stringTables.getOrCreate(incoming.GetTableName())
 		if t == nil {
@@ -124,10 +139,16 @@ func (p *Parser) applyDemoStringTables(msg *protocol.CDemoStringTables) {
 		for i, item := range incoming.GetItems() {
 			existing := t.items[int32(i)]
 			if existing == nil {
-				t.items[int32(i)] = &stringTableItem{
+				existing = &stringTableItem{
 					index: int32(i),
 					key:   item.GetStr(),
 					value: item.GetData(),
+				}
+				t.items[int32(i)] = existing
+				if t.name == "ActiveModifiers" {
+					if err := p.applyActiveModifierItem(tick, existing); err != nil {
+						return err
+					}
 				}
 				continue
 			}
@@ -137,11 +158,17 @@ func (p *Parser) applyDemoStringTables(msg *protocol.CDemoStringTables) {
 			if item.Data != nil {
 				existing.value = item.GetData()
 			}
+			if t.name == "ActiveModifiers" {
+				if err := p.applyActiveModifierItem(tick, existing); err != nil {
+					return err
+				}
+			}
 		}
 		if t.name == "instancebaseline" {
 			p.updateInstanceBaseline()
 		}
 	}
+	return nil
 }
 
 func (p *Parser) updateInstanceBaseline() {
