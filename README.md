@@ -29,9 +29,35 @@ behavior profiles.
 
 ```
 s2replay version
+s2replay parse <demo.dem>
 ```
 
-The parser API and CLI subcommands land as the milestones below complete.
+`parse` opens a PBDEMS2 demo, walks its outer command stream, and prints the
+file header plus a monotonic tick / game-time stream. Further subcommands and
+the event API land as the milestones below complete.
+
+## Protocol generation
+
+The Deadlock protocol Go package under `protocol/` is generated, never
+hand-edited. `generator/update_protos.bash` copies a minimal Deadlock allow-list
+from the pinned `generator/Protobufs` submodule, flattens it into one
+`protocol` package, and strips proto2 extensions, custom options, and the heavy
+Steam-GC / descriptor imports the wire decode path does not need. Generation
+runs through the [aperturerobotics/common](https://github.com/aperturerobotics/common)
+(`aptre`) reflect-free `protobuf-go-lite` pipeline with Go outputs only:
+
+```
+make gen
+```
+
+This is reproducible: a clean re-run produces no diff. Do not edit `*.pb.go`.
+
+## Development
+
+```
+make lint
+make test
+```
 
 ## License
 

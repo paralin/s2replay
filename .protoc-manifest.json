@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "protocFlagsHash": "2a5e21ee592462408b09cdec6d887cfe832a35dfaca12b058fbc83c05964106c",
+  "toolVersions": "protoc=embedded,protobuf-go-lite=v0.14.0,starpc=v0.49.18",
+  "packages": {
+    "github.com/paralin/s2replay/protocol": {
+      "hash": "4f82d8a062050c06772f9fc12b005f781e16437f571e0c54530f9db67c0e65da",
+      "generatedFiles": [
+        "protocol/base_modifier.pb.go",
+        "protocol/citadel_gameevents.pb.go",
+        "protocol/citadel_usermessages.pb.go",
+        "protocol/demo.pb.go",
+        "protocol/gameevents.pb.go",
+        "protocol/netmessages.pb.go",
+        "protocol/networkbasetypes.pb.go",
+        "protocol/networksystem_protomessages.pb.go",
+        "protocol/source2_steam_stats.pb.go",
+        "protocol/usermessages.pb.go"
+      ],
+      "protoFiles": [
+        "protocol/base_modifier.proto",
+        "protocol/citadel_gameevents.proto",
+        "protocol/citadel_usermessages.proto",
+        "protocol/demo.proto",
+        "protocol/gameevents.proto",
+        "protocol/netmessages.proto",
+        "protocol/networkbasetypes.proto",
+        "protocol/networksystem_protomessages.proto",
+        "protocol/source2_steam_stats.proto",
+        "protocol/usermessages.proto"
+      ]
+    }
+  }
+}

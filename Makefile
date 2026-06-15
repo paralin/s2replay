@@ -1,11 +1,9 @@
 # https://github.com/aperturerobotics/template
 
 SHELL:=bash
-PROTOC=protoc
-PROTOWRAP=tools/bin/protowrap
-PROTOC_GEN_GO=tools/bin/protoc-gen-go
-GOIMPORTS=tools/bin/goimports
+APTRE_VERSION=v0.34.0
 GOFUMPT=tools/bin/gofumpt
+GOIMPORTS=tools/bin/goimports
 GOLANGCI_LINT=tools/bin/golangci-lint
 GO_MOD_OUTDATED=tools/bin/go-mod-outdated
 
@@ -18,12 +16,6 @@ all:
 vendor:
 	go mod vendor
 
-$(PROTOC_GEN_GO):
-	cd ./tools; \
-	go build -v \
-		-o ./bin/protoc-gen-go \
-		google.golang.org/protobuf/cmd/protoc-gen-go
-
 $(GOIMPORTS):
 	cd ./tools; \
 	go build -v \
@@ -35,12 +27,6 @@ $(GOFUMPT):
 	go build -v \
 		-o ./bin/gofumpt \
 		mvdan.cc/gofumpt
-
-$(PROTOWRAP):
-	cd ./tools; \
-	go build -v \
-		-o ./bin/protowrap \
-		github.com/aperturerobotics/goprotowrap/cmd/protowrap
 
 $(GOLANGCI_LINT):
 	cd ./tools; \
@@ -58,20 +44,13 @@ $(GO_MOD_OUTDATED):
 updateproto:
 	bash generator/update_protos.bash
 
+# genproto generates the Deadlock protocol Go package from protocol/*.proto with
+# the aperturerobotics/common (aptre) reflect-free protobuf-go-lite pipeline,
+# Go outputs only. .tools holds the pinned generator toolchain.
 .PHONY: genproto
-genproto: $(GOIMPORTS) $(PROTOWRAP) $(PROTOC_GEN_GO)
-	export PATH=$$(pwd)/tools/bin:$${PATH}; \
-	cd ./protocol; \
-	GO_OPTS="paths=source_relative"; \
-	for proto in *.proto; do \
-		GO_OPTS="$$GO_OPTS,M$$proto=./;protocol"; \
-	done; \
-	$(PROTOC) \
-		-I ./ \
-		--go_out=./ \
-		--go_opt="$$GO_OPTS" \
-		./*.proto
-	$(GOIMPORTS) -w ./
+genproto:
+	[ -d .tools ] || go run -v github.com/aperturerobotics/common@$(APTRE_VERSION) .tools
+	go run -mod=mod github.com/aperturerobotics/common/cmd/aptre@$(APTRE_VERSION) generate --language go
 
 .PHONY: gen
 gen: updateproto genproto
