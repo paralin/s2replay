@@ -23,11 +23,10 @@ func (p *Parser) NextMessage() (*Message, error) {
 	m := p.pending[0]
 	copy(p.pending, p.pending[1:])
 	p.pending = p.pending[:len(p.pending)-1]
-
-	if serverInfo, ok := m.Payload.(*protocol.CSVCMsg_ServerInfo); ok {
-		p.clock.SetInterval(float64(serverInfo.GetTickInterval()))
-		m.GameTime = p.clock.GameTime()
+	if m.err != nil {
+		return nil, m.err
 	}
+
 	return m, nil
 }
 
@@ -36,13 +35,22 @@ func (p *Parser) queueCommandMessages(cmd *Command) error {
 	if err != nil || !ok {
 		return err
 	}
+	if err := p.applyDecodedMessage(cmd.Tick, decoded.msg); err != nil {
+		return err
+	}
 
 	switch msg := decoded.msg.(type) {
 	case *protocol.CDemoPacket:
 		return p.queuePacketMessages(cmd.Tick, msg.GetData())
 	case *protocol.CDemoFullPacket:
 		if packet := msg.GetPacket(); packet != nil {
-			return p.queuePacketMessages(cmd.Tick, packet.GetData())
+			p.applyingFullPacket = true
+			err := p.queuePacketMessages(cmd.Tick, packet.GetData())
+			p.applyingFullPacket = false
+			if err != nil {
+				return err
+			}
+			p.seenFullPacket = true
 		}
 	}
 	return nil
@@ -82,6 +90,18 @@ func (p *Parser) queuePacketMessages(tick uint32, payload []byte) error {
 }
 
 func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
+	if err := p.applyDecodedMessage(tick, decoded.msg); err != nil {
+		p.Stop()
+		p.pending = append(p.pending, &Message{
+			Kind:     decoded.kind,
+			Name:     decoded.name,
+			Tick:     tick,
+			GameTime: p.clock.GameTime(),
+			Payload:  decoded.msg,
+			err:      err,
+		})
+		return
+	}
 	p.pending = append(p.pending, &Message{
 		Kind:     decoded.kind,
 		Name:     decoded.name,
@@ -89,6 +109,38 @@ func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 		GameTime: p.clock.GameTime(),
 		Payload:  decoded.msg,
 	})
+}
+
+func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
+	switch m := msg.(type) {
+	case *protocol.CSVCMsg_ServerInfo:
+		p.applyServerInfo(m)
+	case *protocol.CDemoSendTables:
+		return p.applySendTables(m)
+	case *protocol.CDemoClassInfo:
+		p.applyDemoClassInfo(m)
+	case *protocol.CDemoStringTables:
+		p.applyDemoStringTables(m)
+	case *protocol.CDemoFullPacket:
+		if tables := m.GetStringTable(); tables != nil {
+			p.applyDemoStringTables(tables)
+		}
+	case *protocol.CSVCMsg_ClassInfo:
+		p.applySvcClassInfo(m)
+	case *protocol.CSVCMsg_CreateStringTable:
+		return p.applyCreateStringTable(m)
+	case *protocol.CSVCMsg_UpdateStringTable:
+		return p.applyUpdateStringTable(m)
+	case *protocol.CSVCMsg_PacketEntities:
+		if err := p.applyPacketEntities(tick, m); err != nil {
+			if p.firstEntityError == "" {
+				p.firstEntityError = err.Error()
+			}
+			p.entityStateErrors[err.Error()]++
+			return nil
+		}
+	}
+	return nil
 }
 
 // NextDamage returns the next decoded Deadlock damage event.

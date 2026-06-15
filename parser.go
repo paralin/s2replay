@@ -35,10 +35,27 @@ type Command struct {
 // Packet unpacking, message dispatch, and entity decoding layer on top of this
 // container in later phases.
 type Parser struct {
-	r       reader
-	clock   *Clock
-	pending []*Message
-	stopped bool
+	r              reader
+	clock          *Clock
+	pending        []*Message
+	pendingSamples []EntitySample
+	stopped        bool
+
+	classIDBits        uint8
+	classesByID        map[int32]*entityClass
+	classesByName      map[string]*entityClass
+	classBaselines     map[int32][]byte
+	serializers        map[string]*serializer
+	entities           map[int32]*Entity
+	stringTables       *stringTables
+	entityStateErrors  map[string]int
+	firstEntityError   string
+	seenFullPacket     bool
+	applyingFullPacket bool
+	entityCreates      int
+	entityUpdates      int
+	entityDeletes      int
+	entityLeaves       int
 }
 
 // NewParser validates the PBDEMS2 header and returns a Parser positioned at the
@@ -47,7 +64,17 @@ func NewParser(demo []byte) (*Parser, error) {
 	if len(demo) < demoHeaderSize || string(demo[:len(demoMagic)]) != demoMagic {
 		return nil, errBadMagic
 	}
-	return &Parser{r: reader{buf: demo[demoHeaderSize:]}, clock: newClock()}, nil
+	return &Parser{
+		r:                 reader{buf: demo[demoHeaderSize:]},
+		clock:             newClock(),
+		classesByID:       make(map[int32]*entityClass),
+		classesByName:     make(map[string]*entityClass),
+		classBaselines:    make(map[int32][]byte),
+		serializers:       make(map[string]*serializer),
+		entities:          make(map[int32]*Entity),
+		stringTables:      newStringTables(),
+		entityStateErrors: make(map[string]int),
+	}, nil
 }
 
 // Clock returns the game-time clock advanced by Next.

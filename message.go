@@ -19,6 +19,7 @@ type Message struct {
 	Tick     uint32
 	GameTime float64
 	Payload  decodedProto
+	err      error
 }
 
 // DamageEvent is the Phase 3 product projection of a Deadlock damage user

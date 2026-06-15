@@ -1,5 +1,10 @@
 package s2replay
 
+import (
+	"encoding/binary"
+	"math"
+)
+
 // packetReader reads the packet layer inside CDemoPacket.data. Packet message
 // ids use Valve ubitvar encoding, followed by byte-varint sizes and protobuf
 // payload bytes.
@@ -52,6 +57,11 @@ func (r *packetReader) readByte() (byte, error) {
 	return byte(v), err
 }
 
+func (r *packetReader) readBool() (bool, error) {
+	v, err := r.readBits(1)
+	return v == 1, err
+}
+
 func (r *packetReader) readBytes(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, errNegativePacketSize
@@ -79,6 +89,45 @@ func (r *packetReader) readBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
+func (r *packetReader) readBitsAsBytes(bits int) ([]byte, error) {
+	if bits < 0 {
+		return nil, errShortRead
+	}
+	b := make([]byte, 0, (bits+7)/8)
+	for bits >= 8 {
+		v, err := r.readByte()
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, v)
+		bits -= 8
+	}
+	if bits > 0 {
+		v, err := r.readBits(uint8(bits))
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, byte(v))
+	}
+	return b, nil
+}
+
+func (r *packetReader) readLEUint32() (uint32, error) {
+	b, err := r.readBytes(4)
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b), nil
+}
+
+func (r *packetReader) readLEUint64() (uint64, error) {
+	b, err := r.readBytes(8)
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(b), nil
+}
+
 func (r *packetReader) readUvarint32() (uint32, error) {
 	var x uint32
 	var s uint
@@ -94,6 +143,38 @@ func (r *packetReader) readUvarint32() (uint32, error) {
 			return x | uint32(b)<<s, nil
 		}
 		x |= uint32(b&0x7f) << s
+		s += 7
+	}
+	return 0, errInvalidVarint
+}
+
+func (r *packetReader) readVarint32() (int32, error) {
+	v, err := r.readUvarint32()
+	if err != nil {
+		return 0, err
+	}
+	x := int32(v >> 1)
+	if v&1 != 0 {
+		x = ^x
+	}
+	return x, nil
+}
+
+func (r *packetReader) readUvarint64() (uint64, error) {
+	var x uint64
+	var s uint
+	for i := 0; i < 10; i++ {
+		b, err := r.readByte()
+		if err != nil {
+			return 0, err
+		}
+		if b < 0x80 {
+			if i == 9 && b > 1 {
+				return 0, errInvalidVarint
+			}
+			return x | uint64(b)<<s, nil
+		}
+		x |= uint64(b&0x7f) << s
 		s += 7
 	}
 	return 0, errInvalidVarint
@@ -127,4 +208,159 @@ func (r *packetReader) readUBitVar() (uint32, error) {
 	default:
 		return v, nil
 	}
+}
+
+func (r *packetReader) readUBitVarFieldPath() (int, error) {
+	v, err := r.readBool()
+	if err != nil || v {
+		if err != nil {
+			return 0, err
+		}
+		x, err := r.readBits(2)
+		return int(x), err
+	}
+	v, err = r.readBool()
+	if err != nil || v {
+		if err != nil {
+			return 0, err
+		}
+		x, err := r.readBits(4)
+		return int(x), err
+	}
+	v, err = r.readBool()
+	if err != nil || v {
+		if err != nil {
+			return 0, err
+		}
+		x, err := r.readBits(10)
+		return int(x), err
+	}
+	v, err = r.readBool()
+	if err != nil || v {
+		if err != nil {
+			return 0, err
+		}
+		x, err := r.readBits(17)
+		return int(x), err
+	}
+	x, err := r.readBits(31)
+	return int(x), err
+}
+
+func (r *packetReader) readString() (string, error) {
+	b := make([]byte, 0, 32)
+	for {
+		c, err := r.readByte()
+		if err != nil {
+			return "", err
+		}
+		if c == 0 {
+			return string(b), nil
+		}
+		b = append(b, c)
+	}
+}
+
+func (r *packetReader) readFloat32() (float32, error) {
+	v, err := r.readLEUint32()
+	if err != nil {
+		return 0, err
+	}
+	return math.Float32frombits(v), nil
+}
+
+func (r *packetReader) readCoord() (float32, error) {
+	intval, err := r.readBits(1)
+	if err != nil {
+		return 0, err
+	}
+	fractval, err := r.readBits(1)
+	if err != nil {
+		return 0, err
+	}
+	if intval == 0 && fractval == 0 {
+		return 0, nil
+	}
+	neg, err := r.readBool()
+	if err != nil {
+		return 0, err
+	}
+	if intval != 0 {
+		intval, err = r.readBits(14)
+		if err != nil {
+			return 0, err
+		}
+		intval++
+	}
+	if fractval != 0 {
+		fractval, err = r.readBits(5)
+		if err != nil {
+			return 0, err
+		}
+	}
+	v := float32(intval) + float32(fractval)*(1.0/(1<<5))
+	if neg {
+		v = -v
+	}
+	return v, nil
+}
+
+func (r *packetReader) readAngle(n uint8) (float32, error) {
+	v, err := r.readBits(n)
+	if err != nil {
+		return 0, err
+	}
+	return float32(v) * 360.0 / float32(uint32(1)<<n), nil
+}
+
+func (r *packetReader) readNormal() (float32, error) {
+	neg, err := r.readBool()
+	if err != nil {
+		return 0, err
+	}
+	v, err := r.readBits(11)
+	if err != nil {
+		return 0, err
+	}
+	ret := float32(v) * float32(1.0/(float32(1<<11)-1.0))
+	if neg {
+		ret = -ret
+	}
+	return ret, nil
+}
+
+func (r *packetReader) read3BitNormal() ([3]float32, error) {
+	var ret [3]float32
+	hasX, err := r.readBool()
+	if err != nil {
+		return ret, err
+	}
+	hasY, err := r.readBool()
+	if err != nil {
+		return ret, err
+	}
+	if hasX {
+		ret[0], err = r.readNormal()
+		if err != nil {
+			return ret, err
+		}
+	}
+	if hasY {
+		ret[1], err = r.readNormal()
+		if err != nil {
+			return ret, err
+		}
+	}
+	negZ, err := r.readBool()
+	if err != nil {
+		return ret, err
+	}
+	prod := ret[0]*ret[0] + ret[1]*ret[1]
+	if prod < 1 {
+		ret[2] = float32(math.Sqrt(float64(1 - prod)))
+	}
+	if negZ {
+		ret[2] = -ret[2]
+	}
+	return ret, nil
 }

@@ -16,3 +16,15 @@ var errBitReadOverflow = errors.New("s2replay: packet bitstream overflow")
 
 // errNegativePacketSize indicates an inner packet message declared a bad size.
 var errNegativePacketSize = errors.New("s2replay: negative packet message size")
+
+// errUnknownEntityClass indicates packet entities referenced a missing class.
+var errUnknownEntityClass = errors.New("s2replay: packet entity referenced unknown class")
+
+// errUnknownEntity indicates packet entities referenced a missing entity.
+var errUnknownEntity = errors.New("s2replay: packet entity referenced unknown entity")
+
+// errUnknownFieldPath indicates an entity update used an undecodable field path.
+var errUnknownFieldPath = errors.New("s2replay: packet entity referenced unknown field path")
+
+// errUnknownStringTable indicates a string-table update referenced a missing table.
+var errUnknownStringTable = errors.New("s2replay: string-table update referenced unknown table")
