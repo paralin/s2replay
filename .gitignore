@@ -1,0 +1,5 @@
+/vendor
+*.dem
+*.dem.bz2
+.tmp/
+.DS_Store

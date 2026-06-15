@@ -1,0 +1,27 @@
+version: "2"
+
+run:
+  build-tags:
+    - deps_only
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  exclusions:
+    generated: lax
+    paths:
+      - protocol
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - protocol
