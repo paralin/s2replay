@@ -10,6 +10,8 @@ import (
 type EventType string
 
 const (
+	EventSchemaVersion = 1
+
 	EventDamage       EventType = "damage"
 	EventModifier     EventType = "modifier"
 	EventPurchase     EventType = "purchase"
@@ -33,16 +35,17 @@ type PurchaseEvent struct {
 // Event is the unified typed stream used by downstream Deadlock analysis.
 // OwnedItems is the attacker-side item set when attribution is available.
 type Event struct {
-	Type         EventType      `json:"type"`
-	Tick         uint32         `json:"tick"`
-	GameTime     float64        `json:"game_time"`
-	Entity       int32          `json:"entity"`
-	PlayerSlot   int32          `json:"player_slot"`
-	OwnedItems   []uint32       `json:"owned_items,omitempty"`
-	Damage       *DamageEvent   `json:"damage,omitempty"`
-	Modifier     *ModifierEvent `json:"modifier,omitempty"`
-	Purchase     *PurchaseEvent `json:"purchase,omitempty"`
-	EntitySample *EntitySample  `json:"entity_sample,omitempty"`
+	SchemaVersion int            `json:"schema_version"`
+	Type          EventType      `json:"type"`
+	Tick          uint32         `json:"tick"`
+	GameTime      float64        `json:"game_time"`
+	Entity        int32          `json:"entity"`
+	PlayerSlot    int32          `json:"player_slot"`
+	OwnedItems    []uint32       `json:"owned_items,omitempty"`
+	Damage        *DamageEvent   `json:"damage,omitempty"`
+	Modifier      *ModifierEvent `json:"modifier,omitempty"`
+	Purchase      *PurchaseEvent `json:"purchase,omitempty"`
+	EntitySample  *EntitySample  `json:"entity_sample,omitempty"`
 }
 
 // NextEvent returns the next unified typed event produced while walking the
@@ -56,6 +59,9 @@ func (p *Parser) NextEvent() (Event, error) {
 	ev := p.pendingEvents[0]
 	copy(p.pendingEvents, p.pendingEvents[1:])
 	p.pendingEvents = p.pendingEvents[:len(p.pendingEvents)-1]
+	if ev.SchemaVersion == 0 {
+		ev.SchemaVersion = EventSchemaVersion
+	}
 	return ev, nil
 }
 

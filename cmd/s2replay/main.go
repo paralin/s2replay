@@ -24,10 +24,16 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "emit":
+			if err := runEmit(os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "s2replay: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		}
 	}
 
 	fmt.Fprintf(os.Stderr, "s2replay %s\n", s2replay.Version)
-	fmt.Fprintln(os.Stderr, "usage: s2replay [version|parse <demo.dem>]")
+	fmt.Fprintln(os.Stderr, "usage: s2replay [version|parse <demo.dem>|emit --format jsonl <demo.dem>]")
 	os.Exit(2)
 }
