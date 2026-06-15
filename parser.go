@@ -40,6 +40,7 @@ type Parser struct {
 	pending          []*Message
 	pendingSamples   []EntitySample
 	pendingModifiers []ModifierEvent
+	pendingEvents    []Event
 	stopped          bool
 
 	classIDBits        uint8
@@ -49,6 +50,8 @@ type Parser struct {
 	serializers        map[string]*serializer
 	entities           map[int32]*Entity
 	modifiers          map[int32]modifierState
+	playerItems        map[int32]map[uint32]struct{}
+	entityPlayerSlots  map[int32]int32
 	stringTables       *stringTables
 	entityStateErrors  map[string]int
 	firstEntityError   string
@@ -75,6 +78,8 @@ func NewParser(demo []byte) (*Parser, error) {
 		serializers:       make(map[string]*serializer),
 		entities:          make(map[int32]*Entity),
 		modifiers:         make(map[int32]modifierState),
+		playerItems:       make(map[int32]map[uint32]struct{}),
+		entityPlayerSlots: make(map[int32]int32),
 		stringTables:      newStringTables(),
 		entityStateErrors: make(map[string]int),
 	}, nil

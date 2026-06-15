@@ -139,6 +139,12 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 			p.entityStateErrors[err.Error()]++
 			return nil
 		}
+	case *protocol.CCitadelUserMsg_AbilitiesChanged:
+		p.applyAbilitiesChanged(tick, m)
+	case *protocol.CCitadelUserMessage_ItemPurchaseNotification:
+		p.applyItemPurchaseNotification(tick, m)
+	case *protocol.CCitadelUserMessage_Damage:
+		p.appendDamageEvent(tick, m)
 	}
 	return nil
 }

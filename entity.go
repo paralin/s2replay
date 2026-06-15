@@ -6,7 +6,10 @@ import (
 	"github.com/paralin/s2replay/protocol"
 )
 
-const entityHandleMask uint64 = (1 << 14) - 1
+const (
+	entityHandleMask    uint64 = (1 << 14) - 1
+	invalidEntityHandle uint32 = 16777215
+)
 
 // Entity is the parser-owned current state for one networked entity.
 type Entity struct {
@@ -87,6 +90,24 @@ func (e *Entity) Float32(name string) (float32, bool) {
 		return float32(v), true
 	case int32:
 		return float32(v), true
+	}
+	return 0, false
+}
+
+// Int32 returns the current field value as an int32 when it can be represented
+// without changing sign.
+func (e *Entity) Int32(name string) (int32, bool) {
+	switch v := e.Get(name).(type) {
+	case int32:
+		return v, true
+	case uint32:
+		if v <= uint32(^uint32(0)>>1) {
+			return int32(v), true
+		}
+	case uint64:
+		if v <= uint64(^uint32(0)>>1) {
+			return int32(v), true
+		}
 	}
 	return 0, false
 }
@@ -251,6 +272,7 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 		if cmd&2 != 0 {
 			p.entityDeletes++
 			delete(p.entities, index)
+			delete(p.entityPlayerSlots, index)
 		}
 	}
 	return nil
@@ -339,12 +361,76 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	if e == nil || e.class == nil || !e.active {
 		return
 	}
+	p.updateEntityPlayerSlot(e)
 	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
 	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {
 		p.pendingSamples = append(p.pendingSamples, sample)
+		slot, ok := p.entityPlayerSlots[sample.Entity]
+		if !ok {
+			slot = -1
+		}
+		p.pendingEvents = append(p.pendingEvents, Event{
+			Type:         EventEntitySample,
+			Tick:         sample.Tick,
+			GameTime:     sample.GameTime,
+			Entity:       sample.Entity,
+			PlayerSlot:   slot,
+			EntitySample: &sample,
+		})
 	}
+}
+
+func (p *Parser) updateEntityPlayerSlot(e *Entity) {
+	for _, name := range []string{
+		"m_iPlayerSlot",
+		"m_nPlayerSlot",
+		"m_iPlayerID",
+		"m_nPlayerID",
+		"m_iPlayerIndex",
+		"m_nPlayerIndex",
+	} {
+		slot, ok := e.Int32(name)
+		if ok && slot >= 0 {
+			p.entityPlayerSlots[e.index] = slot
+			return
+		}
+	}
+	slot, ok := e.Int32("m_unLobbyPlayerSlot")
+	if !ok || slot < 0 {
+		return
+	}
+	for _, name := range []string{"m_hHeroPawn", "m_hPawn"} {
+		handle, ok := e.Int32(name)
+		if ok && handle >= 0 && uint32(handle) != invalidEntityHandle {
+			p.entityPlayerSlots[int32(uint32(handle)&uint32(entityHandleMask))] = slot
+			return
+		}
+	}
+}
+
+func (p *Parser) entityName(e *Entity) (string, bool) {
+	if e == nil {
+		return "", false
+	}
+	nameIndex, ok := e.Int32("m_pEntity.m_nameStringableIndex")
+	if !ok || nameIndex < 0 {
+		return "", false
+	}
+	tableID, ok := p.stringTables.nameIndex["EntityNames"]
+	if !ok {
+		return "", false
+	}
+	table := p.stringTables.tables[tableID]
+	if table == nil {
+		return "", false
+	}
+	item := table.items[nameIndex]
+	if item == nil || item.key == "" {
+		return "", false
+	}
+	return item.key, true
 }
 
 func isLikelyHeroClass(name string) bool {

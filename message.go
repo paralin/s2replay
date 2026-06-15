@@ -68,9 +68,13 @@ func (m *Message) DamageEvent() (DamageEvent, bool) {
 	if !ok {
 		return DamageEvent{}, false
 	}
+	return damageEventFromProto(m.Tick, m.GameTime, d), true
+}
+
+func damageEventFromProto(tick uint32, gameTime float64, d *protocol.CCitadelUserMessage_Damage) DamageEvent {
 	ev := DamageEvent{
-		Tick:                     m.Tick,
-		GameTime:                 m.GameTime,
+		Tick:                     tick,
+		GameTime:                 gameTime,
 		Damage:                   d.GetDamage(),
 		PreDamage:                d.GetPreDamage(),
 		VictimHealthNew:          d.GetVictimHealthNew(),
@@ -109,5 +113,5 @@ func (m *Message) DamageEvent() (DamageEvent, bool) {
 		ev.DamageDirectionY = dir.GetY()
 		ev.DamageDirectionZ = dir.GetZ()
 	}
-	return ev, true
+	return ev
 }

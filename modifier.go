@@ -62,6 +62,7 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 		ev = mergeModifierRemove(ev, prev.entry)
 		delete(p.modifiers, item.index)
 		p.pendingModifiers = append(p.pendingModifiers, ev)
+		p.appendModifierEvent(ev)
 		return nil
 	}
 	if hadPrev {
@@ -72,7 +73,24 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 	}
 	p.modifiers[item.index] = modifierState{entry: ev}
 	p.pendingModifiers = append(p.pendingModifiers, ev)
+	p.appendModifierEvent(ev)
 	return nil
+}
+
+func (p *Parser) appendModifierEvent(ev ModifierEvent) {
+	entity := int32(ev.Parent & uint32(entityHandleMask))
+	slot, ok := p.entityPlayerSlots[entity]
+	if !ok {
+		slot = -1
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventModifier,
+		Tick:       ev.Tick,
+		GameTime:   ev.GameTime,
+		Entity:     entity,
+		PlayerSlot: slot,
+		Modifier:   &ev,
+	})
 }
 
 func modifierEventFromEntry(tick uint32, gameTime float64, tableIndex int32, entry *protocol.CModifierTableEntry) ModifierEvent {
