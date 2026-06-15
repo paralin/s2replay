@@ -131,7 +131,7 @@ func (r *packetReader) readLEUint64() (uint64, error) {
 func (r *packetReader) readUvarint32() (uint32, error) {
 	var x uint32
 	var s uint
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		b, err := r.readByte()
 		if err != nil {
 			return 0, err
@@ -163,7 +163,7 @@ func (r *packetReader) readVarint32() (int32, error) {
 func (r *packetReader) readUvarint64() (uint64, error) {
 	var x uint64
 	var s uint
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		b, err := r.readByte()
 		if err != nil {
 			return 0, err

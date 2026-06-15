@@ -1,6 +1,9 @@
 package s2replay
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 var fieldPathTree = newFieldPathTree()
 
@@ -209,15 +212,16 @@ func (fp fieldPath) String() string {
 	if fp.last < 0 {
 		return ""
 	}
-	s := strconv.Itoa(fp.path[0])
+	var s strings.Builder
+	s.WriteString(strconv.Itoa(fp.path[0]))
 	for i := 1; i <= fp.last; i++ {
-		s += "." + strconv.Itoa(fp.path[i])
+		s.WriteString("." + strconv.Itoa(fp.path[i]))
 	}
-	return s
+	return s.String()
 }
 
 func (fp *fieldPath) pop(n int) {
-	for i := 0; i < n; i++ {
+	for range n {
 		fp.path[fp.last] = 0
 		fp.last--
 	}
@@ -230,7 +234,7 @@ func (fp *fieldPath) pushRead(r *packetReader, count int, inc bool, delta int, p
 	if inc {
 		fp.path[fp.last] += delta
 	}
-	for i := 0; i < count; i++ {
+	for range count {
 		v, err := r.readUBitVarFieldPath()
 		if err != nil {
 			return err
@@ -247,7 +251,7 @@ func (fp *fieldPath) pushPacked(r *packetReader, count int, bits uint8, inc bool
 	if inc {
 		fp.path[fp.last] += delta
 	}
-	for i := 0; i < count; i++ {
+	for range count {
 		v, err := r.readBits(bits)
 		if err != nil {
 			return err

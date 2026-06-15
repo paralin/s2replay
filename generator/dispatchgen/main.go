@@ -56,7 +56,7 @@ func readMessageNames(dir string) (map[string]bool, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, line := range strings.Split(string(b), "\n") {
+		for line := range strings.SplitSeq(string(b), "\n") {
 			line = strings.TrimSpace(line)
 			if !strings.HasPrefix(line, "type ") || !strings.Contains(line, " struct {") {
 				continue
@@ -76,7 +76,7 @@ func readEnum(path string, enumName string, goEnum string, messages map[string]b
 
 	var vals []enumValue
 	inEnum := false
-	for _, raw := range strings.Split(string(b), "\n") {
+	for raw := range strings.SplitSeq(string(b), "\n") {
 		line := strings.TrimSpace(raw)
 		switch {
 		case line == "enum "+enumName+" {":

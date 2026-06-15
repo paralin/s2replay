@@ -2,7 +2,7 @@ package s2replay
 
 import (
 	"io"
-	"sort"
+	"slices"
 
 	"github.com/paralin/s2replay/protocol"
 )
@@ -195,7 +195,7 @@ func (p *Parser) playerItemSet(slot int32) []uint32 {
 	for abilityID := range items {
 		out = append(out, abilityID)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	slices.Sort(out)
 	return out
 }
 

@@ -103,7 +103,7 @@ func TestPhase4CommandTrace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 80; i++ {
+	for i := range 80 {
 		cmd, err := p.Next()
 		if err != nil {
 			t.Fatal(err)
@@ -219,10 +219,7 @@ func traceEntityNames(t *testing.T, tables *protocol.CDemoStringTables) {
 		if table.GetTableName() != "EntityNames" {
 			continue
 		}
-		limit := len(table.GetItems())
-		if limit > 24 {
-			limit = 24
-		}
+		limit := min(len(table.GetItems()), 24)
 		for i := 0; i < limit; i++ {
 			item := table.GetItems()[i]
 			t.Logf("entity_name index=%d str=%q data=%d", i, item.GetStr(), len(item.GetData()))
@@ -749,7 +746,7 @@ func firstBytes(b []byte, n int) []byte {
 func firstClassSummary(p *Parser) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		if i != 0 {
 			buf.WriteString(", ")
 		}
