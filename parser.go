@@ -37,6 +37,7 @@ type Command struct {
 type Parser struct {
 	r       reader
 	clock   *Clock
+	pending []*Message
 	stopped bool
 }
 

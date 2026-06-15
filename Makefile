@@ -52,8 +52,12 @@ genproto:
 	[ -d .tools ] || go run -v github.com/aperturerobotics/common@$(APTRE_VERSION) .tools
 	go run -mod=mod github.com/aperturerobotics/common/cmd/aptre@$(APTRE_VERSION) generate --language go
 
+.PHONY: gendispatch
+gendispatch:
+	go run ./generator/dispatchgen
+
 .PHONY: gen
-gen: updateproto genproto
+gen: updateproto genproto gendispatch
 
 .PHONY: outdated
 outdated: $(GO_MOD_OUTDATED)

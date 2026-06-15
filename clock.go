@@ -12,6 +12,7 @@ const DefaultTickInterval = 1.0 / 64.0
 type Clock struct {
 	tick     uint32
 	interval float64
+	exact    bool
 }
 
 func newClock() *Clock { return &Clock{interval: DefaultTickInterval} }
@@ -21,6 +22,9 @@ func (c *Clock) Tick() uint32 { return c.tick }
 
 // TickInterval returns the current seconds-per-tick.
 func (c *Clock) TickInterval() float64 { return c.interval }
+
+// TickIntervalKnown reports whether ServerInfo provided the exact interval.
+func (c *Clock) TickIntervalKnown() bool { return c.exact }
 
 // GameTime returns the current tick expressed in seconds.
 func (c *Clock) GameTime() float64 { return float64(c.tick) * c.interval }
@@ -32,5 +36,6 @@ func (c *Clock) setTick(t uint32) { c.tick = t }
 func (c *Clock) SetInterval(seconds float64) {
 	if seconds > 0 {
 		c.interval = seconds
+		c.exact = true
 	}
 }

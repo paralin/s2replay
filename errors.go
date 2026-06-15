@@ -10,3 +10,9 @@ var errInvalidVarint = errors.New("s2replay: invalid varint in demo stream")
 
 // errShortRead indicates a length-delimited run ran past the end of the buffer.
 var errShortRead = errors.New("s2replay: short read in demo stream")
+
+// errBitReadOverflow indicates a packet bitstream read past its payload.
+var errBitReadOverflow = errors.New("s2replay: packet bitstream overflow")
+
+// errNegativePacketSize indicates an inner packet message declared a bad size.
+var errNegativePacketSize = errors.New("s2replay: negative packet message size")
