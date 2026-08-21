@@ -90,6 +90,12 @@ func (e *Entity) Float32(name string) (float32, bool) {
 		return float32(v), true
 	case int32:
 		return float32(v), true
+	case uint16:
+		return float32(v), true
+	case int16:
+		return float32(v), true
+	case uint8:
+		return float32(v), true
 	}
 	return 0, false
 }
@@ -141,12 +147,34 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		"m_flMaxShield",
 		"m_CCitadelHealthComponent.m_iMaxShield",
 	)
-	x, okX := firstFloat32(e, "CBodyComponent.m_cellX", "m_CBodyComponent.m_cellX")
-	y, okY := firstFloat32(e, "CBodyComponent.m_cellY", "m_CBodyComponent.m_cellY")
-	z, okZ := firstFloat32(e, "CBodyComponent.m_cellZ", "m_CBodyComponent.m_cellZ")
-	vx, vxOK := firstFloat32(e, "CBodyComponent.m_vecX", "m_CBodyComponent.m_vecX")
-	vy, vyOK := firstFloat32(e, "CBodyComponent.m_vecY", "m_CBodyComponent.m_vecY")
-	vz, vzOK := firstFloat32(e, "CBodyComponent.m_vecZ", "m_CBodyComponent.m_vecZ")
+	// Modern flattened serializers nest body origin under the skeleton
+	// instance; older replays expose it directly on CBodyComponent.
+	bodyOrigin := []string{
+		"CBodyComponent.m_skeletonInstance.m_vecOrigin",
+		"m_CBodyComponent.m_skeletonInstance.m_vecOrigin",
+		"CBodyComponent",
+		"m_CBodyComponent",
+	}
+	cellNames := func(axis string) []string {
+		names := make([]string, 0, len(bodyOrigin))
+		for _, base := range bodyOrigin {
+			names = append(names, base+".m_"+axis)
+		}
+		return names
+	}
+	vecNames := func(axis string) []string {
+		names := make([]string, 0, len(bodyOrigin))
+		for _, base := range bodyOrigin {
+			names = append(names, base+".m_vec"+axis)
+		}
+		return names
+	}
+	x, okX := firstFloat32(e, cellNames("cellX")...)
+	y, okY := firstFloat32(e, cellNames("cellY")...)
+	z, okZ := firstFloat32(e, cellNames("cellZ")...)
+	vx, vxOK := firstFloat32(e, vecNames("X")...)
+	vy, vyOK := firstFloat32(e, vecNames("Y")...)
+	vz, vzOK := firstFloat32(e, vecNames("Z")...)
 	if okX && okY && okZ && vxOK && vyOK && vzOK {
 		s.PositionX = deadlockCoordFromCell(x, vx)
 		s.PositionY = deadlockCoordFromCell(y, vy)
