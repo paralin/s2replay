@@ -229,7 +229,9 @@ func (f *field) matchPath(parts []string, fp *fieldPath, pos, index int) bool {
 		if f.serializer == nil {
 			return false
 		}
-		return f.serializer.findPath(rest, fp, pos)
+		// Child fields live one path slot deeper; passing pos lets the child
+		// clobber this table's own index.
+		return f.serializer.findPath(rest, fp, pos+1)
 	case fieldModelVariableTable:
 		if len(rest) < 2 || f.serializer == nil {
 			return false
