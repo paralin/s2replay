@@ -1,0 +1,128 @@
+{
+  "schema_version": 2,
+  "analysis": {
+    "inventory": {
+      "players": {
+        "2": [
+          {
+            "start_tick": 1,
+            "end_tick": 6,
+            "start_time": 1,
+            "end_time": 6,
+            "owned_items": [
+              10
+            ]
+          }
+        ]
+      }
+    },
+    "entities": {
+      "players": {
+        "2": [
+          {
+            "tick": 2,
+            "game_time": 2,
+            "player_slot": 2,
+            "entity_id": 100,
+            "class_id": 8,
+            "class_name": "CCitadelPlayerPawn",
+            "health": 700,
+            "max_health": 900,
+            "shield": 0,
+            "max_shield": 0,
+            "position_x": 0,
+            "position_y": 0,
+            "position_z": 0,
+            "has_health": true,
+            "has_shield": false,
+            "has_position": true,
+            "owned_items": [
+              10
+            ]
+          }
+        ]
+      },
+      "entities": {
+        "100": [
+          {
+            "tick": 2,
+            "game_time": 2,
+            "player_slot": 2,
+            "entity_id": 100,
+            "class_id": 8,
+            "class_name": "CCitadelPlayerPawn",
+            "health": 700,
+            "max_health": 900,
+            "shield": 0,
+            "max_shield": 0,
+            "position_x": 0,
+            "position_y": 0,
+            "position_z": 0,
+            "has_health": true,
+            "has_shield": false,
+            "has_position": true,
+            "owned_items": [
+              10
+            ]
+          }
+        ]
+      }
+    },
+    "modifiers": {
+      "modifiers": [
+        {
+          "start_tick": 3,
+          "end_tick": 5,
+          "start_time": 3,
+          "end_time": 5,
+          "table_index": 7,
+          "entity_id": 100,
+          "player_slot": 2,
+          "parent": 100,
+          "modifier_subclass": 20,
+          "source_id": 10,
+          "ability": 0,
+          "stack_count": 0,
+          "refreshes": 0,
+          "open": false
+        }
+      ]
+    },
+    "quality": {
+      "events": 5,
+      "inventory_transitions": 1,
+      "entity_samples": 1,
+      "modifier_adds": 1,
+      "modifier_refreshes": 0,
+      "modifier_removes": 1,
+      "missing_player_slot_events": 0,
+      "unmatched_modifier_refreshes": 0,
+      "unmatched_modifier_removes": 0,
+      "open_modifier_intervals": 0
+    }
+  },
+  "combat_windows": [
+    {
+      "start_tick": 3,
+      "end_tick": 6,
+      "start_time": 3,
+      "end_time": 6,
+      "events": 3,
+      "damage_events": 1,
+      "modifier_events": 2,
+      "purchase_events": 0,
+      "entity_samples": 0,
+      "first_event_index": 2,
+      "last_event_index": 4,
+      "player_slots": [
+        2
+      ],
+      "entities": [
+        100
+      ],
+      "modifier_parents": [
+        100
+      ]
+    }
+  ]
+}

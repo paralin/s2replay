@@ -12,7 +12,7 @@ type entityClass struct {
 
 func (c *entityClass) pathForName(name string) (fieldPath, bool) {
 	var fp fieldPath
-	fp.path = [7]int{-1, 0, 0, 0, 0, 0, 0}
+	fp.path = [fieldPathMaxDepth]int{-1}
 	if c.serializer == nil {
 		return fp, false
 	}

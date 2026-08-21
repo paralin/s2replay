@@ -2,19 +2,26 @@ package s2replay
 
 import (
 	"io"
+	"math"
 	"slices"
 
 	"github.com/paralin/s2replay/protocol"
 )
 
+// EventType identifies a record in the unified replay event stream.
 type EventType string
 
 const (
+	// EventSchemaVersion is the schema version emitted with each replay event.
 	EventSchemaVersion = 1
 
-	EventDamage       EventType = "damage"
-	EventModifier     EventType = "modifier"
-	EventPurchase     EventType = "purchase"
+	// EventDamage identifies a damage event.
+	EventDamage EventType = "damage"
+	// EventModifier identifies a modifier lifecycle event.
+	EventModifier EventType = "modifier"
+	// EventPurchase identifies an item or ability ownership transition.
+	EventPurchase EventType = "purchase"
+	// EventEntitySample identifies a sampled entity state.
 	EventEntitySample EventType = "entity_sample"
 )
 
@@ -33,7 +40,7 @@ type PurchaseEvent struct {
 }
 
 // Event is the unified typed stream used by downstream Deadlock analysis.
-// OwnedItems is the attacker-side item set when attribution is available.
+// OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
 	SchemaVersion int            `json:"schema_version"`
 	Type          EventType      `json:"type"`
@@ -62,6 +69,7 @@ func (p *Parser) NextEvent() (Event, error) {
 	if ev.SchemaVersion == 0 {
 		ev.SchemaVersion = EventSchemaVersion
 	}
+	sanitizeEvent(&ev)
 	return ev, nil
 }
 
@@ -80,6 +88,78 @@ func (p *Parser) CollectEvents(limit int) ([]Event, error) {
 		events = append(events, ev)
 	}
 	return events, nil
+}
+
+func sanitizeEvent(ev *Event) {
+	ev.GameTime = finiteFloat64(ev.GameTime)
+	if ev.Damage != nil {
+		sanitizeDamageEvent(ev.Damage)
+	}
+	if ev.Modifier != nil {
+		ev.Modifier.GameTime = finiteFloat64(ev.Modifier.GameTime)
+		ev.Modifier.LastAppliedTime = finiteFloat32(ev.Modifier.LastAppliedTime)
+		ev.Modifier.Duration = finiteFloat32(ev.Modifier.Duration)
+	}
+	if ev.Purchase != nil {
+		ev.Purchase.GameTime = finiteFloat64(ev.Purchase.GameTime)
+	}
+	if ev.EntitySample != nil {
+		sanitizeEntitySample(ev.EntitySample)
+	}
+}
+
+func sanitizeDamageEvent(ev *DamageEvent) {
+	ev.GameTime = finiteFloat64(ev.GameTime)
+	ev.PreDamage = finiteFloat32(ev.PreDamage)
+	ev.DamageAbsorbed = finiteFloat32(ev.DamageAbsorbed)
+	ev.Effectiveness = finiteFloat32(ev.Effectiveness)
+	ev.CritDamage = finiteFloat32(ev.CritDamage)
+	ev.OriginX = finiteFloat32(ev.OriginX)
+	ev.OriginY = finiteFloat32(ev.OriginY)
+	ev.OriginZ = finiteFloat32(ev.OriginZ)
+	ev.DamageDirectionX = finiteFloat32(ev.DamageDirectionX)
+	ev.DamageDirectionY = finiteFloat32(ev.DamageDirectionY)
+	ev.DamageDirectionZ = finiteFloat32(ev.DamageDirectionZ)
+}
+
+func sanitizeEntitySample(sample *EntitySample) {
+	sample.GameTime = finiteFloat64(sample.GameTime)
+	if !isFiniteFloat32(sample.Health) || !isFiniteFloat32(sample.MaxHealth) {
+		sample.Health = 0
+		sample.MaxHealth = 0
+		sample.HasHealth = false
+	}
+	if !isFiniteFloat32(sample.Shield) || !isFiniteFloat32(sample.MaxShield) {
+		sample.Shield = 0
+		sample.MaxShield = 0
+		sample.HasShield = false
+	}
+	if !isFiniteFloat32(sample.PositionX) ||
+		!isFiniteFloat32(sample.PositionY) ||
+		!isFiniteFloat32(sample.PositionZ) {
+		sample.PositionX = 0
+		sample.PositionY = 0
+		sample.PositionZ = 0
+		sample.HasPosition = false
+	}
+}
+
+func finiteFloat32(v float32) float32 {
+	if !isFiniteFloat32(v) {
+		return 0
+	}
+	return v
+}
+
+func finiteFloat64(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return v
+}
+
+func isFiniteFloat32(v float32) bool {
+	return !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0)
 }
 
 func (p *Parser) applyAbilitiesChanged(tick uint32, msg *protocol.CCitadelUserMsg_AbilitiesChanged) {

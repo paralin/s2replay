@@ -6,9 +6,12 @@ downstream analysis.
 
 ## Status
 
-Early development. The parser is being built up in measurable slices: demo
-container and clock, network/Citadel message dispatch, the entity framework,
-and the active-modifier table.
+The Deadlock parser is usable end to end. It decodes PBDEMS2 containers,
+dispatches generated Source 2 and Citadel messages, tracks entity and modifier
+state, emits attributed JSONL events, and derives replay-local analysis data.
+The public event stream remains at schema version 1. The separate analysis
+output is at schema version 2 and may evolve as more replay evidence becomes
+available.
 
 ## What it emits
 
@@ -31,6 +34,7 @@ behavior profiles.
 s2replay version
 s2replay parse <demo.dem>
 s2replay emit --format jsonl <demo.dem>
+s2replay analyze --format json [--combat-gap seconds] [--combat-events damage,modifier] <demo.dem>
 ```
 
 `parse` opens a PBDEMS2 demo, walks its outer command stream, and prints the
@@ -56,6 +60,39 @@ Type-specific payloads live under a key matching the event type:
 - `purchase`: `player_slot`, `user_id`, `ability_id`, `change`, `sell`,
   `quickbuy`, and `source`.
 - `entity_sample`: hero health, shield, and position sample fields.
+
+## Analysis primitives
+
+The Go package `github.com/paralin/s2replay/analysis` derives replay-local
+timelines from the typed event stream:
+
+- `analysis.Build(events)` returns inventory ownership intervals, entity health
+  samples, modifier lifecycle intervals, and quality counters.
+- `analysis.BuildCombatWindows(events, options)` groups caller-selected events
+  with caller-owned timing policy.
+
+These primitives use only replay events. They do not fetch Deadlock API data,
+read static item catalogs, score item behavior, or assign item-profile policy.
+Modifier source ids remain raw replay source identity; they are not promoted to
+parser-owned item ids without fixture-backed proof. Entity samples in analysis
+output include item context derived from parser-owned inventory state without
+changing the default `emit --format jsonl` event stream.
+
+`analyze --format json` is the process boundary for non-Go consumers. It emits a
+separate analysis schema:
+
+- `schema_version`: analysis schema version. Current value: `2`.
+- `analysis`: the Go analysis result.
+- `combat_windows`: present only when `--combat-gap` is non-negative.
+
+Combat windows have no parser default fight policy. Callers must pass
+`--combat-gap` and may restrict selected events with `--combat-events`.
+Each combat window reports the selected event count, per-type counts, first and
+last selected event indexes, player slots observed in the window, primary
+entity ids, damage attacker/victim ids, and modifier parent ids. Player slots
+include damage victims when an earlier entity sample established the victim
+entity's slot. The default `emit --format jsonl` event stream is unchanged by
+analysis output.
 
 ## Protocol generation
 

@@ -7,8 +7,10 @@ import (
 
 var fieldPathTree = newFieldPathTree()
 
+const fieldPathMaxDepth = 64
+
 type fieldPath struct {
-	path [7]int
+	path [fieldPathMaxDepth]int
 	last int
 	done bool
 }
@@ -198,7 +200,10 @@ var fieldPathOps = []fieldPathOp{
 		return fp.nonTopo(r, 0)
 	}},
 	{76, func(r *packetReader, fp *fieldPath) error { return fp.nonTopo(r, 0) }},
-	{271, func(_ *packetReader, fp *fieldPath) error { fp.path[fp.last-1]++; return nil }},
+	{271, func(_ *packetReader, fp *fieldPath) error {
+		fp.incrementPenultimate()
+		return nil
+	}},
 	{99, func(r *packetReader, fp *fieldPath) error { return fp.nonTopo(r, 4) }},
 	{25474, func(_ *packetReader, fp *fieldPath) error { fp.done = true; return nil }},
 }
@@ -221,10 +226,21 @@ func (fp fieldPath) String() string {
 }
 
 func (fp *fieldPath) pop(n int) {
+	if n > fp.last {
+		n = fp.last
+	}
 	for range n {
 		fp.path[fp.last] = 0
 		fp.last--
 	}
+}
+
+func (fp *fieldPath) incrementPenultimate() {
+	if fp.last == 0 {
+		fp.path[0]++
+		return
+	}
+	fp.path[fp.last-1]++
 }
 
 func (fp *fieldPath) pushRead(r *packetReader, count int, inc bool, delta int, prev ...error) error {
@@ -289,10 +305,16 @@ func (fp *fieldPath) nonTopo(r *packetReader, bits uint8) error {
 	return nil
 }
 
-func readFieldPaths(r *packetReader) ([]fieldPath, error) {
-	fp := fieldPath{path: [7]int{-1, 0, 0, 0, 0, 0, 0}}
+func readFieldPaths(r *packetReader) (paths []fieldPath, err error) {
+	defer func() {
+		if recover() != nil {
+			paths = nil
+			err = errUnknownFieldPath
+		}
+	}()
+	fp := fieldPath{path: [fieldPathMaxDepth]int{-1}}
 	node := fieldPathTree
-	paths := make([]fieldPath, 0, 8)
+	paths = make([]fieldPath, 0, 8)
 	for !fp.done {
 		bit, err := r.readBits(1)
 		if err != nil {
