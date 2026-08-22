@@ -96,6 +96,58 @@ func TestAnalyzeOutputGolden(t *testing.T) {
 	}
 }
 
+func TestAnalyzeOutputPreservesHeroIdentity(t *testing.T) {
+	out, err := analysisOutputFromEvents([]s2replay.Event{{
+		Type:       s2replay.EventEntitySample,
+		Tick:       2,
+		GameTime:   2,
+		Entity:     100,
+		PlayerSlot: 2,
+		EntitySample: &s2replay.EntitySample{
+			ClassName: "CCitadelPlayerPawn",
+			HeroID:    42,
+			Team:      2,
+			HasHeroID: true,
+			HasTeam:   true,
+		},
+	}}, -1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Analysis struct {
+			Entities struct {
+				Players map[string][]struct {
+					HeroID    uint32 `json:"hero_id"`
+					Team      int32  `json:"team"`
+					HasHeroID bool   `json:"has_hero_id"`
+					HasTeam   bool   `json:"has_team"`
+				} `json:"players"`
+			} `json:"entities"`
+		} `json:"analysis"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	sample := decoded.Analysis.Entities.Players["2"]
+	if len(sample) != 1 {
+		t.Fatalf("analyze player samples: want 1, got %d", len(sample))
+	}
+	got := sample[0]
+	if got.HeroID != 42 || got.Team != 2 || !got.HasHeroID || !got.HasTeam {
+		t.Fatalf("analyze hero identity: %+v", got)
+	}
+	identity, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("analyze entity sample: %s", identity)
+}
+
 func TestAnalyzeRejectsUnknownCombatEvent(t *testing.T) {
 	if _, err := analysisOutputFromEvents(nil, 8, "damage,bogus"); err == nil {
 		t.Fatal("unknown combat event type should fail")

@@ -23,9 +23,13 @@ type EntitySample struct {
 	PositionX   float32  `json:"position_x"`
 	PositionY   float32  `json:"position_y"`
 	PositionZ   float32  `json:"position_z"`
+	HeroID      uint32   `json:"hero_id,omitempty"`
+	Team        int32    `json:"team,omitempty"`
 	HasHealth   bool     `json:"has_health"`
 	HasShield   bool     `json:"has_shield"`
 	HasPosition bool     `json:"has_position"`
+	HasHeroID   bool     `json:"has_hero_id"`
+	HasTeam     bool     `json:"has_team"`
 	OwnedItems  []uint32 `json:"owned_items"`
 }
 
@@ -54,9 +58,13 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		PositionX:   ev.EntitySample.PositionX,
 		PositionY:   ev.EntitySample.PositionY,
 		PositionZ:   ev.EntitySample.PositionZ,
+		HeroID:      ev.EntitySample.HeroID,
+		Team:        ev.EntitySample.Team,
 		HasHealth:   ev.EntitySample.HasHealth,
 		HasShield:   ev.EntitySample.HasShield,
 		HasPosition: ev.EntitySample.HasPosition,
+		HasHeroID:   ev.EntitySample.HasHeroID,
+		HasTeam:     ev.EntitySample.HasTeam,
 		OwnedItems:  ownedItems,
 	}
 	if ev.PlayerSlot >= 0 {

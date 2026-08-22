@@ -36,6 +36,8 @@
             "has_health": true,
             "has_shield": false,
             "has_position": true,
+            "has_hero_id": false,
+            "has_team": false,
             "owned_items": [
               10
             ]
@@ -61,6 +63,8 @@
             "has_health": true,
             "has_shield": false,
             "has_position": true,
+            "has_hero_id": false,
+            "has_team": false,
             "owned_items": [
               10
             ]
