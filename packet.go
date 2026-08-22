@@ -6,6 +6,13 @@ import (
 	"github.com/paralin/s2replay/protocol"
 )
 
+// skippedMessageKey counts packet or user messages the parser skipped.
+type skippedMessageKey struct {
+	userMsg   bool
+	kind      int32
+	decodeErr bool
+}
+
 // NextMessage returns the next decoded packet or user message. It unwraps
 // DEM_Packet, DEM_SignonPacket, and DEM_FullPacket command payloads, routes
 // inner ids through generated dispatch, and updates the clock from ServerInfo.
@@ -72,20 +79,25 @@ func (p *Parser) queuePacketMessages(tick uint32, payload []byte) error {
 			return err
 		}
 
+		if int32(kind) == kind145 {
+			p.applyKind145(tick, buf)
+			continue
+		}
 		decoded, ok, err := decodePacketMessage(int32(kind), buf)
 		if err != nil || !ok {
-			if int32(kind) == kind145 {
-				p.applyKind145(tick, buf)
-				continue
-			}
-			return err
+			// Unknown or undecodable messages must not abort the packet:
+			// later messages in the same payload are independent and often
+			// carry the events downstream analysis needs.
+			p.skippedMessages[skippedMessageKey{kind: int32(kind), decodeErr: err != nil}]++
+			continue
 		}
 		p.appendMessage(tick, decoded)
 
 		if user, ok := decoded.msg.(*protocol.CSVCMsg_UserMessage); ok {
 			userDecoded, ok, err := decodeUserMessage(user.GetMsgType(), user.GetMsgData())
 			if err != nil || !ok {
-				return err
+				p.skippedMessages[skippedMessageKey{userMsg: true, kind: int32(user.GetMsgType()), decodeErr: err != nil}]++
+				continue
 			}
 			p.appendMessage(tick, userDecoded)
 		}

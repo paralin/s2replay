@@ -54,6 +54,7 @@ type Parser struct {
 	entityPlayerSlots  map[int32]int32
 	stringTables       *stringTables
 	entityStateErrors  map[string]int
+	skippedMessages    map[skippedMessageKey]int
 	firstEntityError   string
 	seenFullPacket     bool
 	applyingFullPacket bool
@@ -82,6 +83,7 @@ func NewParser(demo []byte) (*Parser, error) {
 		entityPlayerSlots: make(map[int32]int32),
 		stringTables:      newStringTables(),
 		entityStateErrors: make(map[string]int),
+		skippedMessages:   make(map[skippedMessageKey]int),
 	}, nil
 }
 
