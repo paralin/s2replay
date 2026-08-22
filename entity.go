@@ -36,9 +36,47 @@ type EntitySample struct {
 	PositionX   float32 `json:"position_x"`
 	PositionY   float32 `json:"position_y"`
 	PositionZ   float32 `json:"position_z"`
+	HeroID      uint32  `json:"hero_id,omitempty"`
+	Team        int32   `json:"team,omitempty"`
 	HasHealth   bool    `json:"has_health"`
 	HasShield   bool    `json:"has_shield"`
 	HasPosition bool    `json:"has_position"`
+	HasHeroID   bool    `json:"has_hero_id"`
+	HasTeam     bool    `json:"has_team"`
+}
+
+// ControllerSample is one periodic snapshot of a player controller entity:
+// the live scoreboard the game itself maintains.
+type ControllerSample struct {
+	Tick               uint32  `json:"tick"`
+	GameTime           float64 `json:"game_time"`
+	Entity             int32   `json:"entity"`
+	ClassID            int32   `json:"class_id"`
+	ClassName          string  `json:"class_name"`
+	SteamID            uint64  `json:"steam_id"`
+	PlayerName         string  `json:"player_name"`
+	NetWorth           int32   `json:"net_worth"`
+	HeroDamage         int32   `json:"hero_damage"`
+	HeroHealing        int32   `json:"hero_healing"`
+	CreepGold          int32   `json:"creep_gold"`
+	CreepGoldKill      int32   `json:"creep_gold_kill"`
+	CreepGoldNeutral   int32   `json:"creep_gold_neutral"`
+	CreepGoldAirOrb    int32   `json:"creep_gold_air_orb"`
+	CreepGoldGroundOrb int32   `json:"creep_gold_ground_orb"`
+	CreepGoldDeny      int32   `json:"creep_gold_deny"`
+	CreepGoldSoloBonus int32   `json:"creep_gold_solo_bonus"`
+}
+
+// ObjectiveEvent is one map-objective lifecycle observation: mid boss spawn,
+// boss damage, boss kill, or rejuvenator pickup.
+type ObjectiveEvent struct {
+	Kind            string  `json:"kind"`
+	ObjectiveTeam   int32   `json:"objective_team"`
+	ObjectiveID     int32   `json:"objective_id"`
+	KillingTeam     int32   `json:"killing_team"`
+	EntityType      int32   `json:"entity_type"`
+	BossesRemaining int32   `json:"bosses_remaining"`
+	GameTimeF       float32 `json:"game_time_f"`
 }
 
 func newEntity(index, serial int32, class *entityClass) *Entity {
@@ -100,6 +138,37 @@ func (e *Entity) Float32(name string) (float32, bool) {
 	return 0, false
 }
 
+// String returns the current field value as a string when present.
+func (e *Entity) String(name string) (string, bool) {
+	v, ok := e.Get(name).(string)
+	return v, ok
+}
+
+// UInt32 returns the current field value as a uint32 when it fits.
+func (e *Entity) UInt32(name string) (uint32, bool) {
+	switch v := e.Get(name).(type) {
+	case uint32:
+		return v, true
+	case int32:
+		if v >= 0 {
+			return uint32(v), true
+		}
+	case uint64:
+		if v <= uint64(^uint32(0)) {
+			return uint32(v), true
+		}
+	case int64:
+		if v >= 0 && v <= int64(^uint32(0)) {
+			return uint32(v), true
+		}
+	case float32:
+		if v >= 0 && v <= float32(^uint32(0)) {
+			return uint32(v), true
+		}
+	}
+	return 0, false
+}
+
 // Int32 returns the current field value as an int32 when it can be represented
 // without changing sign.
 func (e *Entity) Int32(name string) (int32, bool) {
@@ -147,6 +216,11 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		"m_flMaxShield",
 		"m_CCitadelHealthComponent.m_iMaxShield",
 	)
+	s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_spawnedHero.m_nHeroID")
+	if !s.HasHeroID {
+		s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_loadingHero.m_nHeroID")
+	}
+	s.Team, s.HasTeam = e.Int32("m_iTeamNum")
 	// Modern flattened serializers nest body origin under the skeleton
 	// instance; older replays expose it directly on CBodyComponent.
 	bodyOrigin := []string{
@@ -385,11 +459,77 @@ func (e packetEntityError) Unwrap() error {
 	return e.err
 }
 
+func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
+	// One sample per controller per second of game time keeps the stream
+	// bounded while still resolving economy curves.
+	if t, ok := p.lastControllerSample[e.index]; ok && tick-t < 64 {
+		return
+	}
+	p.lastControllerSample[e.index] = tick
+	cs := &ControllerSample{
+		Tick:      normalizedTick(tick),
+		GameTime:  p.clock.GameTime(),
+		Entity:    e.index,
+		ClassID:   e.class.id,
+		ClassName: e.class.name,
+	}
+	if v, ok := e.Get("m_steamID").(uint64); ok {
+		cs.SteamID = v
+	}
+	cs.PlayerName, _ = e.String("m_iszPlayerName")
+	intFields := []struct {
+		name string
+		dst  *int32
+	}{
+		{"m_PlayerDataGlobal.m_iGoldNetWorth", &cs.NetWorth},
+		{"m_PlayerDataGlobal.m_iHeroDamage", &cs.HeroDamage},
+		{"m_PlayerDataGlobal.m_iHeroHealing", &cs.HeroHealing},
+		{"m_PlayerDataGlobal.m_iCreepGold", &cs.CreepGold},
+		{"m_PlayerDataGlobal.m_iCreepGoldKill", &cs.CreepGoldKill},
+		{"m_PlayerDataGlobal.m_iCreepGoldNeutral", &cs.CreepGoldNeutral},
+		{"m_PlayerDataGlobal.m_iCreepGoldAirOrb", &cs.CreepGoldAirOrb},
+		{"m_PlayerDataGlobal.m_iCreepGoldGroundOrb", &cs.CreepGoldGroundOrb},
+		{"m_PlayerDataGlobal.m_iCreepGoldDeny", &cs.CreepGoldDeny},
+		{"m_PlayerDataGlobal.m_iCreepGoldSoloBonus", &cs.CreepGoldSoloBonus},
+	}
+	for _, f := range intFields {
+		v, ok := e.Int32(f.name)
+		if ok {
+			*f.dst = v
+		}
+	}
+	slot, ok := e.Int32("m_unLobbyPlayerSlot")
+	if !ok {
+		slot = -1
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:             EventControllerSample,
+		Tick:             cs.Tick,
+		GameTime:         cs.GameTime,
+		Entity:           e.index,
+		PlayerSlot:       slot,
+		ControllerSample: cs,
+	})
+}
+
+func isPlayerControllerClass(name string) bool {
+	for i := 0; i+len("CitadelPlayerController") <= len(name); i++ {
+		if name[i:i+len("CitadelPlayerController")] == "CitadelPlayerController" {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	if e == nil || e.class == nil || !e.active {
 		return
 	}
 	p.updateEntityPlayerSlot(e)
+	if isPlayerControllerClass(e.class.name) {
+		p.appendControllerSample(tick, e)
+		return
+	}
 	if !isLikelyHeroClass(e.class.name) {
 		return
 	}

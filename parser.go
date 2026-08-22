@@ -43,25 +43,26 @@ type Parser struct {
 	pendingEvents    []Event
 	stopped          bool
 
-	classIDBits        uint8
-	classesByID        map[int32]*entityClass
-	classesByName      map[string]*entityClass
-	classBaselines     map[int32][]byte
-	serializers        map[string]*serializer
-	entities           map[int32]*Entity
-	modifiers          map[int32]modifierState
-	playerItems        map[int32]map[uint32]struct{}
-	entityPlayerSlots  map[int32]int32
-	stringTables       *stringTables
-	entityStateErrors  map[string]int
-	skippedMessages    map[skippedMessageKey]int
-	firstEntityError   string
-	seenFullPacket     bool
-	applyingFullPacket bool
-	entityCreates      int
-	entityUpdates      int
-	entityDeletes      int
-	entityLeaves       int
+	classIDBits          uint8
+	classesByID          map[int32]*entityClass
+	classesByName        map[string]*entityClass
+	classBaselines       map[int32][]byte
+	serializers          map[string]*serializer
+	entities             map[int32]*Entity
+	modifiers            map[int32]modifierState
+	playerItems          map[int32]map[uint32]struct{}
+	entityPlayerSlots    map[int32]int32
+	stringTables         *stringTables
+	entityStateErrors    map[string]int
+	skippedMessages      map[skippedMessageKey]int
+	lastControllerSample map[int32]uint32
+	firstEntityError     string
+	seenFullPacket       bool
+	applyingFullPacket   bool
+	entityCreates        int
+	entityUpdates        int
+	entityDeletes        int
+	entityLeaves         int
 }
 
 // NewParser validates the PBDEMS2 header and returns a Parser positioned at the
@@ -71,19 +72,20 @@ func NewParser(demo []byte) (*Parser, error) {
 		return nil, errBadMagic
 	}
 	return &Parser{
-		r:                 reader{buf: demo[demoHeaderSize:]},
-		clock:             newClock(),
-		classesByID:       make(map[int32]*entityClass),
-		classesByName:     make(map[string]*entityClass),
-		classBaselines:    make(map[int32][]byte),
-		serializers:       make(map[string]*serializer),
-		entities:          make(map[int32]*Entity),
-		modifiers:         make(map[int32]modifierState),
-		playerItems:       make(map[int32]map[uint32]struct{}),
-		entityPlayerSlots: make(map[int32]int32),
-		stringTables:      newStringTables(),
-		entityStateErrors: make(map[string]int),
-		skippedMessages:   make(map[skippedMessageKey]int),
+		r:                    reader{buf: demo[demoHeaderSize:]},
+		clock:                newClock(),
+		classesByID:          make(map[int32]*entityClass),
+		classesByName:        make(map[string]*entityClass),
+		classBaselines:       make(map[int32][]byte),
+		serializers:          make(map[string]*serializer),
+		entities:             make(map[int32]*Entity),
+		modifiers:            make(map[int32]modifierState),
+		playerItems:          make(map[int32]map[uint32]struct{}),
+		entityPlayerSlots:    make(map[int32]int32),
+		stringTables:         newStringTables(),
+		entityStateErrors:    make(map[string]int),
+		skippedMessages:      make(map[skippedMessageKey]int),
+		lastControllerSample: make(map[int32]uint32),
 	}, nil
 }
 

@@ -165,8 +165,55 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 		p.appendDamageSummaryEvent(tick, m)
 	case *protocol.CCitadelUserMsg_PostMatchDetails:
 		p.appendPostMatchEvent(tick, m)
+	case *protocol.CCitadelUserMsg_KillStreak:
+		p.appendKillStreakEvent(tick, m)
+	case *protocol.CCitadelUserMsg_BossKilled:
+		p.appendObjectiveEvent(tick, "boss_killed", int32(m.GetObjectiveTeam()), int32(m.GetObjectiveMaskChange()), int32(m.GetEntityKilledClass()), int32(m.GetBossesRemaining()), m.GetGametime())
+	case *protocol.CCitadelUserMsg_BossDamaged:
+		p.appendObjectiveEvent(tick, "boss_damaged", int32(m.GetObjectiveTeam()), int32(m.GetObjectiveId()), -1, -1, 0)
+	case *protocol.CCitadelUserMsg_MidBossSpawned:
+		p.appendObjectiveEvent(tick, "mid_boss_spawned", -1, -1, -1, -1, 0)
+	case *protocol.CCitadelUserMsg_RejuvStatus:
+		p.appendObjectiveEvent(tick, "rejuv_status", int32(m.GetKillingTeam()), int32(m.GetEventType()), int32(m.GetUserTeam()), -1, 0)
 	}
 	return nil
+}
+
+func (p *Parser) appendKillStreakEvent(tick uint32, msg *protocol.CCitadelUserMsg_KillStreak) {
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventKillStreak,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     int32(msg.GetPlayerPawn() & uint32(entityHandleMask)),
+		PlayerSlot: p.entityPlayerSlots[int32(msg.GetPlayerPawn()&uint32(entityHandleMask))],
+		KillStreak: &KillStreakEvent{
+			Tick:         normalizedTick(tick),
+			GameTime:     p.clock.GameTime(),
+			PlayerPawn:   msg.GetPlayerPawn(),
+			NumKills:     msg.GetNumKills(),
+			IsFirstBlood: msg.GetIsFirstBlood(),
+			StreakEnded:  msg.GetStreakEnded(),
+			Duration:     msg.GetDuration(),
+		},
+	})
+}
+
+func (p *Parser) appendObjectiveEvent(tick uint32, kind string, a, b, c, d int32, gameTimeF float32) {
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventObjective,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     -1,
+		PlayerSlot: -1,
+		Objective: &ObjectiveEvent{
+			Kind:            kind,
+			ObjectiveTeam:   a,
+			ObjectiveID:     b,
+			EntityType:      c,
+			BossesRemaining: d,
+			GameTimeF:       gameTimeF,
+		},
+	})
 }
 
 func (p *Parser) appendPostMatchEvent(tick uint32, msg *protocol.CCitadelUserMsg_PostMatchDetails) {
@@ -255,6 +302,23 @@ func (p *Parser) appendPostMatchEvent(tick uint32, msg *protocol.CCitadelUserMsg
 			})
 		}
 		ev.PostMatch.Players = append(ev.PostMatch.Players, out)
+	}
+	for _, ob := range info.GetObjectives() {
+		if ob == nil {
+			continue
+		}
+		ev.PostMatch.Objectives = append(ev.PostMatch.Objectives, PostMatchObjective{
+			LegacyObjectiveID:     int32(ob.GetLegacyObjectiveId()),
+			TeamObjectiveID:       int32(ob.GetTeamObjectiveId()),
+			Team:                  int32(ob.GetTeam()),
+			DestroyedTimeS:        ob.GetDestroyedTimeS(),
+			FirstDamageTimeS:      ob.GetFirstDamageTimeS(),
+			CreepDamage:           ob.GetCreepDamage(),
+			CreepDamageMitigated:  ob.GetCreepDamageMitigated(),
+			PlayerDamage:          ob.GetPlayerDamage(),
+			PlayerDamageMitigated: ob.GetPlayerDamageMitigated(),
+			PlayerSpiritDamage:    ob.GetPlayerSpiritDamage(),
+		})
 	}
 	p.pendingEvents = append(p.pendingEvents, ev)
 }

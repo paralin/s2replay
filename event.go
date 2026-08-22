@@ -27,6 +27,13 @@ const (
 	EventDamageSummary EventType = "damage_summary"
 	// EventPostMatch identifies the engine-compiled post-match summary.
 	EventPostMatch EventType = "post_match"
+	// EventControllerSample identifies a player controller scoreboard sample.
+	EventControllerSample EventType = "controller_sample"
+	// EventKillStreak identifies a kill streak update from the user message
+	// stream.
+	EventKillStreak EventType = "kill_streak"
+	// EventObjective identifies a map objective lifecycle observation.
+	EventObjective EventType = "objective_event"
 )
 
 // PurchaseEvent is an item/ability ownership transition observed in the user
@@ -46,19 +53,22 @@ type PurchaseEvent struct {
 // Event is the unified typed stream used by downstream Deadlock analysis.
 // OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
-	SchemaVersion int                 `json:"schema_version"`
-	Type          EventType           `json:"type"`
-	Tick          uint32              `json:"tick"`
-	GameTime      float64             `json:"game_time"`
-	Entity        int32               `json:"entity"`
-	PlayerSlot    int32               `json:"player_slot"`
-	OwnedItems    []uint32            `json:"owned_items,omitempty"`
-	Damage        *DamageEvent        `json:"damage,omitempty"`
-	Modifier      *ModifierEvent      `json:"modifier,omitempty"`
-	Purchase      *PurchaseEvent      `json:"purchase,omitempty"`
-	EntitySample  *EntitySample       `json:"entity_sample,omitempty"`
-	DamageSummary *DamageSummaryEvent `json:"damage_summary,omitempty"`
-	PostMatch     *PostMatchEvent     `json:"post_match,omitempty"`
+	SchemaVersion    int                 `json:"schema_version"`
+	Type             EventType           `json:"type"`
+	Tick             uint32              `json:"tick"`
+	GameTime         float64             `json:"game_time"`
+	Entity           int32               `json:"entity"`
+	PlayerSlot       int32               `json:"player_slot"`
+	OwnedItems       []uint32            `json:"owned_items,omitempty"`
+	Damage           *DamageEvent        `json:"damage,omitempty"`
+	Modifier         *ModifierEvent      `json:"modifier,omitempty"`
+	Purchase         *PurchaseEvent      `json:"purchase,omitempty"`
+	EntitySample     *EntitySample       `json:"entity_sample,omitempty"`
+	DamageSummary    *DamageSummaryEvent `json:"damage_summary,omitempty"`
+	PostMatch        *PostMatchEvent     `json:"post_match,omitempty"`
+	ControllerSample *ControllerSample   `json:"controller_sample,omitempty"`
+	KillStreak       *KillStreakEvent    `json:"kill_streak,omitempty"`
+	Objective        *ObjectiveEvent     `json:"objective_event,omitempty"`
 }
 
 // DamageSummaryRecord is one engine-attributed damage entry in a
@@ -86,6 +96,32 @@ type DamageSummaryModifierRecord struct {
 	StartTime      float32 `json:"start_time"`
 	EndTime        float32 `json:"end_time"`
 	Debuff         bool    `json:"debuff"`
+}
+
+// KillStreakEvent is one kill streak update: a player pawn reached num_kills
+// consecutive kills. First blood and streak ends are flagged.
+type KillStreakEvent struct {
+	Tick         uint32  `json:"tick"`
+	GameTime     float64 `json:"game_time"`
+	PlayerPawn   uint32  `json:"player_pawn"`
+	NumKills     int32   `json:"num_kills"`
+	IsFirstBlood bool    `json:"is_first_blood"`
+	StreakEnded  bool    `json:"streak_ended"`
+	Duration     float32 `json:"duration"`
+}
+
+// PostMatchObjective is one map objective in the post-match record.
+type PostMatchObjective struct {
+	LegacyObjectiveID     int32  `json:"legacy_objective_id"`
+	TeamObjectiveID       int32  `json:"team_objective_id"`
+	Team                  int32  `json:"team"`
+	DestroyedTimeS        uint32 `json:"destroyed_time_s"`
+	FirstDamageTimeS      uint32 `json:"first_damage_time_s"`
+	CreepDamage           uint32 `json:"creep_damage"`
+	CreepDamageMitigated  uint32 `json:"creep_damage_mitigated"`
+	PlayerDamage          uint32 `json:"player_damage"`
+	PlayerDamageMitigated uint32 `json:"player_damage_mitigated"`
+	PlayerSpiritDamage    uint32 `json:"player_spirit_damage"`
 }
 
 // PostMatchPlayerItem is one item or ability purchase in the post-match
@@ -146,13 +182,14 @@ type PostMatchPlayer struct {
 // demo. It is the authoritative record for final builds, buy and sell times,
 // and scoreboard totals.
 type PostMatchEvent struct {
-	MatchID      uint64            `json:"match_id"`
-	DurationS    uint32            `json:"duration_s"`
-	MatchOutcome int32             `json:"match_outcome"`
-	WinningTeam  int32             `json:"winning_team"`
-	GameMode     int32             `json:"game_mode"`
-	MatchMode    int32             `json:"match_mode"`
-	Players      []PostMatchPlayer `json:"players"`
+	MatchID      uint64               `json:"match_id"`
+	DurationS    uint32               `json:"duration_s"`
+	MatchOutcome int32                `json:"match_outcome"`
+	WinningTeam  int32                `json:"winning_team"`
+	GameMode     int32                `json:"game_mode"`
+	MatchMode    int32                `json:"match_mode"`
+	Players      []PostMatchPlayer    `json:"players"`
+	Objectives   []PostMatchObjective `json:"objectives"`
 }
 
 // DamageSummaryEvent is the engine-compiled recent-damage summary the game
