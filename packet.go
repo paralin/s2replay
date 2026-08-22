@@ -149,8 +149,61 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 		p.applyItemPurchaseNotification(tick, m)
 	case *protocol.CCitadelUserMessage_Damage:
 		p.appendDamageEvent(tick, m)
+	case *protocol.CCitadelUserMsg_RecentDamageSummary:
+		p.appendDamageSummaryEvent(tick, m)
 	}
 	return nil
+}
+
+func (p *Parser) appendDamageSummaryEvent(tick uint32, msg *protocol.CCitadelUserMsg_RecentDamageSummary) {
+	ev := Event{
+		Type:       EventDamageSummary,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     -1,
+		PlayerSlot: msg.GetPlayerSlot(),
+		DamageSummary: &DamageSummaryEvent{
+			Tick:        normalizedTick(tick),
+			GameTime:    p.clock.GameTime(),
+			PlayerSlot:  msg.GetPlayerSlot(),
+			TotalDamage: msg.GetTotalDamage(),
+			LostGold:    msg.GetLostGold(),
+			StartTime:   msg.GetStartTime(),
+			EndTime:     msg.GetEndTime(),
+		},
+	}
+	for _, rec := range msg.GetDamageRecords() {
+		if rec == nil {
+			continue
+		}
+		ev.DamageSummary.DamageRecords = append(ev.DamageSummary.DamageRecords, DamageSummaryRecord{
+			Damage:         rec.GetDamage(),
+			Hits:           rec.GetHits(),
+			DamageType:     rec.GetDamageType(),
+			HeroID:         rec.GetHeroId(),
+			AbilityID:      rec.GetAbilityId(),
+			AttackerClass:  rec.GetAttackerClass(),
+			DamageAbsorbed: rec.GetDamageAbsorbed(),
+			IsKillingBlow:  rec.GetIsKillingBlow(),
+			VictimHeroID:   rec.GetVictimHeroId(),
+			PreDamage:      rec.GetPreDamage(),
+			CritDamage:     rec.GetCritDamage(),
+		})
+	}
+	for _, rec := range msg.GetModifierRecords() {
+		if rec == nil {
+			continue
+		}
+		ev.DamageSummary.ModifierRecords = append(ev.DamageSummary.ModifierRecords, DamageSummaryModifierRecord{
+			AbilityID:      rec.GetAbilityId(),
+			ModifierTypeID: rec.GetModifierTypeId(),
+			EntindexCaster: rec.GetEntindexCaster(),
+			StartTime:      rec.GetStartTime(),
+			EndTime:        rec.GetEndTime(),
+			Debuff:         rec.GetDebuff(),
+		})
+	}
+	p.pendingEvents = append(p.pendingEvents, ev)
 }
 
 // NextDamage returns the next decoded Deadlock damage event.

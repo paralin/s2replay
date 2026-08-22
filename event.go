@@ -23,6 +23,8 @@ const (
 	EventPurchase EventType = "purchase"
 	// EventEntitySample identifies a sampled entity state.
 	EventEntitySample EventType = "entity_sample"
+	// EventDamageSummary identifies an engine-compiled recent-damage summary.
+	EventDamageSummary EventType = "damage_summary"
 )
 
 // PurchaseEvent is an item/ability ownership transition observed in the user
@@ -42,17 +44,59 @@ type PurchaseEvent struct {
 // Event is the unified typed stream used by downstream Deadlock analysis.
 // OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
-	SchemaVersion int            `json:"schema_version"`
-	Type          EventType      `json:"type"`
-	Tick          uint32         `json:"tick"`
-	GameTime      float64        `json:"game_time"`
-	Entity        int32          `json:"entity"`
-	PlayerSlot    int32          `json:"player_slot"`
-	OwnedItems    []uint32       `json:"owned_items,omitempty"`
-	Damage        *DamageEvent   `json:"damage,omitempty"`
-	Modifier      *ModifierEvent `json:"modifier,omitempty"`
-	Purchase      *PurchaseEvent `json:"purchase,omitempty"`
-	EntitySample  *EntitySample  `json:"entity_sample,omitempty"`
+	SchemaVersion int                 `json:"schema_version"`
+	Type          EventType           `json:"type"`
+	Tick          uint32              `json:"tick"`
+	GameTime      float64             `json:"game_time"`
+	Entity        int32               `json:"entity"`
+	PlayerSlot    int32               `json:"player_slot"`
+	OwnedItems    []uint32            `json:"owned_items,omitempty"`
+	Damage        *DamageEvent        `json:"damage,omitempty"`
+	Modifier      *ModifierEvent      `json:"modifier,omitempty"`
+	Purchase      *PurchaseEvent      `json:"purchase,omitempty"`
+	EntitySample  *EntitySample       `json:"entity_sample,omitempty"`
+	DamageSummary *DamageSummaryEvent `json:"damage_summary,omitempty"`
+}
+
+// DamageSummaryRecord is one engine-attributed damage entry in a
+// RecentDamageSummary user message.
+type DamageSummaryRecord struct {
+	Damage         int32   `json:"damage"`
+	Hits           int32   `json:"hits"`
+	DamageType     uint32  `json:"damage_type"`
+	HeroID         uint32  `json:"hero_id"`
+	AbilityID      uint32  `json:"ability_id"`
+	AttackerClass  uint32  `json:"attacker_class"`
+	DamageAbsorbed float32 `json:"damage_absorbed"`
+	IsKillingBlow  bool    `json:"is_killing_blow"`
+	VictimHeroID   uint32  `json:"victim_hero_id"`
+	PreDamage      float32 `json:"pre_damage"`
+	CritDamage     float32 `json:"crit_damage"`
+}
+
+// DamageSummaryModifierRecord is one engine-attributed modifier entry in a
+// RecentDamageSummary user message.
+type DamageSummaryModifierRecord struct {
+	AbilityID      uint32  `json:"ability_id"`
+	ModifierTypeID uint32  `json:"modifier_type_id"`
+	EntindexCaster int32   `json:"entindex_caster"`
+	StartTime      float32 `json:"start_time"`
+	EndTime        float32 `json:"end_time"`
+	Debuff         bool    `json:"debuff"`
+}
+
+// DamageSummaryEvent is the engine-compiled recent-damage summary the game
+// itself uses for death recap and scoreboard attribution.
+type DamageSummaryEvent struct {
+	Tick            uint32                        `json:"tick"`
+	GameTime        float64                       `json:"game_time"`
+	PlayerSlot      int32                         `json:"player_slot"`
+	TotalDamage     int32                         `json:"total_damage"`
+	LostGold        int32                         `json:"lost_gold"`
+	StartTime       float32                       `json:"start_time"`
+	EndTime         float32                       `json:"end_time"`
+	DamageRecords   []DamageSummaryRecord         `json:"damage_records"`
+	ModifierRecords []DamageSummaryModifierRecord `json:"modifier_records"`
 }
 
 // NextEvent returns the next unified typed event produced while walking the
