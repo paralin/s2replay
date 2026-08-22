@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strconv"
 
 	snappy "github.com/klauspost/compress/snappy"
 	"github.com/paralin/s2replay"
@@ -149,14 +150,17 @@ func fixed32s(b []byte) []float32 {
 }
 
 type trackRec struct {
-	Tick             uint32  `json:"tick"`
-	Eid              uint64  `json:"eid"`
-	X                float32 `json:"x"`
-	Y                float32 `json:"y"`
-	Z                float32 `json:"z"`
-	Pitch            float32 `json:"pitch,omitempty"`
-	Yaw              float32 `json:"yaw,omitempty"`
-	Roll             float32 `json:"roll,omitempty"`
+	Tick       uint32  `json:"tick"`
+	Eid        uint64  `json:"eid"`
+	Subtype    uint64  `json:"subtype"`
+	Steamid    uint64  `json:"steamid,omitempty"`
+	UpdateType uint64  `json:"update_type,omitempty"`
+	X          float32 `json:"x"`
+	Y          float32 `json:"y"`
+	Z          float32 `json:"z"`
+	Pitch      float32 `json:"pitch,omitempty"`
+	Yaw        float32 `json:"yaw,omitempty"`
+	Roll       float32 `json:"roll,omitempty"`
 }
 
 func (r *bitReader) readUBitVar() (uint32, error) {
@@ -195,6 +199,10 @@ func main() {
 	enc := json.NewEncoder(w)
 
 	count := 0
+	subCounts := map[uint64]int{}
+	targetEid, _ := strconv.ParseUint(os.Getenv("K145_EID"), 10, 64)
+	loTick, _ := strconv.ParseUint(os.Getenv("K145_LO"), 10, 64)
+	hiTick, _ := strconv.ParseUint(os.Getenv("K145_HI"), 10, 64)
 	for {
 		cmd, err := p.Next()
 		if err != nil {
@@ -253,13 +261,68 @@ func main() {
 			if kind != 145 {
 				continue
 			}
+			if os.Getenv("K145_RAW") != "" {
+				outerRaw, err := walkPB(buf)
+				if err == nil {
+					sub, _ := fnum(outerRaw, 1)
+					eidF, _ := fnum(outerRaw, 2)
+					if sub.varint == 27 && eidF.varint == targetEid && uint64(cmd.Tick) >= loTick && uint64(cmd.Tick) <= hiTick {
+						fmt.Fprintf(os.Stderr, "tick %d eid %d: %x\n", cmd.Tick, eidF.varint, buf)
+					}
+				}
+			}
 			outer, err := walkPB(buf)
 			if err != nil {
 				continue
 			}
 			sub, ok1 := fnum(outer, 1)
 			eidF, ok2 := fnum(outer, 2)
-			if !ok1 || !ok2 || sub.varint != 27 {
+			if !ok1 || !ok2 {
+				continue
+			}
+			subCounts[sub.varint]++
+			// Subtype 5 carries player-keyed transforms: outer field 12 is a
+			// body message with a steamid-like varint in its field 2 and a
+			// tagged vec3 origin in its field 5.
+			if sub.varint == 5 {
+				if bodyF, okB := fnum(outer, 12); okB && bodyF.wire == 2 {
+					body, errB := walkPB(bodyF.data)
+					if errB != nil {
+						continue
+					}
+					rec := trackRec{Tick: cmd.Tick, Eid: eidF.varint, Subtype: 5}
+					if sid, okS := fnum(body, 2); okS && sid.wire == 0 {
+						rec.Steamid = sid.varint
+					}
+					if pos, okP := fnum(body, 5); okP && pos.wire == 2 {
+						fs, errP := walkPB(pos.data)
+						if errP != nil {
+							continue
+						}
+						got := 0
+						for _, ff := range fs {
+							if ff.num >= 1 && ff.num <= 3 && ff.wire == 5 && len(ff.fixed) == 4 {
+								v := math.Float32frombits(binary.LittleEndian.Uint32(ff.fixed))
+								switch ff.num {
+								case 1:
+									rec.X = v
+								case 2:
+									rec.Y = v
+								case 3:
+									rec.Z = v
+								}
+								got++
+							}
+						}
+						if got == 3 {
+							enc.Encode(rec)
+							count++
+						}
+					}
+				}
+				continue
+			}
+			if sub.varint != 27 {
 				continue
 			}
 			tf, ok3 := fnum(outer, 30)
@@ -271,18 +334,40 @@ func main() {
 				continue
 			}
 			rec := trackRec{Tick: cmd.Tick, Eid: eidF.varint}
-			if origin, ok := fnum(inner, 2); ok && origin.wire == 2 {
-				if v := fixed32s(origin.data); len(v) >= 3 {
-					rec.X, rec.Y, rec.Z = v[0], v[1], v[2]
-				} else {
-					continue
+			if ut, ok := fnum(inner, 1); ok && ut.wire == 0 {
+				rec.UpdateType = ut.varint
+			}
+
+			// Origin and angles are themselves protobuf messages whose
+			// fields 1-3 are fixed32 floats; walking them keeps the field
+			// tags from desyncing the triple.
+			vec3 := func(f pbField) ([3]float32, bool) {
+				var out [3]float32
+				fs, err := walkPB(f.data)
+				if err != nil {
+					return out, false
 				}
-			} else {
+				got := 0
+				for _, ff := range fs {
+					if ff.num >= 1 && ff.num <= 3 && ff.wire == 5 && len(ff.fixed) == 4 {
+						out[ff.num-1] = math.Float32frombits(binary.LittleEndian.Uint32(ff.fixed))
+						got++
+					}
+				}
+				return out, got == 3
+			}
+			origin, okO := fnum(inner, 2)
+			if !okO || origin.wire != 2 {
 				continue
 			}
-			if ang, ok := fnum(inner, 3); ok && ang.wire == 2 {
-				if v := fixed32s(ang.data); len(v) >= 3 {
-					rec.Pitch, rec.Yaw, rec.Roll = v[0], v[1], v[2]
+			o, okOrigin := vec3(origin)
+			if !okOrigin {
+				continue
+			}
+			rec.X, rec.Y, rec.Z = o[0], o[1], o[2]
+			if angles, okA := fnum(inner, 3); okA && angles.wire == 2 {
+				if a, okAng := vec3(angles); okAng {
+					rec.Pitch, rec.Yaw, rec.Roll = a[0], a[1], a[2]
 				}
 			}
 			enc.Encode(rec)
@@ -290,4 +375,9 @@ func main() {
 		}
 	}
 	fmt.Println("tracked:", count)
+	if os.Getenv("K145_SUBTYPES") != "" {
+		for st, n := range subCounts {
+			fmt.Fprintf(os.Stderr, "subtype %d: %d\n", st, n)
+		}
+	}
 }
