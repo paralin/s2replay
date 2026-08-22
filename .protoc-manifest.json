@@ -4,7 +4,7 @@
   "toolVersions": "protoc=embedded,protobuf-go-lite=v0.14.0,starpc=v0.49.18",
   "packages": {
     "github.com/paralin/s2replay/protocol": {
-      "hash": "439b160699b8acb801cb18c2bae46fb6412b250cd95c5243e11b9f0357b78d03",
+      "hash": "daf4f69e79a3f3688c413dafa977dbf6cbc8e37103500035828f7dc4b518f1dd",
       "generatedFiles": [
         "protocol/base_modifier.pb.go",
         "protocol/citadel_gameevents.pb.go",
@@ -15,6 +15,7 @@
         "protocol/netmessages.pb.go",
         "protocol/networkbasetypes.pb.go",
         "protocol/networksystem_protomessages.pb.go",
+        "protocol/replay_event.pb.go",
         "protocol/source2_steam_stats.pb.go",
         "protocol/usermessages.pb.go"
       ],
@@ -28,6 +29,7 @@
         "protocol/netmessages.proto",
         "protocol/networkbasetypes.proto",
         "protocol/networksystem_protomessages.proto",
+        "protocol/replay_event.proto",
         "protocol/source2_steam_stats.proto",
         "protocol/usermessages.proto"
       ]

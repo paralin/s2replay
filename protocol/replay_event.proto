@@ -1,0 +1,265 @@
+// ReplayEvent mirrors the unified typed event stream (schema version 1) for
+// framed binary output. Field names and semantics match the JSON encoding.
+syntax = "proto3";
+package protocol;
+
+message ReplayEvent {
+  int32 schema_version = 1;
+  string type = 2;
+  uint32 tick = 3;
+  double game_time = 4;
+  sint32 entity = 5;
+  sint32 player_slot = 6;
+  repeated uint32 owned_items = 7;
+  ReplayDamage damage = 8;
+  ReplayModifier modifier = 9;
+  ReplayPurchase purchase = 10;
+  ReplayEntitySample entity_sample = 11;
+  ReplayDamageSummary damage_summary = 12;
+  ReplayPostMatch post_match = 13;
+  ReplayControllerSample controller_sample = 14;
+  ReplayKillStreak kill_streak = 15;
+  ReplayObjective objective_event = 16;
+}
+
+message ReplayDamage {
+  uint32 tick = 1;
+  double game_time = 2;
+  int32 damage = 3;
+  float pre_damage = 4;
+  int32 victim_health_new = 5;
+  int32 victim_health_max = 6;
+  float damage_absorbed = 7;
+  float effectiveness = 8;
+  float crit_damage = 9;
+  int32 hits = 10;
+  int32 attacker = 11;
+  int32 victim = 12;
+  int32 inflictor = 13;
+  int32 ability_entity = 14;
+  uint32 ability_id = 15;
+  int32 damage_type = 16;
+  int32 citadel_damage_type = 17;
+  int32 attacking_object = 18;
+  int32 victim_shield_new = 19;
+  int32 victim_shield_max = 20;
+  int32 health_lost = 21;
+  int32 hitgroup_id = 22;
+  bool is_secondary_stat = 23;
+  float origin_x = 24;
+  float origin_y = 25;
+  float origin_z = 26;
+  float damage_direction_x = 27;
+  float damage_direction_y = 28;
+  float damage_direction_z = 29;
+  int32 server_tick = 30;
+  uint64 flags = 31;
+  uint32 attacker_class = 32;
+  uint32 victim_class = 33;
+  int32 pre_damage_deprecated = 34;
+  int32 damage_absorbed_deprecated = 35;
+}
+
+message ReplayModifier {
+  uint32 tick = 1;
+  double game_time = 2;
+  string transition = 3;
+  int32 table_index = 4;
+  uint32 parent = 5;
+  uint32 serial_number = 6;
+  uint32 modifier_subclass = 7;
+  int32 stack_count = 8;
+  int32 max_stack_count = 9;
+  float last_applied_time = 10;
+  float duration = 11;
+  uint32 caster = 12;
+  uint32 ability = 13;
+  sint32 aura_provider_serial_number = 14;
+  uint32 aura_provider_ehandle = 15;
+  uint32 ability_subclass = 16;
+  bool in_aura_range = 17;
+  bool matched_prior = 18;
+}
+
+message ReplayPurchase {
+  uint32 tick = 1;
+  double game_time = 2;
+  sint32 player_slot = 3;
+  sint32 user_id = 4;
+  uint32 ability_id = 5;
+  string change = 6;
+  bool sell = 7;
+  bool quickbuy = 8;
+  string source = 9;
+}
+
+message ReplayEntitySample {
+  uint32 tick = 1;
+  double game_time = 2;
+  int32 entity = 3;
+  int32 class_id = 4;
+  string class_name = 5;
+  float health = 6;
+  float max_health = 7;
+  float shield = 8;
+  float max_shield = 9;
+  float position_x = 10;
+  float position_y = 11;
+  float position_z = 12;
+  uint32 hero_id = 13;
+  sint32 team = 14;
+  bool has_health = 15;
+  bool has_shield = 16;
+  bool has_position = 17;
+  bool has_hero_id = 18;
+  bool has_team = 19;
+}
+
+message ReplayDamageSummaryRecord {
+  int32 damage = 1;
+  int32 hits = 2;
+  uint32 damage_type = 3;
+  uint32 hero_id = 4;
+  uint32 ability_id = 5;
+  uint32 attacker_class = 6;
+  float damage_absorbed = 7;
+  bool is_killing_blow = 8;
+  uint32 victim_hero_id = 9;
+  float pre_damage = 10;
+  float crit_damage = 11;
+}
+
+message ReplayDamageSummaryModifierRecord {
+  uint32 ability_id = 1;
+  uint32 modifier_type_id = 2;
+  sint32 entindex_caster = 3;
+  float start_time = 4;
+  float end_time = 5;
+  bool debuff = 6;
+}
+
+message ReplayDamageSummary {
+  uint32 tick = 1;
+  double game_time = 2;
+  sint32 player_slot = 3;
+  int32 total_damage = 4;
+  int32 lost_gold = 5;
+  float start_time = 6;
+  float end_time = 7;
+  repeated ReplayDamageSummaryRecord damage_records = 8;
+  repeated ReplayDamageSummaryModifierRecord modifier_records = 9;
+}
+
+message ReplayKillStreak {
+  uint32 tick = 1;
+  double game_time = 2;
+  uint32 player_pawn = 3;
+  sint32 num_kills = 4;
+  bool is_first_blood = 5;
+  bool streak_ended = 6;
+  float duration = 7;
+}
+
+message ReplayObjective {
+  string kind = 1;
+  sint32 objective_team = 2;
+  sint32 objective_id = 3;
+  sint32 killing_team = 4;
+  sint32 entity_type = 5;
+  sint32 bosses_remaining = 6;
+  float game_time_f = 7;
+}
+
+message ReplayControllerSample {
+  uint32 tick = 1;
+  double game_time = 2;
+  int32 entity = 3;
+  int32 class_id = 4;
+  string class_name = 5;
+  uint64 steam_id = 6;
+  string player_name = 7;
+  sint32 net_worth = 8;
+  sint32 hero_damage = 9;
+  sint32 hero_healing = 10;
+  sint32 creep_gold = 11;
+  sint32 creep_gold_kill = 12;
+  sint32 creep_gold_neutral = 13;
+  sint32 creep_gold_air_orb = 14;
+  sint32 creep_gold_ground_orb = 15;
+  sint32 creep_gold_deny = 16;
+  sint32 creep_gold_solo_bonus = 17;
+}
+
+message ReplayPostMatchItem {
+  uint32 item_id = 1;
+  uint32 game_time_s = 2;
+  uint32 sold_time_s = 3;
+  uint32 upgrade_id = 4;
+  uint32 flags = 5;
+  uint32 imbued_ability_id = 6;
+  uint32 upgrade_info = 7;
+}
+
+message ReplayPostMatchStat {
+  uint32 time_stamp_s = 1;
+  uint32 net_worth = 2;
+  uint32 kills = 3;
+  uint32 deaths = 4;
+  uint32 assists = 5;
+  uint32 level = 6;
+  uint32 last_hits = 7;
+  uint32 denies = 8;
+  uint32 player_damage = 9;
+  uint32 player_damage_taken = 10;
+  uint32 player_healing = 11;
+  uint32 creep_damage = 12;
+  uint32 neutral_damage = 13;
+  uint32 boss_damage = 14;
+  uint32 damage_absorbed = 15;
+  uint32 damage_mitigated = 16;
+  uint32 shots_hit = 17;
+  uint32 shots_missed = 18;
+  uint32 weapon_power = 19;
+  uint32 tech_power = 20;
+}
+
+message ReplayPostMatchPlayer {
+  uint32 account_id = 1;
+  uint32 player_slot = 2;
+  sint32 team = 3;
+  uint32 kills = 4;
+  uint32 deaths = 5;
+  uint32 assists = 6;
+  uint32 net_worth = 7;
+  uint32 hero_id = 8;
+  uint32 last_hits = 9;
+  uint32 denies = 10;
+  uint32 ability_points = 11;
+  uint32 level = 12;
+  repeated ReplayPostMatchItem items = 13;
+  repeated ReplayPostMatchStat stats = 14;
+}
+
+message ReplayPostMatchObjective {
+  sint32 legacy_objective_id = 1;
+  sint32 team_objective_id = 2;
+  sint32 team = 3;
+  uint32 destroyed_time_s = 4;
+  uint32 first_damage_time_s = 5;
+  uint32 creep_damage = 6;
+  uint32 creep_damage_mitigated = 7;
+  uint32 player_damage = 8;
+  uint32 player_damage_mitigated = 9;
+  uint32 player_spirit_damage = 10;
+}
+
+message ReplayPostMatch {
+  uint64 match_id = 1;
+  uint32 duration_s = 2;
+  sint32 match_outcome = 3;
+  sint32 winning_team = 4;
+  sint32 game_mode = 5;
+  sint32 match_mode = 6;
+  repeated ReplayPostMatchPlayer players = 7;
+  repeated ReplayPostMatchObjective objectives = 8;
+}
