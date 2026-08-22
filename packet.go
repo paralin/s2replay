@@ -74,6 +74,10 @@ func (p *Parser) queuePacketMessages(tick uint32, payload []byte) error {
 
 		decoded, ok, err := decodePacketMessage(int32(kind), buf)
 		if err != nil || !ok {
+			if int32(kind) == kind145 {
+				p.applyKind145(tick, buf)
+				continue
+			}
 			return err
 		}
 		p.appendMessage(tick, decoded)

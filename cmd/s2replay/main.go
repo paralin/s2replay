@@ -29,6 +29,12 @@ func main() {
 				fmt.Fprintf(os.Stderr, "s2replay: %v\n", err)
 				os.Exit(1)
 			}
+			if os.Getenv("K145_DEBUG") != "" {
+				seen, found, heroes, classes, s5t, s5ids, s5cls := s2replay.Kind145DebugStats()
+				fmt.Fprintf(os.Stderr, "k145 envelopes=%d entity-found=%d hero-samples=%d classes=%v\n",
+					seen, found, heroes, classes)
+				fmt.Fprintf(os.Stderr, "sub5 total=%d ids=%v classes=%v\n", s5t, s5ids, s5cls)
+			}
 			return
 		case "analyze":
 			if err := runAnalyze(os.Args[2:]); err != nil {
