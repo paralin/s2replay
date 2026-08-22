@@ -204,7 +204,8 @@ var (
 
 // Kind145DebugStats reports kind-145 counters collected so far.
 func Kind145DebugStats() (seen, found, heroes int, classes map[string]int,
-	sub5Total int, sub5Ids map[uint64]int, sub5Classes map[string]int) {
+	sub5Total int, sub5Ids map[uint64]int, sub5Classes map[string]int,
+) {
 	return k145Seen, k145EntityFound, k145HeroSamples, k145Classes,
 		k145Sub5Total, k145Sub5Ids, k145Sub5Classes
 }

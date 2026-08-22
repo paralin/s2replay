@@ -1584,4 +1584,3 @@ func decodeUserMessage(kind int32, payload []byte) (decodedMessage, bool, error)
 		return decodedMessage{}, false, nil
 	}
 }
-

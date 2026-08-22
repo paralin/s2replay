@@ -195,23 +195,27 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		ClassID:   e.class.id,
 		ClassName: e.class.name,
 	}
-	s.Health, s.HasHealth = firstFloat32(e,
+	s.Health, s.HasHealth = firstFloat32(
+		e,
 		"m_iHealth",
 		"m_iCurrentHealth",
 		"m_flHealth",
 		"m_CCitadelHealthComponent.m_iHealth",
 	)
-	s.MaxHealth, _ = firstFloat32(e,
+	s.MaxHealth, _ = firstFloat32(
+		e,
 		"m_iMaxHealth",
 		"m_flMaxHealth",
 		"m_CCitadelHealthComponent.m_iMaxHealth",
 	)
-	s.Shield, s.HasShield = firstFloat32(e,
+	s.Shield, s.HasShield = firstFloat32(
+		e,
 		"m_iShield",
 		"m_flShield",
 		"m_CCitadelHealthComponent.m_iShield",
 	)
-	s.MaxShield, _ = firstFloat32(e,
+	s.MaxShield, _ = firstFloat32(
+		e,
 		"m_iMaxShield",
 		"m_flMaxShield",
 		"m_CCitadelHealthComponent.m_iMaxShield",
