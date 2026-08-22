@@ -25,6 +25,8 @@ const (
 	EventEntitySample EventType = "entity_sample"
 	// EventDamageSummary identifies an engine-compiled recent-damage summary.
 	EventDamageSummary EventType = "damage_summary"
+	// EventPostMatch identifies the engine-compiled post-match summary.
+	EventPostMatch EventType = "post_match"
 )
 
 // PurchaseEvent is an item/ability ownership transition observed in the user
@@ -56,6 +58,7 @@ type Event struct {
 	Purchase      *PurchaseEvent      `json:"purchase,omitempty"`
 	EntitySample  *EntitySample       `json:"entity_sample,omitempty"`
 	DamageSummary *DamageSummaryEvent `json:"damage_summary,omitempty"`
+	PostMatch     *PostMatchEvent     `json:"post_match,omitempty"`
 }
 
 // DamageSummaryRecord is one engine-attributed damage entry in a
@@ -83,6 +86,73 @@ type DamageSummaryModifierRecord struct {
 	StartTime      float32 `json:"start_time"`
 	EndTime        float32 `json:"end_time"`
 	Debuff         bool    `json:"debuff"`
+}
+
+// PostMatchPlayerItem is one item or ability purchase in the post-match
+// record, with buy and sell times.
+type PostMatchPlayerItem struct {
+	ItemID          uint32 `json:"item_id"`
+	GameTimeS       uint32 `json:"game_time_s"`
+	SoldTimeS       uint32 `json:"sold_time_s"`
+	UpgradeID       uint32 `json:"upgrade_id"`
+	Flags           uint32 `json:"flags"`
+	ImbuedAbilityID uint32 `json:"imbued_ability_id"`
+	UpgradeInfo     uint32 `json:"upgrade_info"`
+}
+
+// PostMatchPlayerStat is one timed snapshot of a player's scoreboard state.
+type PostMatchPlayerStat struct {
+	TimeStampS        uint32 `json:"time_stamp_s"`
+	NetWorth          uint32 `json:"net_worth"`
+	Kills             uint32 `json:"kills"`
+	Deaths            uint32 `json:"deaths"`
+	Assists           uint32 `json:"assists"`
+	Level             uint32 `json:"level"`
+	LastHits          uint32 `json:"last_hits"`
+	Denies            uint32 `json:"denies"`
+	PlayerDamage      uint32 `json:"player_damage"`
+	PlayerDamageTaken uint32 `json:"player_damage_taken"`
+	PlayerHealing     uint32 `json:"player_healing"`
+	CreepDamage       uint32 `json:"creep_damage"`
+	NeutralDamage     uint32 `json:"neutral_damage"`
+	BossDamage        uint32 `json:"boss_damage"`
+	DamageAbsorbed    uint32 `json:"damage_absorbed"`
+	DamageMitigated   uint32 `json:"damage_mitigated"`
+	ShotsHit          uint32 `json:"shots_hit"`
+	ShotsMissed       uint32 `json:"shots_missed"`
+	WeaponPower       uint32 `json:"weapon_power"`
+	TechPower         uint32 `json:"tech_power"`
+}
+
+// PostMatchPlayer is one player in the engine-compiled post-match summary.
+type PostMatchPlayer struct {
+	AccountID     uint32                `json:"account_id"`
+	PlayerSlot    uint32                `json:"player_slot"`
+	Team          int32                 `json:"team"`
+	Kills         uint32                `json:"kills"`
+	Deaths        uint32                `json:"deaths"`
+	Assists       uint32                `json:"assists"`
+	NetWorth      uint32                `json:"net_worth"`
+	HeroID        uint32                `json:"hero_id"`
+	LastHits      uint32                `json:"last_hits"`
+	Denies        uint32                `json:"denies"`
+	AbilityPoints uint32                `json:"ability_points"`
+	Level         uint32                `json:"level"`
+	Items         []PostMatchPlayerItem `json:"items"`
+	Stats         []PostMatchPlayerStat `json:"stats"`
+}
+
+// PostMatchEvent is the engine-compiled post-match summary embedded in the
+// demo. It is the authoritative record for final builds, buy and sell times,
+// and scoreboard totals.
+type PostMatchEvent struct {
+	MatchID      uint64            `json:"match_id"`
+	DurationS    uint32            `json:"duration_s"`
+	MatchOutcome int32             `json:"match_outcome"`
+	WinningTeam  int32             `json:"winning_team"`
+	GameMode     int32             `json:"game_mode"`
+	MatchMode    int32             `json:"match_mode"`
+	Players      []PostMatchPlayer `json:"players"`
 }
 
 // DamageSummaryEvent is the engine-compiled recent-damage summary the game

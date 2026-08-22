@@ -163,8 +163,100 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 		p.appendDamageEvent(tick, m)
 	case *protocol.CCitadelUserMsg_RecentDamageSummary:
 		p.appendDamageSummaryEvent(tick, m)
+	case *protocol.CCitadelUserMsg_PostMatchDetails:
+		p.appendPostMatchEvent(tick, m)
 	}
 	return nil
+}
+
+func (p *Parser) appendPostMatchEvent(tick uint32, msg *protocol.CCitadelUserMsg_PostMatchDetails) {
+	details := msg.GetMatchDetails()
+	if len(details) == 0 {
+		return
+	}
+	var contents protocol.CMsgMatchMetaDataContents
+	if err := contents.UnmarshalVT(details); err != nil {
+		return
+	}
+	info := contents.GetMatchInfo()
+	if info == nil {
+		return
+	}
+	ev := Event{
+		Type:       EventPostMatch,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     -1,
+		PlayerSlot: -1,
+		PostMatch: &PostMatchEvent{
+			MatchID:      info.GetMatchId(),
+			DurationS:    info.GetDurationS(),
+			MatchOutcome: int32(info.GetMatchOutcome()),
+			WinningTeam:  int32(info.GetWinningTeam()),
+			GameMode:     int32(info.GetGameMode()),
+			MatchMode:    int32(info.GetMatchMode()),
+		},
+	}
+	for _, pl := range info.GetPlayers() {
+		if pl == nil {
+			continue
+		}
+		out := PostMatchPlayer{
+			AccountID:     pl.GetAccountId(),
+			PlayerSlot:    pl.GetPlayerSlot(),
+			Team:          int32(pl.GetTeam()),
+			Kills:         pl.GetKills(),
+			Deaths:        pl.GetDeaths(),
+			Assists:       pl.GetAssists(),
+			NetWorth:      pl.GetNetWorth(),
+			HeroID:        pl.GetHeroId(),
+			LastHits:      pl.GetLastHits(),
+			Denies:        pl.GetDenies(),
+			AbilityPoints: pl.GetAbilityPoints(),
+			Level:         pl.GetLevel(),
+		}
+		for _, it := range pl.GetItems() {
+			if it == nil {
+				continue
+			}
+			out.Items = append(out.Items, PostMatchPlayerItem{
+				ItemID:          it.GetItemId(),
+				GameTimeS:       it.GetGameTimeS(),
+				SoldTimeS:       it.GetSoldTimeS(),
+				UpgradeID:       it.GetUpgradeId(),
+				Flags:           it.GetFlags(),
+				ImbuedAbilityID: it.GetImbuedAbilityId(),
+				UpgradeInfo:     it.GetUpgradeInfo(),
+			})
+		}
+		for _, st := range pl.GetStats() {
+			if st == nil {
+				continue
+			}
+			out.Stats = append(out.Stats, PostMatchPlayerStat{
+				TimeStampS:        st.GetTimeStampS(),
+				NetWorth:          st.GetNetWorth(),
+				Kills:             st.GetKills(),
+				Deaths:            st.GetDeaths(),
+				Assists:           st.GetAssists(),
+				Level:             st.GetLevel(),
+				PlayerDamage:      st.GetPlayerDamage(),
+				PlayerDamageTaken: st.GetPlayerDamageTaken(),
+				PlayerHealing:     st.GetPlayerHealing(),
+				CreepDamage:       st.GetCreepDamage(),
+				NeutralDamage:     st.GetNeutralDamage(),
+				BossDamage:        st.GetBossDamage(),
+				DamageAbsorbed:    st.GetDamageAbsorbed(),
+				DamageMitigated:   st.GetDamageMitigated(),
+				ShotsHit:          st.GetShotsHit(),
+				ShotsMissed:       st.GetShotsMissed(),
+				WeaponPower:       st.GetWeaponPower(),
+				TechPower:         st.GetTechPower(),
+			})
+		}
+		ev.PostMatch.Players = append(ev.PostMatch.Players, out)
+	}
+	p.pendingEvents = append(p.pendingEvents, ev)
 }
 
 func (p *Parser) appendDamageSummaryEvent(tick uint32, msg *protocol.CCitadelUserMsg_RecentDamageSummary) {

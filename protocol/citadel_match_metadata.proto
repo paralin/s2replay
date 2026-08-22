@@ -1,0 +1,492 @@
+// Code generated from SteamDatabase/Protobufs citadel_gcmessages_common.proto.
+
+// Pruned to the post-match metadata decode path; wire field numbers preserved.
+
+syntax = "proto2";
+
+package protocol;
+
+
+
+message CMsgMatchMetaDataContents {
+	message Position {
+		optional float x = 1;
+		optional float y = 2;
+		optional float z = 3;
+	}
+
+	message Deaths {
+		optional uint32 game_time_s = 1;
+		optional float time_to_kill_s = 2;
+		optional uint32 killer_player_slot = 9;
+		optional CMsgMatchMetaDataContents.Position death_pos = 10;
+		optional CMsgMatchMetaDataContents.Position killer_pos = 11;
+		optional uint32 death_duration_s = 12;
+	}
+
+	message Items {
+		optional uint32 game_time_s = 1;
+		optional uint32 item_id = 2;
+		optional uint32 upgrade_id = 3;
+		optional uint32 sold_time_s = 4;
+		optional uint32 flags = 5;
+		optional uint32 imbued_ability_id = 6;
+		optional uint32 upgrade_info = 7;
+	}
+
+	message Ping {
+		optional uint32 ping_type = 1;
+		optional uint32 ping_data = 2;
+		optional uint32 game_time_s = 3;
+	}
+
+	message GoldSource {
+		optional CMsgMatchMetaDataContents.EGoldSource source = 1 [default = k_ePlayers];
+		optional uint32 kills = 2;
+		optional uint32 damage = 3;
+		optional uint32 gold = 4;
+		optional uint32 gold_orbs = 5;
+	}
+
+	message CustomUserStatInfo {
+		optional string name = 1;
+		optional uint32 id = 2;
+	}
+
+	message CustomUserStat {
+		optional uint32 value = 2;
+		optional uint32 id = 3;
+	}
+
+	message PowerUpBuff {
+		optional string type = 1;
+		optional uint32 value = 2;
+		optional bool is_permanent = 3;
+	}
+
+	message PlayerStats {
+		optional uint32 time_stamp_s = 1;
+		optional uint32 net_worth = 2;
+		optional uint32 gold_player = 3;
+		optional uint32 gold_player_orbs = 4;
+		optional uint32 gold_lane_creep_orbs = 5;
+		optional uint32 gold_neutral_creep_orbs = 6;
+		optional uint32 gold_boss = 7;
+		optional uint32 gold_boss_orb = 8;
+		optional uint32 gold_treasure = 9;
+		optional uint32 gold_denied = 10;
+		optional uint32 gold_death_loss = 11;
+		optional uint32 gold_lane_creep = 12;
+		optional uint32 gold_neutral_creep = 13;
+		optional uint32 kills = 14;
+		optional uint32 deaths = 15;
+		optional uint32 assists = 16;
+		optional uint32 creep_kills = 17;
+		optional uint32 neutral_kills = 18;
+		optional uint32 possible_creeps = 19;
+		optional uint32 creep_damage = 20;
+		optional uint32 player_damage = 21;
+		optional uint32 neutral_damage = 22;
+		optional uint32 boss_damage = 23;
+		optional uint32 denies = 24;
+		optional uint32 player_healing = 25;
+		optional uint32 ability_points = 26;
+		optional uint32 self_healing = 27;
+		optional uint32 player_damage_taken = 28;
+		optional uint32 max_health = 29;
+		optional uint32 weapon_power = 30;
+		optional uint32 tech_power = 31;
+		optional uint32 shots_hit = 32;
+		optional uint32 shots_missed = 33;
+		optional uint32 damage_absorbed = 34;
+		optional uint32 absorption_provided = 35;
+		optional uint32 hero_bullets_hit = 36;
+		optional uint32 hero_bullets_hit_crit = 37;
+		optional uint32 heal_prevented = 38;
+		optional uint32 heal_lost = 39;
+		repeated CMsgMatchMetaDataContents.GoldSource gold_sources = 40;
+		repeated CMsgMatchMetaDataContents.CustomUserStat custom_user_stats = 41;
+		optional uint32 damage_mitigated = 42;
+		optional uint32 level = 43;
+		optional uint32 player_barriering = 44;
+		optional uint32 teammate_healing = 45;
+		optional uint32 teammate_barriering = 46;
+		optional uint32 self_damage = 47;
+		optional uint32 bullet_kills = 48;
+		optional uint32 melee_kills = 49;
+		optional uint32 ability_kills = 50;
+		optional uint32 headshot_kills = 51;
+	}
+
+	message AbilityStat {
+		optional uint32 ability_id = 1;
+		optional uint32 ability_value = 2;
+	}
+
+	message BookReward {
+		optional uint32 book_id = 1;
+		optional uint32 xp_amount = 2;
+		optional uint32 starting_xp = 3;
+	}
+
+	message HeroXPReward {
+		optional CMsgHeroXPGrant xp_grant = 1;
+	}
+
+	message PlayerAccolade {
+		optional uint32 accolade_id = 1;
+		optional int32 accolade_stat_value = 2;
+		optional int32 accolade_threshold_achieved = 3;
+	}
+
+	message Players {
+		optional uint32 account_id = 1;
+		optional uint32 player_slot = 2;
+		repeated CMsgMatchMetaDataContents.Deaths death_details = 3;
+		repeated CMsgMatchMetaDataContents.Items items = 4;
+		repeated CMsgMatchMetaDataContents.PlayerStats stats = 5;
+		optional ECitadelLobbyTeam team = 6 [default = k_ECitadelLobbyTeam_Team0];
+		optional uint32 kills = 8;
+		optional uint32 deaths = 9;
+		optional uint32 assists = 10;
+		optional uint32 net_worth = 11;
+		optional uint32 hero_id = 12;
+		optional uint32 last_hits = 13;
+		optional uint32 denies = 14;
+		optional uint32 ability_points = 15;
+		optional uint32 assigned_lane = 17;
+		optional uint32 level = 18;
+		repeated CMsgMatchMetaDataContents.Ping pings = 19;
+		repeated CMsgMatchMetaDataContents.AbilityStat ability_stats = 20;
+		repeated float stats_type_stat = 21 [packed = true];
+		repeated CMsgMatchMetaDataContents.BookReward book_rewards = 22;
+		optional uint32 abandon_match_time_s = 23;
+		optional CMsgPlayerHeroData hero_data = 25;
+		optional bool rewards_eligible = 26;
+		repeated CMsgTrackedStat player_tracked_stats = 48;
+		repeated CMsgMatchMetaDataContents.PlayerAccolade accolades = 27;
+		optional uint32 mvp_rank = 28;
+		optional bool earned_holiday_award_2025 = 29;
+		repeated CMsgMatchMetaDataContents.PowerUpBuff power_up_buffs = 30;
+		repeated CMsgMatchMetaDataContents.HeroXPReward hero_xp_rewards = 31;
+		optional CMsgMatchPlayerRankData player_rank_data = 32;
+		optional EPlayerMatchOutcome player_match_outcome = 33 [default = k_EPlayerMatchOutcome_Invalid];
+	}
+
+	message Teams {
+		optional ECitadelLobbyTeam team = 1 [default = k_ECitadelLobbyTeam_Team0];
+		repeated CMsgTrackedStat team_tracked_stats = 2;
+	}
+
+	message Objective {
+		optional ECitadelObjective legacy_objective_id = 1 [default = k_eCitadelObjective_Team0_Core];
+		optional uint32 destroyed_time_s = 2;
+		optional uint32 creep_damage = 4;
+		optional uint32 creep_damage_mitigated = 5;
+		optional uint32 player_damage = 6;
+		optional uint32 player_damage_mitigated = 7;
+		optional uint32 first_damage_time_s = 8;
+		optional ECitadelTeamObjective team_objective_id = 9 [default = k_eCitadelTeamObjective_Core];
+		optional ECitadelLobbyTeam team = 10 [default = k_ECitadelLobbyTeam_Team0];
+		optional uint32 player_spirit_damage = 11;
+	}
+
+	message MidBoss {
+		optional ECitadelLobbyTeam team_killed = 1 [default = k_ECitadelLobbyTeam_Team0];
+		optional ECitadelLobbyTeam team_claimed = 2 [default = k_ECitadelLobbyTeam_Team0];
+		optional uint32 destroyed_time_s = 3;
+	}
+
+	message Pause {
+		optional uint32 game_time_s = 1;
+		optional uint32 pause_duration_s = 2;
+		optional uint32 player_slot = 3;
+	}
+
+	message WatchedDeathReplay {
+		optional uint32 game_time_s = 1;
+		optional uint32 player_slot = 2;
+	}
+
+	message StreetBrawlRound {
+		optional uint32 round_duration_s = 1;
+		optional ECitadelLobbyTeam winning_team = 2 [default = k_ECitadelLobbyTeam_Team0];
+	}
+
+	message MatchInfo {
+		optional uint32 duration_s = 1;
+		optional CMsgMatchMetaDataContents.EMatchOutcome match_outcome = 2 [default = k_eOutcome_TeamWin];
+		optional ECitadelLobbyTeam winning_team = 3 [default = k_ECitadelLobbyTeam_Team0];
+		repeated CMsgMatchMetaDataContents.Players players = 4;
+		optional uint32 start_time = 5;
+		optional uint64 match_id = 6;
+		optional uint32 legacy_objectives_mask = 8;
+		optional ECitadelGameMode game_mode = 9 [default = k_ECitadelGameMode_Invalid];
+		optional ECitadelMatchMode match_mode = 10 [default = k_ECitadelMatchMode_Invalid];
+		repeated CMsgMatchMetaDataContents.Objective objectives = 11;
+		optional CMsgMatchPlayerPathsData match_paths = 12;
+		optional CMsgMatchPlayerDamageMatrix damage_matrix = 13;
+		repeated CMsgMatchMetaDataContents.Pause match_pauses = 14;
+		repeated CMsgMatchMetaDataContents.CustomUserStatInfo custom_user_stats = 15;
+		repeated CMsgMatchMetaDataContents.WatchedDeathReplay watched_death_replays = 16;
+		optional uint64 objectives_mask_team0 = 17;
+		optional uint64 objectives_mask_team1 = 18;
+		repeated CMsgMatchMetaDataContents.MidBoss mid_boss = 19;
+		optional bool is_high_skill_range_parties = 20;
+		optional bool low_pri_pool = 21;
+		optional bool new_player_pool = 22;
+		optional uint32 average_badge_team0 = 23;
+		optional uint32 average_badge_team1 = 24;
+		optional uint32 game_mode_version = 25;
+		optional bool rewards_eligible = 26;
+		optional bool not_scored = 27;
+		repeated uint32 team_score = 28;
+		repeated CMsgTrackedStat match_tracked_stats = 29;
+		repeated CMsgMatchMetaDataContents.Teams teams = 30;
+		optional ECitadelBotDifficulty bot_difficulty = 32 [default = k_ECitadelBotDifficulty_None];
+		repeated CMsgMatchMetaDataContents.StreetBrawlRound street_brawl_rounds = 33;
+		optional ECitadelRankedType ranked_type = 34 [default = k_eCitadelRankedType_Invalid];
+		optional uint32 rank_interval = 35;
+	}
+
+	enum EMatchOutcome {
+		k_eOutcome_TeamWin = 0;
+		k_eOutcome_Error = 1;
+		k_eOutcome_MatchDraw = 2;
+	}
+
+	enum EGoldSource {
+		k_ePlayers = 1;
+		k_eLaneCreeps = 2;
+		k_eNeutrals = 3;
+		k_eBosses = 4;
+		k_eTreasure = 5;
+		k_eAssists = 6;
+		k_eDenies = 7;
+		k_eTeamBonus = 8;
+		k_eAbilityAssassinate = 9;
+		k_eItemTrophyCollector = 10;
+		k_eItemCultistSacrifice = 11;
+		k_eBreakable = 12;
+		k_eItemGooseEgg = 13;
+	}
+
+	optional CMsgMatchMetaDataContents.MatchInfo match_info = 2;
+}
+
+message CMsgHeroXPGrant {
+	optional uint32 hero_id = 1;
+	optional uint32 xp_grant = 2;
+	optional EHeroXPGrantReason reason = 3 [default = k_eGrant_Win];
+}
+
+enum EHeroXPGrantReason {
+	k_eGrant_Win = 0;
+	k_eGrant_Loss = 1;
+	k_eGrant_Award = 2;
+}
+
+message CMsgMatchPlayerDamageMatrix {
+	message DamageToPlayer {
+		optional uint32 target_player_slot = 1;
+		repeated uint32 damage = 2 [packed = true];
+	}
+
+	message DamageSource {
+		repeated CMsgMatchPlayerDamageMatrix.DamageToPlayer damage_to_players = 2;
+		optional uint32 source_details_index = 4;
+	}
+
+	message DamageDealer {
+		optional uint32 dealer_player_slot = 1;
+		repeated CMsgMatchPlayerDamageMatrix.DamageSource damage_sources = 2;
+	}
+
+	message SourceDetails {
+		repeated CMsgMatchPlayerDamageMatrix.EStatType stat_type = 1 [packed = true];
+		repeated string source_name = 2;
+	}
+
+	enum EStatType {
+		k_eType_Damage = 0;
+		k_eType_Healing = 1;
+		k_eType_HealPrevented = 2;
+		k_eType_Mitigated = 3;
+		k_eType_LethalDamage = 4;
+		k_eType_Regen = 5;
+	}
+
+	repeated CMsgMatchPlayerDamageMatrix.DamageDealer damage_dealers = 1;
+	repeated uint32 sample_time_s = 2 [packed = true];
+	optional CMsgMatchPlayerDamageMatrix.SourceDetails source_details = 3;
+}
+
+message CMsgMatchPlayerPathsData {
+	message Path {
+		optional uint32 player_slot = 1;
+		optional float x_min = 2;
+		optional float y_min = 3;
+		optional float x_max = 4;
+		optional float y_max = 5;
+		repeated uint32 x_pos = 6 [packed = true];
+		repeated uint32 y_pos = 7 [packed = true];
+		repeated uint32 health = 9 [packed = true];
+		repeated CMsgMatchPlayerPathsData.ECombatType combat_type = 10 [packed = true];
+		repeated CMsgMatchPlayerPathsData.EMoveType move_type = 11 [packed = true];
+	}
+
+	enum ECombatType {
+		k_eCombatType_Out = 0;
+		k_eCombatType_Player = 1;
+		k_eCombatType_EnemyNPC = 2;
+		k_eCombatType_Neutral = 3;
+	}
+
+	enum EMoveType {
+		k_eMoveType_Normal = 0;
+		k_eMoveType_Ability = 1;
+		k_eMoveType_AbilityDebuff = 2;
+		k_eMoveType_GroundDash = 3;
+		k_eMoveType_Slide = 4;
+		k_eMoveType_RopeClimbing = 5;
+		k_eMoveType_Ziplining = 6;
+		k_eMoveType_InAir = 7;
+		k_eMoveType_AirDash = 8;
+	}
+
+	optional uint32 version = 1;
+	optional float interval_s = 2;
+	optional uint32 x_resolution = 3;
+	optional uint32 y_resolution = 4;
+	repeated CMsgMatchPlayerPathsData.Path paths = 5;
+}
+
+message CMsgMatchPlayerRankData {
+	optional uint32 initial_display_rank = 1;
+	optional uint32 initial_flat_progress = 2;
+	optional uint32 final_flat_progress = 3;
+	optional int32 desired_progress_change = 4;
+	optional uint32 initial_calibration_games = 6;
+	optional uint32 initial_demotion_protection_games = 7;
+	optional bool consumed_demotion_protection = 8;
+	optional uint32 initial_win_streak = 9;
+}
+
+message CMsgPlayerHeroData {
+	optional uint32 hero_xp = 1;
+	optional CMsgEquippedItemList hero_equips = 2;
+}
+
+message CMsgEquippedItemList {
+}
+
+message CMsgTrackedStat {
+	optional uint32 tracked_stat_id = 1;
+	optional int32 tracked_stat_value = 2;
+}
+
+enum ECitadelBotDifficulty {
+	k_ECitadelBotDifficulty_None = 0;
+	k_ECitadelBotDifficulty_Easy = 1;
+	k_ECitadelBotDifficulty_Medium = 2;
+	k_ECitadelBotDifficulty_Hard = 3;
+	k_ECitadelBotDifficulty_Nightmare = 4;
+	k_ECitadelBotDifficulty_Guided = 5;
+}
+
+enum ECitadelGameMode {
+	k_ECitadelGameMode_Invalid = 0;
+	k_ECitadelGameMode_Normal = 1;
+	k_ECitadelGameMode_1v1Test = 2;
+	k_ECitadelGameMode_Sandbox = 3;
+	k_ECitadelGameMode_StreetBrawl = 4;
+	k_ECitadelGameMode_ExploreNYC = 5;
+	k_ECitadelGameMode_Internal = 6;
+}
+
+enum ECitadelLobbyTeam {
+	k_ECitadelLobbyTeam_Team0 = 0;
+	k_ECitadelLobbyTeam_Team1 = 1;
+	k_ECitadelLobbyTeam_Spectator = 16;
+}
+
+enum ECitadelMatchMode {
+	k_ECitadelMatchMode_Invalid = 0;
+	k_ECitadelMatchMode_Unranked = 1;
+	k_ECitadelMatchMode_PrivateLobby = 2;
+	k_ECitadelMatchMode_CoopBot = 3;
+	k_ECitadelMatchMode_Ranked = 4;
+	k_ECitadelMatchMode_ServerTest = 5;
+	k_ECitadelMatchMode_Tutorial = 6;
+	k_ECitadelMatchMode_HeroLabs = 7;
+	k_ECitadelMatchMode_NewPlayerPlacement = 8;
+}
+
+enum ECitadelObjective {
+	k_eCitadelObjective_Team0_Core = 0;
+	k_eCitadelObjective_Team0_Tier1_Lane1 = 1;
+	k_eCitadelObjective_Team0_Tier1_Lane2 = 2;
+	k_eCitadelObjective_Team0_Tier1_Lane3 = 3;
+	k_eCitadelObjective_Team0_Tier1_Lane4 = 4;
+	k_eCitadelObjective_Team0_Tier2_Lane1 = 5;
+	k_eCitadelObjective_Team0_Tier2_Lane2 = 6;
+	k_eCitadelObjective_Team0_Tier2_Lane3 = 7;
+	k_eCitadelObjective_Team0_Tier2_Lane4 = 8;
+	k_eCitadelObjective_Team0_Titan = 9;
+	k_eCitadelObjective_Team0_TitanShieldGenerator_1 = 10;
+	k_eCitadelObjective_Team0_TitanShieldGenerator_2 = 11;
+	k_eCitadelObjective_Team0_BarrackBoss_Lane1 = 12;
+	k_eCitadelObjective_Team0_BarrackBoss_Lane2 = 13;
+	k_eCitadelObjective_Team0_BarrackBoss_Lane3 = 14;
+	k_eCitadelObjective_Team0_BarrackBoss_Lane4 = 15;
+	k_eCitadelObjective_Team1_Core = 16;
+	k_eCitadelObjective_Team1_Tier1_Lane1 = 17;
+	k_eCitadelObjective_Team1_Tier1_Lane2 = 18;
+	k_eCitadelObjective_Team1_Tier1_Lane3 = 19;
+	k_eCitadelObjective_Team1_Tier1_Lane4 = 20;
+	k_eCitadelObjective_Team1_Tier2_Lane1 = 21;
+	k_eCitadelObjective_Team1_Tier2_Lane2 = 22;
+	k_eCitadelObjective_Team1_Tier2_Lane3 = 23;
+	k_eCitadelObjective_Team1_Tier2_Lane4 = 24;
+	k_eCitadelObjective_Team1_Titan = 25;
+	k_eCitadelObjective_Team1_TitanShieldGenerator_1 = 26;
+	k_eCitadelObjective_Team1_TitanShieldGenerator_2 = 27;
+	k_eCitadelObjective_Team1_BarrackBoss_Lane1 = 28;
+	k_eCitadelObjective_Team1_BarrackBoss_Lane2 = 29;
+	k_eCitadelObjective_Team1_BarrackBoss_Lane3 = 30;
+	k_eCitadelObjective_Team1_BarrackBoss_Lane4 = 31;
+	k_eCitadelObjective_Neutral_Mid = 32;
+}
+
+enum ECitadelRankedType {
+	k_eCitadelRankedType_Invalid = 0;
+	k_eCitadelRankedType_Normal = 1;
+}
+
+enum ECitadelTeamObjective {
+	k_eCitadelTeamObjective_Core = 0;
+	k_eCitadelTeamObjective_Tier1_Lane1 = 1;
+	k_eCitadelTeamObjective_Tier1_Lane2 = 2;
+	k_eCitadelTeamObjective_Tier1_Lane3 = 3;
+	k_eCitadelTeamObjective_Tier1_Lane4 = 4;
+	k_eCitadelTeamObjective_Tier2_Lane1 = 5;
+	k_eCitadelTeamObjective_Tier2_Lane2 = 6;
+	k_eCitadelTeamObjective_Tier2_Lane3 = 7;
+	k_eCitadelTeamObjective_Tier2_Lane4 = 8;
+	k_eCitadelTeamObjective_Titan = 9;
+	k_eCitadelTeamObjective_TitanShieldGenerator_1 = 10;
+	k_eCitadelTeamObjective_TitanShieldGenerator_2 = 11;
+	k_eCitadelTeamObjective_BarrackBoss_Lane1 = 12;
+	k_eCitadelTeamObjective_BarrackBoss_Lane2 = 13;
+	k_eCitadelTeamObjective_BarrackBoss_Lane3 = 14;
+	k_eCitadelTeamObjective_BarrackBoss_Lane4 = 15;
+}
+
+enum EPlayerMatchOutcome {
+	k_EPlayerMatchOutcome_Invalid = 0;
+	k_EPlayerMatchOutcome_Win = 1;
+	k_EPlayerMatchOutcome_Loss = 2;
+	k_EPlayerMatchOutcome_Penalized = 3;
+	k_EPlayerMatchOutcome_PenalizedParty = 4;
+	k_EPlayerMatchOutcome_NotScored = 5;
+}
