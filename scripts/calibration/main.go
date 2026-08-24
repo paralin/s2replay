@@ -166,7 +166,7 @@ func process(path, outdir string, ds int) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	rowsPath := filepath.Join(outdir, id+"-features.jsonl")
 	rowsF, err := os.Create(rowsPath)
@@ -175,8 +175,10 @@ func process(path, outdir string, ds int) error {
 	}
 	w := bufio.NewWriterSize(rowsF, 1<<20)
 	enc := json.NewEncoder(w)
-	sum := summary{Demo: id, SourceFile: path, Downsample: ds,
-		Players: map[string]*playerSummary{}}
+	sum := summary{
+		Demo: id, SourceFile: path, Downsample: ds,
+		Players: map[string]*playerSummary{},
+	}
 
 	trackers := map[string]*tracker{}
 	err = walkDocument(json.NewDecoder(bufio.NewReaderSize(f, 1<<20)),
@@ -209,7 +211,8 @@ func process(path, outdir string, ds int) error {
 // every sample array. It stops once players is exhausted; modifiers, quality,
 // and combat_windows are skipped without decoding.
 func walkDocument(dec *json.Decoder, id string, ds int, enc *json.Encoder,
-	trackers map[string]*tracker) error {
+	trackers map[string]*tracker,
+) error {
 	if err := expect(dec, '{'); err != nil {
 		return err
 	}
@@ -229,7 +232,8 @@ func walkDocument(dec *json.Decoder, id string, ds int, enc *json.Encoder,
 }
 
 func walkAnalysis(dec *json.Decoder, id string, ds int, enc *json.Encoder,
-	trackers map[string]*tracker) error {
+	trackers map[string]*tracker,
+) error {
 	if err := expect(dec, '{'); err != nil {
 		return err
 	}
@@ -249,7 +253,8 @@ func walkAnalysis(dec *json.Decoder, id string, ds int, enc *json.Encoder,
 }
 
 func walkEntities(dec *json.Decoder, id string, ds int, enc *json.Encoder,
-	trackers map[string]*tracker) error {
+	trackers map[string]*tracker,
+) error {
 	if err := expect(dec, '{'); err != nil {
 		return err
 	}
@@ -269,7 +274,8 @@ func walkEntities(dec *json.Decoder, id string, ds int, enc *json.Encoder,
 }
 
 func walkPlayers(dec *json.Decoder, id string, ds int, enc *json.Encoder,
-	trackers map[string]*tracker) error {
+	trackers map[string]*tracker,
+) error {
 	if err := expect(dec, '{'); err != nil {
 		return err
 	}
