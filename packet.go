@@ -167,6 +167,8 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 		p.appendPostMatchEvent(tick, m)
 	case *protocol.CCitadelUserMsg_KillStreak:
 		p.appendKillStreakEvent(tick, m)
+	case *protocol.CCitadelUserMsg_StaminaConsumed:
+		p.appendStaminaConsumedEvent(tick, m)
 	case *protocol.CCitadelUserMsg_BossKilled:
 		p.appendObjectiveEvent(tick, "boss_killed", int32(m.GetObjectiveTeam()), int32(m.GetObjectiveMaskChange()), int32(m.GetEntityKilledClass()), int32(m.GetBossesRemaining()), m.GetGametime())
 	case *protocol.CCitadelUserMsg_BossDamaged:
@@ -194,6 +196,36 @@ func (p *Parser) appendKillStreakEvent(tick uint32, msg *protocol.CCitadelUserMs
 			IsFirstBlood: msg.GetIsFirstBlood(),
 			StreakEnded:  msg.GetStreakEnded(),
 			Duration:     msg.GetDuration(),
+		},
+	})
+}
+
+func (p *Parser) appendStaminaConsumedEvent(tick uint32, msg *protocol.CCitadelUserMsg_StaminaConsumed) {
+	// The message defaults entindex_target to -1 when attribution is absent;
+	// keep that sentinel instead of masking it into a bogus handle.
+	rawTarget := msg.GetEntindexTarget()
+	target := int32(-1)
+	slot := int32(-1)
+	if rawTarget >= 0 {
+		target = int32(uint32(rawTarget) & uint32(entityHandleMask))
+		if mapped, ok := p.entityPlayerSlots[target]; ok {
+			slot = mapped
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventStaminaConsumed,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     target,
+		PlayerSlot: slot,
+		StaminaConsumed: &StaminaConsumedEvent{
+			Tick:           normalizedTick(tick),
+			GameTime:       p.clock.GameTime(),
+			EntindexTarget: target,
+			StaminaBefore:  msg.GetStaminaBefore(),
+			StaminaAfter:   msg.GetStaminaAfter(),
+			Drained:        msg.GetDrained(),
+			StaminaMax:     msg.GetStaminaMax(),
 		},
 	})
 }

@@ -32,6 +32,9 @@ const (
 	// EventKillStreak identifies a kill streak update from the user message
 	// stream.
 	EventKillStreak EventType = "kill_streak"
+	// EventStaminaConsumed identifies a stamina spend from the user message
+	// stream.
+	EventStaminaConsumed EventType = "stamina_consumed"
 	// EventObjective identifies a map objective lifecycle observation.
 	EventObjective EventType = "objective_event"
 )
@@ -53,22 +56,23 @@ type PurchaseEvent struct {
 // Event is the unified typed stream used by downstream Deadlock analysis.
 // OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
-	SchemaVersion    int                 `json:"schema_version"`
-	Type             EventType           `json:"type"`
-	Tick             uint32              `json:"tick"`
-	GameTime         float64             `json:"game_time"`
-	Entity           int32               `json:"entity"`
-	PlayerSlot       int32               `json:"player_slot"`
-	OwnedItems       []uint32            `json:"owned_items,omitempty"`
-	Damage           *DamageEvent        `json:"damage,omitempty"`
-	Modifier         *ModifierEvent      `json:"modifier,omitempty"`
-	Purchase         *PurchaseEvent      `json:"purchase,omitempty"`
-	EntitySample     *EntitySample       `json:"entity_sample,omitempty"`
-	DamageSummary    *DamageSummaryEvent `json:"damage_summary,omitempty"`
-	PostMatch        *PostMatchEvent     `json:"post_match,omitempty"`
-	ControllerSample *ControllerSample   `json:"controller_sample,omitempty"`
-	KillStreak       *KillStreakEvent    `json:"kill_streak,omitempty"`
-	Objective        *ObjectiveEvent     `json:"objective_event,omitempty"`
+	SchemaVersion    int                   `json:"schema_version"`
+	Type             EventType             `json:"type"`
+	Tick             uint32                `json:"tick"`
+	GameTime         float64               `json:"game_time"`
+	Entity           int32                 `json:"entity"`
+	PlayerSlot       int32                 `json:"player_slot"`
+	OwnedItems       []uint32              `json:"owned_items,omitempty"`
+	Damage           *DamageEvent          `json:"damage,omitempty"`
+	Modifier         *ModifierEvent        `json:"modifier,omitempty"`
+	Purchase         *PurchaseEvent        `json:"purchase,omitempty"`
+	EntitySample     *EntitySample         `json:"entity_sample,omitempty"`
+	DamageSummary    *DamageSummaryEvent   `json:"damage_summary,omitempty"`
+	PostMatch        *PostMatchEvent       `json:"post_match,omitempty"`
+	ControllerSample *ControllerSample     `json:"controller_sample,omitempty"`
+	KillStreak       *KillStreakEvent      `json:"kill_streak,omitempty"`
+	StaminaConsumed  *StaminaConsumedEvent `json:"stamina_consumed,omitempty"`
+	Objective        *ObjectiveEvent       `json:"objective_event,omitempty"`
 }
 
 // DamageSummaryRecord is one engine-attributed damage entry in a
@@ -108,6 +112,18 @@ type KillStreakEvent struct {
 	IsFirstBlood bool    `json:"is_first_blood"`
 	StreakEnded  bool    `json:"streak_ended"`
 	Duration     float32 `json:"duration"`
+}
+
+// StaminaConsumedEvent is one stamina spend observed in the user message
+// stream. Before/After/Max are the player's stamina bars at the spend.
+type StaminaConsumedEvent struct {
+	Tick           uint32  `json:"tick"`
+	GameTime       float64 `json:"game_time"`
+	EntindexTarget int32   `json:"entindex_target"`
+	StaminaBefore  float32 `json:"stamina_before"`
+	StaminaAfter   float32 `json:"stamina_after"`
+	Drained        bool    `json:"drained"`
+	StaminaMax     float32 `json:"stamina_max"`
 }
 
 // PostMatchObjective is one map objective in the post-match record.
