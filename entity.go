@@ -534,6 +534,10 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 		p.appendControllerSample(tick, e)
 		return
 	}
+	if stringsContains(e.class.name, "Ability") {
+		p.appendAbilityChargeEvent(tick, e)
+		return
+	}
 	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
@@ -552,6 +556,40 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 			EntitySample: &sample,
 		})
 	}
+}
+
+// appendAbilityChargeEvent emits a charge-count event when an ability
+// entity's m_iRemainingCharges differs from the last value seen for it.
+// Dash charges are the primary consumer; any charged ability flows here.
+func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
+	charges, ok := e.Int32("m_iRemainingCharges")
+	if !ok {
+		return
+	}
+	if last, seen := p.chargeLastSeen[e.index]; seen && last == charges {
+		return
+	}
+	p.chargeLastSeen[e.index] = charges
+	slot := int32(-1)
+	if owner, ok := e.Int32("m_hOwnerEntity"); ok && owner >= 0 {
+		ownerIndex := int32(uint32(owner) & uint32(entityHandleMask))
+		if mapped, mappedOk := p.entityPlayerSlots[ownerIndex]; mappedOk {
+			slot = mapped
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventAbilityCharges,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     e.index,
+		PlayerSlot: slot,
+		AbilityCharges: &AbilityChargesEvent{
+			Tick:             normalizedTick(tick),
+			GameTime:         p.clock.GameTime(),
+			ClassName:        e.class.name,
+			RemainingCharges: charges,
+		},
+	})
 }
 
 func (p *Parser) updateEntityPlayerSlot(e *Entity) {

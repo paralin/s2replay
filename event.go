@@ -35,6 +35,9 @@ const (
 	// EventStaminaConsumed identifies a stamina spend from the user message
 	// stream.
 	EventStaminaConsumed EventType = "stamina_consumed"
+	// EventAbilityCharges identifies an ability charge-count change from the
+	// entity stream.
+	EventAbilityCharges EventType = "ability_charges"
 	// EventObjective identifies a map objective lifecycle observation.
 	EventObjective EventType = "objective_event"
 )
@@ -72,6 +75,7 @@ type Event struct {
 	ControllerSample *ControllerSample     `json:"controller_sample,omitempty"`
 	KillStreak       *KillStreakEvent      `json:"kill_streak,omitempty"`
 	StaminaConsumed  *StaminaConsumedEvent `json:"stamina_consumed,omitempty"`
+	AbilityCharges   *AbilityChargesEvent  `json:"ability_charges,omitempty"`
 	Objective        *ObjectiveEvent       `json:"objective_event,omitempty"`
 }
 
@@ -124,6 +128,16 @@ type StaminaConsumedEvent struct {
 	StaminaAfter   float32 `json:"stamina_after"`
 	Drained        bool    `json:"drained"`
 	StaminaMax     float32 `json:"stamina_max"`
+}
+
+// AbilityChargesEvent is one ability charge-count change observed on an
+// ability entity (dash charges are the primary consumer). Emitted only when
+// the count differs from the previously seen value for that entity.
+type AbilityChargesEvent struct {
+	Tick             uint32  `json:"tick"`
+	GameTime         float64 `json:"game_time"`
+	ClassName        string  `json:"class_name"`
+	RemainingCharges int32   `json:"remaining_charges"`
 }
 
 // PostMatchObjective is one map objective in the post-match record.

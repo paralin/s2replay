@@ -41,6 +41,7 @@ type Parser struct {
 	pendingSamples   []EntitySample
 	pendingModifiers []ModifierEvent
 	pendingEvents    []Event
+	chargeLastSeen   map[int32]int32
 	stopped          bool
 
 	classIDBits          uint8
@@ -82,6 +83,7 @@ func NewParser(demo []byte) (*Parser, error) {
 		modifiers:            make(map[int32]modifierState),
 		playerItems:          make(map[int32]map[uint32]struct{}),
 		entityPlayerSlots:    make(map[int32]int32),
+		chargeLastSeen:       make(map[int32]int32),
 		stringTables:         newStringTables(),
 		entityStateErrors:    make(map[string]int),
 		skippedMessages:      make(map[skippedMessageKey]int),
