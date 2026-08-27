@@ -323,6 +323,20 @@ func sanitizeEntitySample(sample *EntitySample) {
 		sample.PositionZ = 0
 		sample.HasPosition = false
 	}
+	if !isFiniteFloat32(sample.FacingX) ||
+		!isFiniteFloat32(sample.FacingY) ||
+		!isFiniteFloat32(sample.FacingZ) {
+		sample.FacingX, sample.FacingY, sample.FacingZ = 0, 0, 0
+		sample.HasFacing = false
+		sample.HasFacingX, sample.HasFacingY, sample.HasFacingZ = false, false, false
+	}
+	if !isFiniteFloat32(sample.VelocityX) ||
+		!isFiniteFloat32(sample.VelocityY) ||
+		!isFiniteFloat32(sample.VelocityZ) {
+		sample.VelocityX, sample.VelocityY, sample.VelocityZ = 0, 0, 0
+		sample.HasVelocity = false
+		sample.HasVelocityX, sample.HasVelocityY, sample.HasVelocityZ = false, false, false
+	}
 }
 
 func finiteFloat32(v float32) float32 {

@@ -13,36 +13,63 @@ const (
 
 // Entity is the parser-owned current state for one networked entity.
 type Entity struct {
-	index  int32
-	serial int32
-	class  *entityClass
-	active bool
-	state  *fieldState
-	paths  map[string]fieldPath
-	misses map[string]bool
+	index      int32
+	serial     int32
+	class      *entityClass
+	active     bool
+	state      *fieldState
+	paths      map[string]fieldPath
+	misses     map[string]bool
+	fieldTicks map[fieldPath]uint32
 }
 
 // EntitySample is the typed Phase 4 projection used by downstream event code.
 type EntitySample struct {
-	Tick        uint32  `json:"tick"`
-	GameTime    float64 `json:"game_time"`
-	Entity      int32   `json:"entity"`
-	ClassID     int32   `json:"class_id"`
-	ClassName   string  `json:"class_name"`
-	Health      float32 `json:"health"`
-	MaxHealth   float32 `json:"max_health"`
-	Shield      float32 `json:"shield"`
-	MaxShield   float32 `json:"max_shield"`
-	PositionX   float32 `json:"position_x"`
-	PositionY   float32 `json:"position_y"`
-	PositionZ   float32 `json:"position_z"`
-	HeroID      uint32  `json:"hero_id,omitempty"`
-	Team        int32   `json:"team,omitempty"`
-	HasHealth   bool    `json:"has_health"`
-	HasShield   bool    `json:"has_shield"`
-	HasPosition bool    `json:"has_position"`
-	HasHeroID   bool    `json:"has_hero_id"`
-	HasTeam     bool    `json:"has_team"`
+	Tick                 uint32  `json:"tick"`
+	GameTime             float64 `json:"game_time"`
+	Entity               int32   `json:"entity"`
+	ClassID              int32   `json:"class_id"`
+	ClassName            string  `json:"class_name"`
+	Health               float32 `json:"health"`
+	MaxHealth            float32 `json:"max_health"`
+	Shield               float32 `json:"shield"`
+	MaxShield            float32 `json:"max_shield"`
+	PositionX            float32 `json:"position_x"`
+	PositionY            float32 `json:"position_y"`
+	PositionZ            float32 `json:"position_z"`
+	PositionXTick        uint32  `json:"position_x_tick,omitempty"`
+	PositionYTick        uint32  `json:"position_y_tick,omitempty"`
+	PositionZTick        uint32  `json:"position_z_tick,omitempty"`
+	PositionXSourceField string  `json:"position_x_source_field,omitempty"`
+	PositionYSourceField string  `json:"position_y_source_field,omitempty"`
+	PositionZSourceField string  `json:"position_z_source_field,omitempty"`
+	FacingX              float32 `json:"facing_x,omitempty"`
+	FacingY              float32 `json:"facing_y,omitempty"`
+	FacingZ              float32 `json:"facing_z,omitempty"`
+	VelocityX            float32 `json:"velocity_x,omitempty"`
+	VelocityY            float32 `json:"velocity_y,omitempty"`
+	VelocityZ            float32 `json:"velocity_z,omitempty"`
+	FacingXTick          uint32  `json:"facing_x_tick,omitempty"`
+	FacingYTick          uint32  `json:"facing_y_tick,omitempty"`
+	FacingZTick          uint32  `json:"facing_z_tick,omitempty"`
+	VelocityXTick        uint32  `json:"velocity_x_tick,omitempty"`
+	VelocityYTick        uint32  `json:"velocity_y_tick,omitempty"`
+	VelocityZTick        uint32  `json:"velocity_z_tick,omitempty"`
+	HasFacing            bool    `json:"has_facing,omitempty"`
+	HasFacingX           bool    `json:"has_facing_x,omitempty"`
+	HasFacingY           bool    `json:"has_facing_y,omitempty"`
+	HasFacingZ           bool    `json:"has_facing_z,omitempty"`
+	HasVelocity          bool    `json:"has_velocity,omitempty"`
+	HasVelocityX         bool    `json:"has_velocity_x,omitempty"`
+	HasVelocityY         bool    `json:"has_velocity_y,omitempty"`
+	HasVelocityZ         bool    `json:"has_velocity_z,omitempty"`
+	HeroID               uint32  `json:"hero_id,omitempty"`
+	Team                 int32   `json:"team,omitempty"`
+	HasHealth            bool    `json:"has_health"`
+	HasShield            bool    `json:"has_shield"`
+	HasPosition          bool    `json:"has_position"`
+	HasHeroID            bool    `json:"has_hero_id"`
+	HasTeam              bool    `json:"has_team"`
 }
 
 // ControllerSample is one periodic snapshot of a player controller entity:
@@ -81,13 +108,14 @@ type ObjectiveEvent struct {
 
 func newEntity(index, serial int32, class *entityClass) *Entity {
 	return &Entity{
-		index:  index,
-		serial: serial,
-		class:  class,
-		active: true,
-		state:  newFieldState(),
-		paths:  make(map[string]fieldPath),
-		misses: make(map[string]bool),
+		index:      index,
+		serial:     serial,
+		class:      class,
+		active:     true,
+		state:      newFieldState(),
+		paths:      make(map[string]fieldPath),
+		misses:     make(map[string]bool),
+		fieldTicks: make(map[fieldPath]uint32),
 	}
 }
 
@@ -225,6 +253,22 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_loadingHero.m_nHeroID")
 	}
 	s.Team, s.HasTeam = e.Int32("m_iTeamNum")
+	if facing, ticks, present := e.vector3([]string{"m_angEyeAngles"}, []string{
+		"m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z",
+	}); present[0] || present[1] || present[2] {
+		s.FacingX, s.FacingY, s.FacingZ = facing[0], facing[1], facing[2]
+		s.FacingXTick, s.FacingYTick, s.FacingZTick = ticks[0], ticks[1], ticks[2]
+		s.HasFacingX, s.HasFacingY, s.HasFacingZ = present[0], present[1], present[2]
+		s.HasFacing = present[0] && present[1] && present[2]
+	}
+	if velocity, ticks, present := e.vector3(nil, []string{
+		"m_vecVelocity.m_vecX", "m_vecVelocity.m_vecY", "m_vecVelocity.m_vecZ",
+	}); present[0] || present[1] || present[2] {
+		s.VelocityX, s.VelocityY, s.VelocityZ = velocity[0], velocity[1], velocity[2]
+		s.VelocityXTick, s.VelocityYTick, s.VelocityZTick = ticks[0], ticks[1], ticks[2]
+		s.HasVelocityX, s.HasVelocityY, s.HasVelocityZ = present[0], present[1], present[2]
+		s.HasVelocity = present[0] && present[1] && present[2]
+	}
 	// Modern flattened serializers nest body origin under the skeleton
 	// instance; older replays expose it directly on CBodyComponent.
 	bodyOrigin := []string{
@@ -247,19 +291,86 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		}
 		return names
 	}
-	x, okX := firstFloat32(e, cellNames("cellX")...)
-	y, okY := firstFloat32(e, cellNames("cellY")...)
-	z, okZ := firstFloat32(e, cellNames("cellZ")...)
-	vx, vxOK := firstFloat32(e, vecNames("X")...)
-	vy, vyOK := firstFloat32(e, vecNames("Y")...)
-	vz, vzOK := firstFloat32(e, vecNames("Z")...)
+	x, xTick, xField, okX := firstFloat32At(e, cellNames("cellX")...)
+	y, yTick, yField, okY := firstFloat32At(e, cellNames("cellY")...)
+	z, zTick, zField, okZ := firstFloat32At(e, cellNames("cellZ")...)
+	vx, vxTick, vxField, vxOK := firstFloat32At(e, vecNames("X")...)
+	vy, vyTick, vyField, vyOK := firstFloat32At(e, vecNames("Y")...)
+	vz, vzTick, vzField, vzOK := firstFloat32At(e, vecNames("Z")...)
 	if okX && okY && okZ && vxOK && vyOK && vzOK {
 		s.PositionX = deadlockCoordFromCell(x, vx)
 		s.PositionY = deadlockCoordFromCell(y, vy)
 		s.PositionZ = deadlockCoordFromCell(z, vz)
+		s.PositionXTick = minTick(xTick, vxTick)
+		s.PositionYTick = minTick(yTick, vyTick)
+		s.PositionZTick = minTick(zTick, vzTick)
+		s.PositionXSourceField = xField + "+" + vxField
+		s.PositionYSourceField = yField + "+" + vyField
+		s.PositionZSourceField = zField + "+" + vzField
 		s.HasPosition = true
 	}
-	return s, s.HasHealth || s.HasShield || s.HasPosition
+	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
+}
+
+func (e *Entity) fieldValue(name string) (any, uint32, bool) {
+	fp, ok := e.class.pathForName(name)
+	if !ok {
+		return nil, 0, false
+	}
+	v := e.state.get(fp)
+	if v == nil {
+		return nil, 0, false
+	}
+	return v, e.fieldTicks[fp], true
+}
+
+func (e *Entity) vector3(vectorNames, componentNames []string) ([3]float32, [3]uint32, [3]bool) {
+	var values [3]float32
+	var ticks [3]uint32
+	var present [3]bool
+	for _, name := range vectorNames {
+		if v, tick, ok := e.fieldValue(name); ok {
+			if vector, ok := v.([]float32); ok && len(vector) >= 3 {
+				copy(values[:], vector[:3])
+				ticks = [3]uint32{tick, tick, tick}
+				present = [3]bool{true, true, true}
+				return values, ticks, present
+			}
+		}
+	}
+	if len(componentNames) != 3 {
+		return values, ticks, present
+	}
+	for i, name := range componentNames {
+		v, tick, ok := e.fieldValue(name)
+		value, valueOK := v.(float32)
+		if ok && valueOK {
+			values[i], ticks[i], present[i] = value, tick, true
+		}
+	}
+	return values, ticks, present
+}
+
+func firstFloat32At(e *Entity, names ...string) (float32, uint32, string, bool) {
+	for _, name := range names {
+		value, ok := e.Float32(name)
+		if !ok {
+			continue
+		}
+		fp, pathOK := e.class.pathForName(name)
+		if !pathOK {
+			continue
+		}
+		return value, e.fieldTicks[fp], name, true
+	}
+	return 0, 0, "", false
+}
+
+func minTick(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func firstFloat32(e *Entity, names ...string) (float32, bool) {
@@ -342,11 +453,11 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 				e := newEntity(index, int32(serial), class)
 				p.entities[index] = e
 				if baseline := p.classBaselines[int32(classID)]; len(baseline) != 0 {
-					if err := e.readFields(newPacketReader(baseline)); err != nil {
+					if err := e.readFields(newPacketReader(baseline), 0); err != nil {
 						return err
 					}
 				}
-				if err := e.readFields(r); err != nil {
+				if err := e.readFields(r, tick); err != nil {
 					return err
 				}
 				p.appendEntitySample(tick, e)
@@ -360,7 +471,7 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 			if !e.active {
 				e.active = true
 			}
-			if err := e.readFields(r); err != nil {
+			if err := e.readFields(r, tick); err != nil {
 				return err
 			}
 			p.appendEntitySample(tick, e)
@@ -384,7 +495,7 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 	return nil
 }
 
-func (e *Entity) readFields(r *packetReader) error {
+func (e *Entity) readFields(r *packetReader, tick uint32) error {
 	paths, err := readFieldPaths(r)
 	if err != nil {
 		return entityDecodeError{entity: e, err: err}
@@ -399,6 +510,7 @@ func (e *Entity) readFields(r *packetReader) error {
 			return entityDecodeError{entity: e, path: fp, field: e.class.fieldByPath(fp), rootField: e.class.rootField(fp), fieldName: e.class.fieldName(fp), err: err}
 		}
 		e.state.set(fp, v)
+		e.fieldTicks[fp] = tick
 	}
 	return nil
 }
