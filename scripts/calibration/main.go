@@ -396,10 +396,7 @@ func quantiles(sorted []float64) map[string]float64 {
 		return out
 	}
 	pick := func(q float64) float64 {
-		idx := int(math.Ceil(q*float64(len(sorted)))) - 1
-		if idx < 0 {
-			idx = 0
-		}
+		idx := max(int(math.Ceil(q*float64(len(sorted))))-1, 0)
 		return sorted[idx]
 	}
 	out["p50"] = pick(0.50)

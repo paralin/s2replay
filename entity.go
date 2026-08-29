@@ -632,29 +632,6 @@ func (p *Parser) updateEntityPlayerSlot(e *Entity) {
 	}
 }
 
-func (p *Parser) entityName(e *Entity) (string, bool) {
-	if e == nil {
-		return "", false
-	}
-	nameIndex, ok := e.Int32("m_pEntity.m_nameStringableIndex")
-	if !ok || nameIndex < 0 {
-		return "", false
-	}
-	tableID, ok := p.stringTables.nameIndex["EntityNames"]
-	if !ok {
-		return "", false
-	}
-	table := p.stringTables.tables[tableID]
-	if table == nil {
-		return "", false
-	}
-	item := table.items[nameIndex]
-	if item == nil || item.key == "" {
-		return "", false
-	}
-	return item.key, true
-}
-
 func isLikelyHeroClass(name string) bool {
 	return stringsContains(name, "CitadelPlayerPawn") || stringsContains(name, "Hero")
 }

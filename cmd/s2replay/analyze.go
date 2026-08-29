@@ -86,7 +86,7 @@ func combatEventFilter(filter string) (func(s2replay.Event) bool, error) {
 		return nil, nil
 	}
 	allowed := map[s2replay.EventType]bool{}
-	for _, raw := range strings.Split(filter, ",") {
+	for raw := range strings.SplitSeq(filter, ",") {
 		name := strings.TrimSpace(raw)
 		switch s2replay.EventType(name) {
 		case s2replay.EventDamage, s2replay.EventModifier, s2replay.EventPurchase, s2replay.EventEntitySample:
