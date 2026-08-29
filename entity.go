@@ -24,25 +24,29 @@ type Entity struct {
 
 // EntitySample is the typed Phase 4 projection used by downstream event code.
 type EntitySample struct {
-	Tick        uint32  `json:"tick"`
-	GameTime    float64 `json:"game_time"`
-	Entity      int32   `json:"entity"`
-	ClassID     int32   `json:"class_id"`
-	ClassName   string  `json:"class_name"`
-	Health      float32 `json:"health"`
-	MaxHealth   float32 `json:"max_health"`
-	Shield      float32 `json:"shield"`
-	MaxShield   float32 `json:"max_shield"`
-	PositionX   float32 `json:"position_x"`
-	PositionY   float32 `json:"position_y"`
-	PositionZ   float32 `json:"position_z"`
-	HeroID      uint32  `json:"hero_id,omitempty"`
-	Team        int32   `json:"team,omitempty"`
-	HasHealth   bool    `json:"has_health"`
-	HasShield   bool    `json:"has_shield"`
-	HasPosition bool    `json:"has_position"`
-	HasHeroID   bool    `json:"has_hero_id"`
-	HasTeam     bool    `json:"has_team"`
+	Tick         uint32  `json:"tick"`
+	GameTime     float64 `json:"game_time"`
+	Entity       int32   `json:"entity"`
+	ClassID      int32   `json:"class_id"`
+	ClassName    string  `json:"class_name"`
+	Health       float32 `json:"health"`
+	MaxHealth    float32 `json:"max_health"`
+	Shield       float32 `json:"shield"`
+	MaxShield    float32 `json:"max_shield"`
+	PositionX    float32 `json:"position_x"`
+	PositionY    float32 `json:"position_y"`
+	PositionZ    float32 `json:"position_z"`
+	HeroID       uint32  `json:"hero_id,omitempty"`
+	Team         int32   `json:"team,omitempty"`
+	HasHealth    bool    `json:"has_health"`
+	HasShield    bool    `json:"has_shield"`
+	HasPosition  bool    `json:"has_position"`
+	Grounded     bool    `json:"grounded,omitempty"`
+	Crouching    bool    `json:"crouching,omitempty"`
+	HasGrounded  bool    `json:"has_grounded,omitempty"`
+	HasCrouching bool    `json:"has_crouching,omitempty"`
+	HasHeroID    bool    `json:"has_hero_id"`
+	HasTeam      bool    `json:"has_team"`
 }
 
 // ControllerSample is one periodic snapshot of a player controller entity:
@@ -225,6 +229,14 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_loadingHero.m_nHeroID")
 	}
 	s.Team, s.HasTeam = e.Int32("m_iTeamNum")
+	if ground, ok := e.UInt32("m_hGroundEntity"); ok {
+		s.Grounded = ground != invalidEntityHandle
+		s.HasGrounded = true
+	}
+	if crouching, ok := e.Get("m_pMovementServices.m_bDucked").(bool); ok {
+		s.Crouching = crouching
+		s.HasCrouching = true
+	}
 	// Modern flattened serializers nest body origin under the skeleton
 	// instance; older replays expose it directly on CBodyComponent.
 	bodyOrigin := []string{
@@ -259,7 +271,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.PositionZ = deadlockCoordFromCell(z, vz)
 		s.HasPosition = true
 	}
-	return s, s.HasHealth || s.HasShield || s.HasPosition
+	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasGrounded || s.HasCrouching
 }
 
 func firstFloat32(e *Entity, names ...string) (float32, bool) {
