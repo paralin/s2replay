@@ -1,6 +1,9 @@
 package s2replay
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestEntitySampleProjectsMovementState(t *testing.T) {
 	movement := &serializer{fields: []*field{{varName: "m_bDucked"}}}
@@ -32,5 +35,24 @@ func TestEntitySampleProjectsMovementState(t *testing.T) {
 	sample, ok = entity.sample(65, 2)
 	if !ok || !sample.HasGrounded || sample.Grounded || !sample.HasCrouching || sample.Crouching {
 		t.Fatalf("false movement state missing: %+v", sample)
+	}
+}
+
+func TestEntitySampleJSONIncludesFalseMovementState(t *testing.T) {
+	sample := EntitySample{HasGrounded: true, HasCrouching: true}
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if grounded, ok := fields["grounded"]; !ok || grounded != false {
+		t.Fatalf("grounded false state missing from JSON: %s", data)
+	}
+	if crouching, ok := fields["crouching"]; !ok || crouching != false {
+		t.Fatalf("crouching false state missing from JSON: %s", data)
 	}
 }

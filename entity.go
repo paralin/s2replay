@@ -41,8 +41,8 @@ type EntitySample struct {
 	HasHealth    bool    `json:"has_health"`
 	HasShield    bool    `json:"has_shield"`
 	HasPosition  bool    `json:"has_position"`
-	Grounded     bool    `json:"grounded,omitempty"`
-	Crouching    bool    `json:"crouching,omitempty"`
+	Grounded     bool    `json:"grounded"`
+	Crouching    bool    `json:"crouching"`
 	HasGrounded  bool    `json:"has_grounded,omitempty"`
 	HasCrouching bool    `json:"has_crouching,omitempty"`
 	HasHeroID    bool    `json:"has_hero_id"`
