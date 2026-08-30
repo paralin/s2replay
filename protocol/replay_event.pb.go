@@ -38,6 +38,16 @@ type ReplayEvent struct {
 	ControllerSample *ReplayControllerSample `protobuf:"bytes,14,opt,name=controller_sample,json=controllerSample,proto3" json:"controllerSample,omitempty"`
 	KillStreak       *ReplayKillStreak       `protobuf:"bytes,15,opt,name=kill_streak,json=killStreak,proto3" json:"killStreak,omitempty"`
 	ObjectiveEvent   *ReplayObjective        `protobuf:"bytes,16,opt,name=objective_event,json=objectiveEvent,proto3" json:"objectiveEvent,omitempty"`
+	// StaminaConsumed contains a game-authored stamina-consumption message.
+	StaminaConsumed *ReplayStaminaConsumed `protobuf:"bytes,17,opt,name=stamina_consumed,json=staminaConsumed,proto3" json:"staminaConsumed,omitempty"`
+	// AbilityCharges contains a measured ability charge-count observation.
+	AbilityCharges *ReplayAbilityCharges `protobuf:"bytes,18,opt,name=ability_charges,json=abilityCharges,proto3" json:"abilityCharges,omitempty"`
+	// ImportantAbilityUsed contains a game-authored important-ability notification.
+	ImportantAbilityUsed *ReplayImportantAbilityUsed `protobuf:"bytes,19,opt,name=important_ability_used,json=importantAbilityUsed,proto3" json:"importantAbilityUsed,omitempty"`
+	// AbilityNotify contains a game-authored ability contact notification.
+	AbilityNotify *ReplayAbilityNotify `protobuf:"bytes,20,opt,name=ability_notify,json=abilityNotify,proto3" json:"abilityNotify,omitempty"`
+	// JumpState contains a measured CCitadel_Ability_Jump state observation.
+	JumpState *ReplayJumpState `protobuf:"bytes,21,opt,name=jump_state,json=jumpState,proto3" json:"jumpState,omitempty"`
 }
 
 func (x *ReplayEvent) Reset() {
@@ -154,6 +164,41 @@ func (x *ReplayEvent) GetKillStreak() *ReplayKillStreak {
 func (x *ReplayEvent) GetObjectiveEvent() *ReplayObjective {
 	if x != nil {
 		return x.ObjectiveEvent
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetStaminaConsumed() *ReplayStaminaConsumed {
+	if x != nil {
+		return x.StaminaConsumed
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetAbilityCharges() *ReplayAbilityCharges {
+	if x != nil {
+		return x.AbilityCharges
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetImportantAbilityUsed() *ReplayImportantAbilityUsed {
+	if x != nil {
+		return x.ImportantAbilityUsed
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetAbilityNotify() *ReplayAbilityNotify {
+	if x != nil {
+		return x.AbilityNotify
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetJumpState() *ReplayJumpState {
+	if x != nil {
+		return x.JumpState
 	}
 	return nil
 }
@@ -1150,6 +1195,610 @@ func (x *ReplayKillStreak) GetDuration() float32 {
 	return 0
 }
 
+// ReplayStaminaConsumed preserves one game-authored stamina-consumption message.
+type ReplayStaminaConsumed struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the message.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the message.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// EntindexTarget is the raw target entity index when HasEntindexTarget is true.
+	EntindexTarget int32 `protobuf:"zigzag32,3,opt,name=entindex_target,json=entindexTarget,proto3" json:"entindexTarget,omitempty"`
+	// StaminaBefore is the measured stamina before consumption when HasStaminaBefore is true.
+	StaminaBefore float32 `protobuf:"fixed32,4,opt,name=stamina_before,json=staminaBefore,proto3" json:"staminaBefore,omitempty"`
+	// StaminaAfter is the measured stamina after consumption when HasStaminaAfter is true.
+	StaminaAfter float32 `protobuf:"fixed32,5,opt,name=stamina_after,json=staminaAfter,proto3" json:"staminaAfter,omitempty"`
+	// Drained is the game-authored drained state when HasDrained is true.
+	Drained bool `protobuf:"varint,6,opt,name=drained,proto3" json:"drained,omitempty"`
+	// StaminaMax is the measured maximum stamina when HasStaminaMax is true.
+	StaminaMax float32 `protobuf:"fixed32,7,opt,name=stamina_max,json=staminaMax,proto3" json:"staminaMax,omitempty"`
+	// MessageGameTime is the source message time in seconds when HasMessageGameTime is true.
+	MessageGameTime float32 `protobuf:"fixed32,8,opt,name=message_game_time,json=messageGameTime,proto3" json:"messageGameTime,omitempty"`
+	// HasEntindexTarget distinguishes a present target index from its absent default.
+	HasEntindexTarget bool `protobuf:"varint,9,opt,name=has_entindex_target,json=hasEntindexTarget,proto3" json:"hasEntindexTarget,omitempty"`
+	// HasStaminaBefore distinguishes a present zero stamina value from absence.
+	HasStaminaBefore bool `protobuf:"varint,10,opt,name=has_stamina_before,json=hasStaminaBefore,proto3" json:"hasStaminaBefore,omitempty"`
+	// HasStaminaAfter distinguishes a present zero stamina value from absence.
+	HasStaminaAfter bool `protobuf:"varint,11,opt,name=has_stamina_after,json=hasStaminaAfter,proto3" json:"hasStaminaAfter,omitempty"`
+	// HasDrained distinguishes a present false drained state from absence.
+	HasDrained bool `protobuf:"varint,12,opt,name=has_drained,json=hasDrained,proto3" json:"hasDrained,omitempty"`
+	// HasStaminaMax distinguishes a present zero maximum from absence.
+	HasStaminaMax bool `protobuf:"varint,13,opt,name=has_stamina_max,json=hasStaminaMax,proto3" json:"hasStaminaMax,omitempty"`
+	// HasMessageGameTime distinguishes a present zero source time from absence.
+	HasMessageGameTime bool `protobuf:"varint,14,opt,name=has_message_game_time,json=hasMessageGameTime,proto3" json:"hasMessageGameTime,omitempty"`
+}
+
+func (x *ReplayStaminaConsumed) Reset() {
+	*x = ReplayStaminaConsumed{}
+}
+
+func (*ReplayStaminaConsumed) ProtoMessage() {}
+
+func (x *ReplayStaminaConsumed) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetEntindexTarget() int32 {
+	if x != nil {
+		return x.EntindexTarget
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetStaminaBefore() float32 {
+	if x != nil {
+		return x.StaminaBefore
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetStaminaAfter() float32 {
+	if x != nil {
+		return x.StaminaAfter
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetDrained() bool {
+	if x != nil {
+		return x.Drained
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetStaminaMax() float32 {
+	if x != nil {
+		return x.StaminaMax
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetMessageGameTime() float32 {
+	if x != nil {
+		return x.MessageGameTime
+	}
+	return 0
+}
+
+func (x *ReplayStaminaConsumed) GetHasEntindexTarget() bool {
+	if x != nil {
+		return x.HasEntindexTarget
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetHasStaminaBefore() bool {
+	if x != nil {
+		return x.HasStaminaBefore
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetHasStaminaAfter() bool {
+	if x != nil {
+		return x.HasStaminaAfter
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetHasDrained() bool {
+	if x != nil {
+		return x.HasDrained
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetHasStaminaMax() bool {
+	if x != nil {
+		return x.HasStaminaMax
+	}
+	return false
+}
+
+func (x *ReplayStaminaConsumed) GetHasMessageGameTime() bool {
+	if x != nil {
+		return x.HasMessageGameTime
+	}
+	return false
+}
+
+// ReplayJumpState preserves an initial or changed measured jump-ability state.
+type ReplayJumpState struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the observation.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the observation.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// ClassName identifies the measured entity class without inferring a technique.
+	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"className,omitempty"`
+	// InitialObservation reports that this is the first state seen in the entity epoch.
+	InitialObservation bool `protobuf:"varint,4,opt,name=initial_observation,json=initialObservation,proto3" json:"initialObservation,omitempty"`
+	// Jumped is the measured m_bJumped value when HasJumped is true.
+	Jumped bool `protobuf:"varint,5,opt,name=jumped,proto3" json:"jumped,omitempty"`
+	// DesiredAirJumpCount is the measured desired count, not an inferred action.
+	DesiredAirJumpCount int32 `protobuf:"zigzag32,6,opt,name=desired_air_jump_count,json=desiredAirJumpCount,proto3" json:"desiredAirJumpCount,omitempty"`
+	// ExecutedAirJumpCount is the measured executed count, not an inferred action.
+	ExecutedAirJumpCount int32 `protobuf:"zigzag32,7,opt,name=executed_air_jump_count,json=executedAirJumpCount,proto3" json:"executedAirJumpCount,omitempty"`
+	// ConsecutiveAirJumps is the measured consecutive count, not an inferred action.
+	ConsecutiveAirJumps int32 `protobuf:"zigzag32,8,opt,name=consecutive_air_jumps,json=consecutiveAirJumps,proto3" json:"consecutiveAirJumps,omitempty"`
+	// ConsecutiveWallJumps is the measured consecutive count, not an inferred action.
+	ConsecutiveWallJumps int32 `protobuf:"zigzag32,9,opt,name=consecutive_wall_jumps,json=consecutiveWallJumps,proto3" json:"consecutiveWallJumps,omitempty"`
+	// CanDashJump is the measured m_bCanDashJump value when HasCanDashJump is true.
+	CanDashJump bool `protobuf:"varint,10,opt,name=can_dash_jump,json=canDashJump,proto3" json:"canDashJump,omitempty"`
+	// InSlideJump is the measured m_bInSlideJump value when HasInSlideJump is true.
+	InSlideJump bool `protobuf:"varint,11,opt,name=in_slide_jump,json=inSlideJump,proto3" json:"inSlideJump,omitempty"`
+	// HasJumped distinguishes a present false Jumped value from absence.
+	HasJumped bool `protobuf:"varint,12,opt,name=has_jumped,json=hasJumped,proto3" json:"hasJumped,omitempty"`
+	// HasDesiredAirJumpCount distinguishes a present zero desired count from absence.
+	HasDesiredAirJumpCount bool `protobuf:"varint,13,opt,name=has_desired_air_jump_count,json=hasDesiredAirJumpCount,proto3" json:"hasDesiredAirJumpCount,omitempty"`
+	// HasExecutedAirJumpCount distinguishes a present zero executed count from absence.
+	HasExecutedAirJumpCount bool `protobuf:"varint,14,opt,name=has_executed_air_jump_count,json=hasExecutedAirJumpCount,proto3" json:"hasExecutedAirJumpCount,omitempty"`
+	// HasConsecutiveAirJumps distinguishes a present zero air count from absence.
+	HasConsecutiveAirJumps bool `protobuf:"varint,15,opt,name=has_consecutive_air_jumps,json=hasConsecutiveAirJumps,proto3" json:"hasConsecutiveAirJumps,omitempty"`
+	// HasConsecutiveWallJumps distinguishes a present zero wall count from absence.
+	HasConsecutiveWallJumps bool `protobuf:"varint,16,opt,name=has_consecutive_wall_jumps,json=hasConsecutiveWallJumps,proto3" json:"hasConsecutiveWallJumps,omitempty"`
+	// HasCanDashJump distinguishes a present false CanDashJump value from absence.
+	HasCanDashJump bool `protobuf:"varint,17,opt,name=has_can_dash_jump,json=hasCanDashJump,proto3" json:"hasCanDashJump,omitempty"`
+	// HasInSlideJump distinguishes a present false InSlideJump value from absence.
+	HasInSlideJump bool `protobuf:"varint,18,opt,name=has_in_slide_jump,json=hasInSlideJump,proto3" json:"hasInSlideJump,omitempty"`
+	// ChangedJumped reports a value or presence change after the initial observation.
+	ChangedJumped bool `protobuf:"varint,19,opt,name=changed_jumped,json=changedJumped,proto3" json:"changedJumped,omitempty"`
+	// ChangedDesiredAirJumpCount reports a measured value or presence change.
+	ChangedDesiredAirJumpCount bool `protobuf:"varint,20,opt,name=changed_desired_air_jump_count,json=changedDesiredAirJumpCount,proto3" json:"changedDesiredAirJumpCount,omitempty"`
+	// ChangedExecutedAirJumpCount reports a measured value or presence change.
+	ChangedExecutedAirJumpCount bool `protobuf:"varint,21,opt,name=changed_executed_air_jump_count,json=changedExecutedAirJumpCount,proto3" json:"changedExecutedAirJumpCount,omitempty"`
+	// ChangedConsecutiveAirJumps reports a measured value or presence change.
+	ChangedConsecutiveAirJumps bool `protobuf:"varint,22,opt,name=changed_consecutive_air_jumps,json=changedConsecutiveAirJumps,proto3" json:"changedConsecutiveAirJumps,omitempty"`
+	// ChangedConsecutiveWallJumps reports a measured value or presence change.
+	ChangedConsecutiveWallJumps bool `protobuf:"varint,23,opt,name=changed_consecutive_wall_jumps,json=changedConsecutiveWallJumps,proto3" json:"changedConsecutiveWallJumps,omitempty"`
+	// ChangedCanDashJump reports a measured value or presence change.
+	ChangedCanDashJump bool `protobuf:"varint,24,opt,name=changed_can_dash_jump,json=changedCanDashJump,proto3" json:"changedCanDashJump,omitempty"`
+	// ChangedInSlideJump reports a measured value or presence change.
+	ChangedInSlideJump bool `protobuf:"varint,25,opt,name=changed_in_slide_jump,json=changedInSlideJump,proto3" json:"changedInSlideJump,omitempty"`
+}
+
+func (x *ReplayJumpState) Reset() {
+	*x = ReplayJumpState{}
+}
+
+func (*ReplayJumpState) ProtoMessage() {}
+
+func (x *ReplayJumpState) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetClassName() string {
+	if x != nil {
+		return x.ClassName
+	}
+	return ""
+}
+
+func (x *ReplayJumpState) GetInitialObservation() bool {
+	if x != nil {
+		return x.InitialObservation
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetJumped() bool {
+	if x != nil {
+		return x.Jumped
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetDesiredAirJumpCount() int32 {
+	if x != nil {
+		return x.DesiredAirJumpCount
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetExecutedAirJumpCount() int32 {
+	if x != nil {
+		return x.ExecutedAirJumpCount
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetConsecutiveAirJumps() int32 {
+	if x != nil {
+		return x.ConsecutiveAirJumps
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetConsecutiveWallJumps() int32 {
+	if x != nil {
+		return x.ConsecutiveWallJumps
+	}
+	return 0
+}
+
+func (x *ReplayJumpState) GetCanDashJump() bool {
+	if x != nil {
+		return x.CanDashJump
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetInSlideJump() bool {
+	if x != nil {
+		return x.InSlideJump
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasJumped() bool {
+	if x != nil {
+		return x.HasJumped
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasDesiredAirJumpCount() bool {
+	if x != nil {
+		return x.HasDesiredAirJumpCount
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasExecutedAirJumpCount() bool {
+	if x != nil {
+		return x.HasExecutedAirJumpCount
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasConsecutiveAirJumps() bool {
+	if x != nil {
+		return x.HasConsecutiveAirJumps
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasConsecutiveWallJumps() bool {
+	if x != nil {
+		return x.HasConsecutiveWallJumps
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasCanDashJump() bool {
+	if x != nil {
+		return x.HasCanDashJump
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetHasInSlideJump() bool {
+	if x != nil {
+		return x.HasInSlideJump
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedJumped() bool {
+	if x != nil {
+		return x.ChangedJumped
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedDesiredAirJumpCount() bool {
+	if x != nil {
+		return x.ChangedDesiredAirJumpCount
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedExecutedAirJumpCount() bool {
+	if x != nil {
+		return x.ChangedExecutedAirJumpCount
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedConsecutiveAirJumps() bool {
+	if x != nil {
+		return x.ChangedConsecutiveAirJumps
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedConsecutiveWallJumps() bool {
+	if x != nil {
+		return x.ChangedConsecutiveWallJumps
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedCanDashJump() bool {
+	if x != nil {
+		return x.ChangedCanDashJump
+	}
+	return false
+}
+
+func (x *ReplayJumpState) GetChangedInSlideJump() bool {
+	if x != nil {
+		return x.ChangedInSlideJump
+	}
+	return false
+}
+
+// ReplayAbilityCharges preserves a measured ability charge-count observation.
+type ReplayAbilityCharges struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the observation.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the observation.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// ClassName identifies the measured ability entity class.
+	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"className,omitempty"`
+	// RemainingCharges is the measured count and does not infer a movement action.
+	RemainingCharges int32 `protobuf:"zigzag32,4,opt,name=remaining_charges,json=remainingCharges,proto3" json:"remainingCharges,omitempty"`
+}
+
+func (x *ReplayAbilityCharges) Reset() {
+	*x = ReplayAbilityCharges{}
+}
+
+func (*ReplayAbilityCharges) ProtoMessage() {}
+
+func (x *ReplayAbilityCharges) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCharges) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCharges) GetClassName() string {
+	if x != nil {
+		return x.ClassName
+	}
+	return ""
+}
+
+func (x *ReplayAbilityCharges) GetRemainingCharges() int32 {
+	if x != nil {
+		return x.RemainingCharges
+	}
+	return 0
+}
+
+// ReplayAbilityNotify preserves one game-authored ability contact notification.
+type ReplayAbilityNotify struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the notification.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the notification.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// EntindexVictim is the raw victim entity index when HasEntindexVictim is true.
+	EntindexVictim int32 `protobuf:"zigzag32,3,opt,name=entindex_victim,json=entindexVictim,proto3" json:"entindexVictim,omitempty"`
+	// EntindexAttacker is the raw attacker entity index when HasEntindexAttacker is true.
+	EntindexAttacker int32 `protobuf:"zigzag32,4,opt,name=entindex_attacker,json=entindexAttacker,proto3" json:"entindexAttacker,omitempty"`
+	// AbilityId is the game-authored ability identifier when HasAbilityId is true.
+	AbilityId uint32 `protobuf:"varint,5,opt,name=ability_id,json=abilityId,proto3" json:"abilityId,omitempty"`
+	// StatusImpact is the raw game-authored value and has no inferred technique meaning.
+	StatusImpact uint32 `protobuf:"varint,6,opt,name=status_impact,json=statusImpact,proto3" json:"statusImpact,omitempty"`
+	// HasEntindexVictim distinguishes a present victim index from its absent default.
+	HasEntindexVictim bool `protobuf:"varint,7,opt,name=has_entindex_victim,json=hasEntindexVictim,proto3" json:"hasEntindexVictim,omitempty"`
+	// HasEntindexAttacker distinguishes a present attacker index from its absent default.
+	HasEntindexAttacker bool `protobuf:"varint,8,opt,name=has_entindex_attacker,json=hasEntindexAttacker,proto3" json:"hasEntindexAttacker,omitempty"`
+	// HasAbilityId distinguishes a present zero ability identifier from absence.
+	HasAbilityId bool `protobuf:"varint,9,opt,name=has_ability_id,json=hasAbilityId,proto3" json:"hasAbilityId,omitempty"`
+	// HasStatusImpact distinguishes a present zero status impact from absence.
+	HasStatusImpact bool `protobuf:"varint,10,opt,name=has_status_impact,json=hasStatusImpact,proto3" json:"hasStatusImpact,omitempty"`
+}
+
+func (x *ReplayAbilityNotify) Reset() {
+	*x = ReplayAbilityNotify{}
+}
+
+func (*ReplayAbilityNotify) ProtoMessage() {}
+
+func (x *ReplayAbilityNotify) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetEntindexVictim() int32 {
+	if x != nil {
+		return x.EntindexVictim
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetEntindexAttacker() int32 {
+	if x != nil {
+		return x.EntindexAttacker
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetAbilityId() uint32 {
+	if x != nil {
+		return x.AbilityId
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetStatusImpact() uint32 {
+	if x != nil {
+		return x.StatusImpact
+	}
+	return 0
+}
+
+func (x *ReplayAbilityNotify) GetHasEntindexVictim() bool {
+	if x != nil {
+		return x.HasEntindexVictim
+	}
+	return false
+}
+
+func (x *ReplayAbilityNotify) GetHasEntindexAttacker() bool {
+	if x != nil {
+		return x.HasEntindexAttacker
+	}
+	return false
+}
+
+func (x *ReplayAbilityNotify) GetHasAbilityId() bool {
+	if x != nil {
+		return x.HasAbilityId
+	}
+	return false
+}
+
+func (x *ReplayAbilityNotify) GetHasStatusImpact() bool {
+	if x != nil {
+		return x.HasStatusImpact
+	}
+	return false
+}
+
+// ReplayImportantAbilityUsed preserves one game-authored important-ability notification.
+type ReplayImportantAbilityUsed struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the notification.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the notification.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// Player is the raw full Source 2 entity handle when HasPlayer is true.
+	Player uint32 `protobuf:"varint,3,opt,name=player,proto3" json:"player,omitempty"`
+	// Caster is the raw full Source 2 entity handle when HasCaster is true.
+	Caster uint32 `protobuf:"varint,4,opt,name=caster,proto3" json:"caster,omitempty"`
+	// AbilityName is the game-authored name when HasAbilityName is true.
+	AbilityName string `protobuf:"bytes,5,opt,name=ability_name,json=abilityName,proto3" json:"abilityName,omitempty"`
+	// HasPlayer distinguishes a present zero player handle from absence.
+	HasPlayer bool `protobuf:"varint,6,opt,name=has_player,json=hasPlayer,proto3" json:"hasPlayer,omitempty"`
+	// HasCaster distinguishes a present zero caster handle from absence.
+	HasCaster bool `protobuf:"varint,7,opt,name=has_caster,json=hasCaster,proto3" json:"hasCaster,omitempty"`
+	// HasAbilityName distinguishes a present empty ability name from absence.
+	HasAbilityName bool `protobuf:"varint,8,opt,name=has_ability_name,json=hasAbilityName,proto3" json:"hasAbilityName,omitempty"`
+}
+
+func (x *ReplayImportantAbilityUsed) Reset() {
+	*x = ReplayImportantAbilityUsed{}
+}
+
+func (*ReplayImportantAbilityUsed) ProtoMessage() {}
+
+func (x *ReplayImportantAbilityUsed) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayImportantAbilityUsed) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayImportantAbilityUsed) GetPlayer() uint32 {
+	if x != nil {
+		return x.Player
+	}
+	return 0
+}
+
+func (x *ReplayImportantAbilityUsed) GetCaster() uint32 {
+	if x != nil {
+		return x.Caster
+	}
+	return 0
+}
+
+func (x *ReplayImportantAbilityUsed) GetAbilityName() string {
+	if x != nil {
+		return x.AbilityName
+	}
+	return ""
+}
+
+func (x *ReplayImportantAbilityUsed) GetHasPlayer() bool {
+	if x != nil {
+		return x.HasPlayer
+	}
+	return false
+}
+
+func (x *ReplayImportantAbilityUsed) GetHasCaster() bool {
+	if x != nil {
+		return x.HasCaster
+	}
+	return false
+}
+
+func (x *ReplayImportantAbilityUsed) GetHasAbilityName() bool {
+	if x != nil {
+		return x.HasAbilityName
+	}
+	return false
+}
+
 type ReplayObjective struct {
 	unknownFields   []byte
 	Kind            string  `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -1904,6 +2553,11 @@ func (m *ReplayEvent) CloneVT() *ReplayEvent {
 	r.ControllerSample = m.ControllerSample.CloneVT()
 	r.KillStreak = m.KillStreak.CloneVT()
 	r.ObjectiveEvent = m.ObjectiveEvent.CloneVT()
+	r.StaminaConsumed = m.StaminaConsumed.CloneVT()
+	r.AbilityCharges = m.AbilityCharges.CloneVT()
+	r.ImportantAbilityUsed = m.ImportantAbilityUsed.CloneVT()
+	r.AbilityNotify = m.AbilityNotify.CloneVT()
+	r.JumpState = m.JumpState.CloneVT()
 	if rhs := m.OwnedItems; rhs != nil {
 		r.OwnedItems = slices.Clone(rhs)
 	}
@@ -2158,6 +2812,142 @@ func (m *ReplayKillStreak) CloneVT() *ReplayKillStreak {
 }
 
 func (m *ReplayKillStreak) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *ReplayStaminaConsumed) CloneVT() *ReplayStaminaConsumed {
+	if m == nil {
+		return (*ReplayStaminaConsumed)(nil)
+	}
+	r := new(ReplayStaminaConsumed)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.EntindexTarget = m.EntindexTarget
+	r.StaminaBefore = m.StaminaBefore
+	r.StaminaAfter = m.StaminaAfter
+	r.Drained = m.Drained
+	r.StaminaMax = m.StaminaMax
+	r.MessageGameTime = m.MessageGameTime
+	r.HasEntindexTarget = m.HasEntindexTarget
+	r.HasStaminaBefore = m.HasStaminaBefore
+	r.HasStaminaAfter = m.HasStaminaAfter
+	r.HasDrained = m.HasDrained
+	r.HasStaminaMax = m.HasStaminaMax
+	r.HasMessageGameTime = m.HasMessageGameTime
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayStaminaConsumed) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *ReplayJumpState) CloneVT() *ReplayJumpState {
+	if m == nil {
+		return (*ReplayJumpState)(nil)
+	}
+	r := new(ReplayJumpState)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.ClassName = m.ClassName
+	r.InitialObservation = m.InitialObservation
+	r.Jumped = m.Jumped
+	r.DesiredAirJumpCount = m.DesiredAirJumpCount
+	r.ExecutedAirJumpCount = m.ExecutedAirJumpCount
+	r.ConsecutiveAirJumps = m.ConsecutiveAirJumps
+	r.ConsecutiveWallJumps = m.ConsecutiveWallJumps
+	r.CanDashJump = m.CanDashJump
+	r.InSlideJump = m.InSlideJump
+	r.HasJumped = m.HasJumped
+	r.HasDesiredAirJumpCount = m.HasDesiredAirJumpCount
+	r.HasExecutedAirJumpCount = m.HasExecutedAirJumpCount
+	r.HasConsecutiveAirJumps = m.HasConsecutiveAirJumps
+	r.HasConsecutiveWallJumps = m.HasConsecutiveWallJumps
+	r.HasCanDashJump = m.HasCanDashJump
+	r.HasInSlideJump = m.HasInSlideJump
+	r.ChangedJumped = m.ChangedJumped
+	r.ChangedDesiredAirJumpCount = m.ChangedDesiredAirJumpCount
+	r.ChangedExecutedAirJumpCount = m.ChangedExecutedAirJumpCount
+	r.ChangedConsecutiveAirJumps = m.ChangedConsecutiveAirJumps
+	r.ChangedConsecutiveWallJumps = m.ChangedConsecutiveWallJumps
+	r.ChangedCanDashJump = m.ChangedCanDashJump
+	r.ChangedInSlideJump = m.ChangedInSlideJump
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayJumpState) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *ReplayAbilityCharges) CloneVT() *ReplayAbilityCharges {
+	if m == nil {
+		return (*ReplayAbilityCharges)(nil)
+	}
+	r := new(ReplayAbilityCharges)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.ClassName = m.ClassName
+	r.RemainingCharges = m.RemainingCharges
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayAbilityCharges) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *ReplayAbilityNotify) CloneVT() *ReplayAbilityNotify {
+	if m == nil {
+		return (*ReplayAbilityNotify)(nil)
+	}
+	r := new(ReplayAbilityNotify)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.EntindexVictim = m.EntindexVictim
+	r.EntindexAttacker = m.EntindexAttacker
+	r.AbilityId = m.AbilityId
+	r.StatusImpact = m.StatusImpact
+	r.HasEntindexVictim = m.HasEntindexVictim
+	r.HasEntindexAttacker = m.HasEntindexAttacker
+	r.HasAbilityId = m.HasAbilityId
+	r.HasStatusImpact = m.HasStatusImpact
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayAbilityNotify) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *ReplayImportantAbilityUsed) CloneVT() *ReplayImportantAbilityUsed {
+	if m == nil {
+		return (*ReplayImportantAbilityUsed)(nil)
+	}
+	r := new(ReplayImportantAbilityUsed)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.Player = m.Player
+	r.Caster = m.Caster
+	r.AbilityName = m.AbilityName
+	r.HasPlayer = m.HasPlayer
+	r.HasCaster = m.HasCaster
+	r.HasAbilityName = m.HasAbilityName
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayImportantAbilityUsed) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
@@ -2427,6 +3217,21 @@ func (this *ReplayEvent) EqualVT(that *ReplayEvent) bool {
 		return false
 	}
 	if !this.ObjectiveEvent.EqualVT(that.ObjectiveEvent) {
+		return false
+	}
+	if !this.StaminaConsumed.EqualVT(that.StaminaConsumed) {
+		return false
+	}
+	if !this.AbilityCharges.EqualVT(that.AbilityCharges) {
+		return false
+	}
+	if !this.ImportantAbilityUsed.EqualVT(that.ImportantAbilityUsed) {
+		return false
+	}
+	if !this.AbilityNotify.EqualVT(that.AbilityNotify) {
+		return false
+	}
+	if !this.JumpState.EqualVT(that.JumpState) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -2946,6 +3751,274 @@ func (this *ReplayKillStreak) EqualMessageVT(thatMsg any) bool {
 	return this.EqualVT(that)
 }
 
+func (this *ReplayStaminaConsumed) EqualVT(that *ReplayStaminaConsumed) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.EntindexTarget != that.EntindexTarget {
+		return false
+	}
+	if this.StaminaBefore != that.StaminaBefore {
+		return false
+	}
+	if this.StaminaAfter != that.StaminaAfter {
+		return false
+	}
+	if this.Drained != that.Drained {
+		return false
+	}
+	if this.StaminaMax != that.StaminaMax {
+		return false
+	}
+	if this.MessageGameTime != that.MessageGameTime {
+		return false
+	}
+	if this.HasEntindexTarget != that.HasEntindexTarget {
+		return false
+	}
+	if this.HasStaminaBefore != that.HasStaminaBefore {
+		return false
+	}
+	if this.HasStaminaAfter != that.HasStaminaAfter {
+		return false
+	}
+	if this.HasDrained != that.HasDrained {
+		return false
+	}
+	if this.HasStaminaMax != that.HasStaminaMax {
+		return false
+	}
+	if this.HasMessageGameTime != that.HasMessageGameTime {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayStaminaConsumed) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayStaminaConsumed)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *ReplayJumpState) EqualVT(that *ReplayJumpState) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.ClassName != that.ClassName {
+		return false
+	}
+	if this.InitialObservation != that.InitialObservation {
+		return false
+	}
+	if this.Jumped != that.Jumped {
+		return false
+	}
+	if this.DesiredAirJumpCount != that.DesiredAirJumpCount {
+		return false
+	}
+	if this.ExecutedAirJumpCount != that.ExecutedAirJumpCount {
+		return false
+	}
+	if this.ConsecutiveAirJumps != that.ConsecutiveAirJumps {
+		return false
+	}
+	if this.ConsecutiveWallJumps != that.ConsecutiveWallJumps {
+		return false
+	}
+	if this.CanDashJump != that.CanDashJump {
+		return false
+	}
+	if this.InSlideJump != that.InSlideJump {
+		return false
+	}
+	if this.HasJumped != that.HasJumped {
+		return false
+	}
+	if this.HasDesiredAirJumpCount != that.HasDesiredAirJumpCount {
+		return false
+	}
+	if this.HasExecutedAirJumpCount != that.HasExecutedAirJumpCount {
+		return false
+	}
+	if this.HasConsecutiveAirJumps != that.HasConsecutiveAirJumps {
+		return false
+	}
+	if this.HasConsecutiveWallJumps != that.HasConsecutiveWallJumps {
+		return false
+	}
+	if this.HasCanDashJump != that.HasCanDashJump {
+		return false
+	}
+	if this.HasInSlideJump != that.HasInSlideJump {
+		return false
+	}
+	if this.ChangedJumped != that.ChangedJumped {
+		return false
+	}
+	if this.ChangedDesiredAirJumpCount != that.ChangedDesiredAirJumpCount {
+		return false
+	}
+	if this.ChangedExecutedAirJumpCount != that.ChangedExecutedAirJumpCount {
+		return false
+	}
+	if this.ChangedConsecutiveAirJumps != that.ChangedConsecutiveAirJumps {
+		return false
+	}
+	if this.ChangedConsecutiveWallJumps != that.ChangedConsecutiveWallJumps {
+		return false
+	}
+	if this.ChangedCanDashJump != that.ChangedCanDashJump {
+		return false
+	}
+	if this.ChangedInSlideJump != that.ChangedInSlideJump {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayJumpState) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayJumpState)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *ReplayAbilityCharges) EqualVT(that *ReplayAbilityCharges) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.ClassName != that.ClassName {
+		return false
+	}
+	if this.RemainingCharges != that.RemainingCharges {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayAbilityCharges) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayAbilityCharges)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *ReplayAbilityNotify) EqualVT(that *ReplayAbilityNotify) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.EntindexVictim != that.EntindexVictim {
+		return false
+	}
+	if this.EntindexAttacker != that.EntindexAttacker {
+		return false
+	}
+	if this.AbilityId != that.AbilityId {
+		return false
+	}
+	if this.StatusImpact != that.StatusImpact {
+		return false
+	}
+	if this.HasEntindexVictim != that.HasEntindexVictim {
+		return false
+	}
+	if this.HasEntindexAttacker != that.HasEntindexAttacker {
+		return false
+	}
+	if this.HasAbilityId != that.HasAbilityId {
+		return false
+	}
+	if this.HasStatusImpact != that.HasStatusImpact {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayAbilityNotify) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayAbilityNotify)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *ReplayImportantAbilityUsed) EqualVT(that *ReplayImportantAbilityUsed) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.Player != that.Player {
+		return false
+	}
+	if this.Caster != that.Caster {
+		return false
+	}
+	if this.AbilityName != that.AbilityName {
+		return false
+	}
+	if this.HasPlayer != that.HasPlayer {
+		return false
+	}
+	if this.HasCaster != that.HasCaster {
+		return false
+	}
+	if this.HasAbilityName != that.HasAbilityName {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayImportantAbilityUsed) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayImportantAbilityUsed)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
 func (this *ReplayObjective) EqualVT(that *ReplayObjective) bool {
 	if this == that {
 		return true
@@ -3458,6 +4531,31 @@ func (x *ReplayEvent) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("objectiveEvent")
 		x.ObjectiveEvent.MarshalProtoJSON(s.WithField("objectiveEvent"))
 	}
+	if x.StaminaConsumed != nil || s.HasField("staminaConsumed") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("staminaConsumed")
+		x.StaminaConsumed.MarshalProtoJSON(s.WithField("staminaConsumed"))
+	}
+	if x.AbilityCharges != nil || s.HasField("abilityCharges") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityCharges")
+		x.AbilityCharges.MarshalProtoJSON(s.WithField("abilityCharges"))
+	}
+	if x.ImportantAbilityUsed != nil || s.HasField("importantAbilityUsed") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("importantAbilityUsed")
+		x.ImportantAbilityUsed.MarshalProtoJSON(s.WithField("importantAbilityUsed"))
+	}
+	if x.AbilityNotify != nil || s.HasField("abilityNotify") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityNotify")
+		x.AbilityNotify.MarshalProtoJSON(s.WithField("abilityNotify"))
+	}
+	if x.JumpState != nil || s.HasField("jumpState") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("jumpState")
+		x.JumpState.MarshalProtoJSON(s.WithField("jumpState"))
+	}
 	s.WriteObjectEnd()
 }
 
@@ -3563,6 +4661,41 @@ func (x *ReplayEvent) UnmarshalProtoJSON(s *json.UnmarshalState) {
 			}
 			x.ObjectiveEvent = &ReplayObjective{}
 			x.ObjectiveEvent.UnmarshalProtoJSON(s.WithField("objective_event", true))
+		case "stamina_consumed", "staminaConsumed":
+			if s.ReadNil() {
+				x.StaminaConsumed = nil
+				return
+			}
+			x.StaminaConsumed = &ReplayStaminaConsumed{}
+			x.StaminaConsumed.UnmarshalProtoJSON(s.WithField("stamina_consumed", true))
+		case "ability_charges", "abilityCharges":
+			if s.ReadNil() {
+				x.AbilityCharges = nil
+				return
+			}
+			x.AbilityCharges = &ReplayAbilityCharges{}
+			x.AbilityCharges.UnmarshalProtoJSON(s.WithField("ability_charges", true))
+		case "important_ability_used", "importantAbilityUsed":
+			if s.ReadNil() {
+				x.ImportantAbilityUsed = nil
+				return
+			}
+			x.ImportantAbilityUsed = &ReplayImportantAbilityUsed{}
+			x.ImportantAbilityUsed.UnmarshalProtoJSON(s.WithField("important_ability_used", true))
+		case "ability_notify", "abilityNotify":
+			if s.ReadNil() {
+				x.AbilityNotify = nil
+				return
+			}
+			x.AbilityNotify = &ReplayAbilityNotify{}
+			x.AbilityNotify.UnmarshalProtoJSON(s.WithField("ability_notify", true))
+		case "jump_state", "jumpState":
+			if s.ReadNil() {
+				x.JumpState = nil
+				return
+			}
+			x.JumpState = &ReplayJumpState{}
+			x.JumpState.UnmarshalProtoJSON(s.WithField("jump_state", true))
 		}
 	})
 }
@@ -4798,6 +5931,664 @@ func (x *ReplayKillStreak) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
+// MarshalProtoJSON marshals the ReplayStaminaConsumed message to JSON.
+func (x *ReplayStaminaConsumed) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.EntindexTarget != 0 || s.HasField("entindexTarget") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("entindexTarget")
+		s.WriteInt32(x.EntindexTarget)
+	}
+	if x.StaminaBefore != 0 || s.HasField("staminaBefore") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("staminaBefore")
+		s.WriteFloat32(x.StaminaBefore)
+	}
+	if x.StaminaAfter != 0 || s.HasField("staminaAfter") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("staminaAfter")
+		s.WriteFloat32(x.StaminaAfter)
+	}
+	if x.Drained || s.HasField("drained") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("drained")
+		s.WriteBool(x.Drained)
+	}
+	if x.StaminaMax != 0 || s.HasField("staminaMax") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("staminaMax")
+		s.WriteFloat32(x.StaminaMax)
+	}
+	if x.MessageGameTime != 0 || s.HasField("messageGameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("messageGameTime")
+		s.WriteFloat32(x.MessageGameTime)
+	}
+	if x.HasEntindexTarget || s.HasField("hasEntindexTarget") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasEntindexTarget")
+		s.WriteBool(x.HasEntindexTarget)
+	}
+	if x.HasStaminaBefore || s.HasField("hasStaminaBefore") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasStaminaBefore")
+		s.WriteBool(x.HasStaminaBefore)
+	}
+	if x.HasStaminaAfter || s.HasField("hasStaminaAfter") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasStaminaAfter")
+		s.WriteBool(x.HasStaminaAfter)
+	}
+	if x.HasDrained || s.HasField("hasDrained") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasDrained")
+		s.WriteBool(x.HasDrained)
+	}
+	if x.HasStaminaMax || s.HasField("hasStaminaMax") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasStaminaMax")
+		s.WriteBool(x.HasStaminaMax)
+	}
+	if x.HasMessageGameTime || s.HasField("hasMessageGameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasMessageGameTime")
+		s.WriteBool(x.HasMessageGameTime)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayStaminaConsumed to JSON.
+func (x *ReplayStaminaConsumed) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayStaminaConsumed message from JSON.
+func (x *ReplayStaminaConsumed) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "entindex_target", "entindexTarget":
+			s.AddField("entindex_target")
+			x.EntindexTarget = s.ReadInt32()
+		case "stamina_before", "staminaBefore":
+			s.AddField("stamina_before")
+			x.StaminaBefore = s.ReadFloat32()
+		case "stamina_after", "staminaAfter":
+			s.AddField("stamina_after")
+			x.StaminaAfter = s.ReadFloat32()
+		case "drained":
+			s.AddField("drained")
+			x.Drained = s.ReadBool()
+		case "stamina_max", "staminaMax":
+			s.AddField("stamina_max")
+			x.StaminaMax = s.ReadFloat32()
+		case "message_game_time", "messageGameTime":
+			s.AddField("message_game_time")
+			x.MessageGameTime = s.ReadFloat32()
+		case "has_entindex_target", "hasEntindexTarget":
+			s.AddField("has_entindex_target")
+			x.HasEntindexTarget = s.ReadBool()
+		case "has_stamina_before", "hasStaminaBefore":
+			s.AddField("has_stamina_before")
+			x.HasStaminaBefore = s.ReadBool()
+		case "has_stamina_after", "hasStaminaAfter":
+			s.AddField("has_stamina_after")
+			x.HasStaminaAfter = s.ReadBool()
+		case "has_drained", "hasDrained":
+			s.AddField("has_drained")
+			x.HasDrained = s.ReadBool()
+		case "has_stamina_max", "hasStaminaMax":
+			s.AddField("has_stamina_max")
+			x.HasStaminaMax = s.ReadBool()
+		case "has_message_game_time", "hasMessageGameTime":
+			s.AddField("has_message_game_time")
+			x.HasMessageGameTime = s.ReadBool()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayStaminaConsumed from JSON.
+func (x *ReplayStaminaConsumed) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the ReplayJumpState message to JSON.
+func (x *ReplayJumpState) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.ClassName != "" || s.HasField("className") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("className")
+		s.WriteString(x.ClassName)
+	}
+	if x.InitialObservation || s.HasField("initialObservation") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("initialObservation")
+		s.WriteBool(x.InitialObservation)
+	}
+	if x.Jumped || s.HasField("jumped") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("jumped")
+		s.WriteBool(x.Jumped)
+	}
+	if x.DesiredAirJumpCount != 0 || s.HasField("desiredAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("desiredAirJumpCount")
+		s.WriteInt32(x.DesiredAirJumpCount)
+	}
+	if x.ExecutedAirJumpCount != 0 || s.HasField("executedAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("executedAirJumpCount")
+		s.WriteInt32(x.ExecutedAirJumpCount)
+	}
+	if x.ConsecutiveAirJumps != 0 || s.HasField("consecutiveAirJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("consecutiveAirJumps")
+		s.WriteInt32(x.ConsecutiveAirJumps)
+	}
+	if x.ConsecutiveWallJumps != 0 || s.HasField("consecutiveWallJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("consecutiveWallJumps")
+		s.WriteInt32(x.ConsecutiveWallJumps)
+	}
+	if x.CanDashJump || s.HasField("canDashJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("canDashJump")
+		s.WriteBool(x.CanDashJump)
+	}
+	if x.InSlideJump || s.HasField("inSlideJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("inSlideJump")
+		s.WriteBool(x.InSlideJump)
+	}
+	if x.HasJumped || s.HasField("hasJumped") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasJumped")
+		s.WriteBool(x.HasJumped)
+	}
+	if x.HasDesiredAirJumpCount || s.HasField("hasDesiredAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasDesiredAirJumpCount")
+		s.WriteBool(x.HasDesiredAirJumpCount)
+	}
+	if x.HasExecutedAirJumpCount || s.HasField("hasExecutedAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasExecutedAirJumpCount")
+		s.WriteBool(x.HasExecutedAirJumpCount)
+	}
+	if x.HasConsecutiveAirJumps || s.HasField("hasConsecutiveAirJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasConsecutiveAirJumps")
+		s.WriteBool(x.HasConsecutiveAirJumps)
+	}
+	if x.HasConsecutiveWallJumps || s.HasField("hasConsecutiveWallJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasConsecutiveWallJumps")
+		s.WriteBool(x.HasConsecutiveWallJumps)
+	}
+	if x.HasCanDashJump || s.HasField("hasCanDashJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasCanDashJump")
+		s.WriteBool(x.HasCanDashJump)
+	}
+	if x.HasInSlideJump || s.HasField("hasInSlideJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasInSlideJump")
+		s.WriteBool(x.HasInSlideJump)
+	}
+	if x.ChangedJumped || s.HasField("changedJumped") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedJumped")
+		s.WriteBool(x.ChangedJumped)
+	}
+	if x.ChangedDesiredAirJumpCount || s.HasField("changedDesiredAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedDesiredAirJumpCount")
+		s.WriteBool(x.ChangedDesiredAirJumpCount)
+	}
+	if x.ChangedExecutedAirJumpCount || s.HasField("changedExecutedAirJumpCount") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedExecutedAirJumpCount")
+		s.WriteBool(x.ChangedExecutedAirJumpCount)
+	}
+	if x.ChangedConsecutiveAirJumps || s.HasField("changedConsecutiveAirJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedConsecutiveAirJumps")
+		s.WriteBool(x.ChangedConsecutiveAirJumps)
+	}
+	if x.ChangedConsecutiveWallJumps || s.HasField("changedConsecutiveWallJumps") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedConsecutiveWallJumps")
+		s.WriteBool(x.ChangedConsecutiveWallJumps)
+	}
+	if x.ChangedCanDashJump || s.HasField("changedCanDashJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedCanDashJump")
+		s.WriteBool(x.ChangedCanDashJump)
+	}
+	if x.ChangedInSlideJump || s.HasField("changedInSlideJump") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("changedInSlideJump")
+		s.WriteBool(x.ChangedInSlideJump)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayJumpState to JSON.
+func (x *ReplayJumpState) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayJumpState message from JSON.
+func (x *ReplayJumpState) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "class_name", "className":
+			s.AddField("class_name")
+			x.ClassName = s.ReadString()
+		case "initial_observation", "initialObservation":
+			s.AddField("initial_observation")
+			x.InitialObservation = s.ReadBool()
+		case "jumped":
+			s.AddField("jumped")
+			x.Jumped = s.ReadBool()
+		case "desired_air_jump_count", "desiredAirJumpCount":
+			s.AddField("desired_air_jump_count")
+			x.DesiredAirJumpCount = s.ReadInt32()
+		case "executed_air_jump_count", "executedAirJumpCount":
+			s.AddField("executed_air_jump_count")
+			x.ExecutedAirJumpCount = s.ReadInt32()
+		case "consecutive_air_jumps", "consecutiveAirJumps":
+			s.AddField("consecutive_air_jumps")
+			x.ConsecutiveAirJumps = s.ReadInt32()
+		case "consecutive_wall_jumps", "consecutiveWallJumps":
+			s.AddField("consecutive_wall_jumps")
+			x.ConsecutiveWallJumps = s.ReadInt32()
+		case "can_dash_jump", "canDashJump":
+			s.AddField("can_dash_jump")
+			x.CanDashJump = s.ReadBool()
+		case "in_slide_jump", "inSlideJump":
+			s.AddField("in_slide_jump")
+			x.InSlideJump = s.ReadBool()
+		case "has_jumped", "hasJumped":
+			s.AddField("has_jumped")
+			x.HasJumped = s.ReadBool()
+		case "has_desired_air_jump_count", "hasDesiredAirJumpCount":
+			s.AddField("has_desired_air_jump_count")
+			x.HasDesiredAirJumpCount = s.ReadBool()
+		case "has_executed_air_jump_count", "hasExecutedAirJumpCount":
+			s.AddField("has_executed_air_jump_count")
+			x.HasExecutedAirJumpCount = s.ReadBool()
+		case "has_consecutive_air_jumps", "hasConsecutiveAirJumps":
+			s.AddField("has_consecutive_air_jumps")
+			x.HasConsecutiveAirJumps = s.ReadBool()
+		case "has_consecutive_wall_jumps", "hasConsecutiveWallJumps":
+			s.AddField("has_consecutive_wall_jumps")
+			x.HasConsecutiveWallJumps = s.ReadBool()
+		case "has_can_dash_jump", "hasCanDashJump":
+			s.AddField("has_can_dash_jump")
+			x.HasCanDashJump = s.ReadBool()
+		case "has_in_slide_jump", "hasInSlideJump":
+			s.AddField("has_in_slide_jump")
+			x.HasInSlideJump = s.ReadBool()
+		case "changed_jumped", "changedJumped":
+			s.AddField("changed_jumped")
+			x.ChangedJumped = s.ReadBool()
+		case "changed_desired_air_jump_count", "changedDesiredAirJumpCount":
+			s.AddField("changed_desired_air_jump_count")
+			x.ChangedDesiredAirJumpCount = s.ReadBool()
+		case "changed_executed_air_jump_count", "changedExecutedAirJumpCount":
+			s.AddField("changed_executed_air_jump_count")
+			x.ChangedExecutedAirJumpCount = s.ReadBool()
+		case "changed_consecutive_air_jumps", "changedConsecutiveAirJumps":
+			s.AddField("changed_consecutive_air_jumps")
+			x.ChangedConsecutiveAirJumps = s.ReadBool()
+		case "changed_consecutive_wall_jumps", "changedConsecutiveWallJumps":
+			s.AddField("changed_consecutive_wall_jumps")
+			x.ChangedConsecutiveWallJumps = s.ReadBool()
+		case "changed_can_dash_jump", "changedCanDashJump":
+			s.AddField("changed_can_dash_jump")
+			x.ChangedCanDashJump = s.ReadBool()
+		case "changed_in_slide_jump", "changedInSlideJump":
+			s.AddField("changed_in_slide_jump")
+			x.ChangedInSlideJump = s.ReadBool()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayJumpState from JSON.
+func (x *ReplayJumpState) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the ReplayAbilityCharges message to JSON.
+func (x *ReplayAbilityCharges) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.ClassName != "" || s.HasField("className") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("className")
+		s.WriteString(x.ClassName)
+	}
+	if x.RemainingCharges != 0 || s.HasField("remainingCharges") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("remainingCharges")
+		s.WriteInt32(x.RemainingCharges)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayAbilityCharges to JSON.
+func (x *ReplayAbilityCharges) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayAbilityCharges message from JSON.
+func (x *ReplayAbilityCharges) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "class_name", "className":
+			s.AddField("class_name")
+			x.ClassName = s.ReadString()
+		case "remaining_charges", "remainingCharges":
+			s.AddField("remaining_charges")
+			x.RemainingCharges = s.ReadInt32()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayAbilityCharges from JSON.
+func (x *ReplayAbilityCharges) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the ReplayAbilityNotify message to JSON.
+func (x *ReplayAbilityNotify) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.EntindexVictim != 0 || s.HasField("entindexVictim") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("entindexVictim")
+		s.WriteInt32(x.EntindexVictim)
+	}
+	if x.EntindexAttacker != 0 || s.HasField("entindexAttacker") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("entindexAttacker")
+		s.WriteInt32(x.EntindexAttacker)
+	}
+	if x.AbilityId != 0 || s.HasField("abilityId") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityId")
+		s.WriteUint32(x.AbilityId)
+	}
+	if x.StatusImpact != 0 || s.HasField("statusImpact") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("statusImpact")
+		s.WriteUint32(x.StatusImpact)
+	}
+	if x.HasEntindexVictim || s.HasField("hasEntindexVictim") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasEntindexVictim")
+		s.WriteBool(x.HasEntindexVictim)
+	}
+	if x.HasEntindexAttacker || s.HasField("hasEntindexAttacker") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasEntindexAttacker")
+		s.WriteBool(x.HasEntindexAttacker)
+	}
+	if x.HasAbilityId || s.HasField("hasAbilityId") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasAbilityId")
+		s.WriteBool(x.HasAbilityId)
+	}
+	if x.HasStatusImpact || s.HasField("hasStatusImpact") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasStatusImpact")
+		s.WriteBool(x.HasStatusImpact)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayAbilityNotify to JSON.
+func (x *ReplayAbilityNotify) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayAbilityNotify message from JSON.
+func (x *ReplayAbilityNotify) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "entindex_victim", "entindexVictim":
+			s.AddField("entindex_victim")
+			x.EntindexVictim = s.ReadInt32()
+		case "entindex_attacker", "entindexAttacker":
+			s.AddField("entindex_attacker")
+			x.EntindexAttacker = s.ReadInt32()
+		case "ability_id", "abilityId":
+			s.AddField("ability_id")
+			x.AbilityId = s.ReadUint32()
+		case "status_impact", "statusImpact":
+			s.AddField("status_impact")
+			x.StatusImpact = s.ReadUint32()
+		case "has_entindex_victim", "hasEntindexVictim":
+			s.AddField("has_entindex_victim")
+			x.HasEntindexVictim = s.ReadBool()
+		case "has_entindex_attacker", "hasEntindexAttacker":
+			s.AddField("has_entindex_attacker")
+			x.HasEntindexAttacker = s.ReadBool()
+		case "has_ability_id", "hasAbilityId":
+			s.AddField("has_ability_id")
+			x.HasAbilityId = s.ReadBool()
+		case "has_status_impact", "hasStatusImpact":
+			s.AddField("has_status_impact")
+			x.HasStatusImpact = s.ReadBool()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayAbilityNotify from JSON.
+func (x *ReplayAbilityNotify) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the ReplayImportantAbilityUsed message to JSON.
+func (x *ReplayImportantAbilityUsed) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.Player != 0 || s.HasField("player") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("player")
+		s.WriteUint32(x.Player)
+	}
+	if x.Caster != 0 || s.HasField("caster") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("caster")
+		s.WriteUint32(x.Caster)
+	}
+	if x.AbilityName != "" || s.HasField("abilityName") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityName")
+		s.WriteString(x.AbilityName)
+	}
+	if x.HasPlayer || s.HasField("hasPlayer") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasPlayer")
+		s.WriteBool(x.HasPlayer)
+	}
+	if x.HasCaster || s.HasField("hasCaster") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasCaster")
+		s.WriteBool(x.HasCaster)
+	}
+	if x.HasAbilityName || s.HasField("hasAbilityName") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasAbilityName")
+		s.WriteBool(x.HasAbilityName)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayImportantAbilityUsed to JSON.
+func (x *ReplayImportantAbilityUsed) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayImportantAbilityUsed message from JSON.
+func (x *ReplayImportantAbilityUsed) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "player":
+			s.AddField("player")
+			x.Player = s.ReadUint32()
+		case "caster":
+			s.AddField("caster")
+			x.Caster = s.ReadUint32()
+		case "ability_name", "abilityName":
+			s.AddField("ability_name")
+			x.AbilityName = s.ReadString()
+		case "has_player", "hasPlayer":
+			s.AddField("has_player")
+			x.HasPlayer = s.ReadBool()
+		case "has_caster", "hasCaster":
+			s.AddField("has_caster")
+			x.HasCaster = s.ReadBool()
+		case "has_ability_name", "hasAbilityName":
+			s.AddField("has_ability_name")
+			x.HasAbilityName = s.ReadBool()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayImportantAbilityUsed from JSON.
+func (x *ReplayImportantAbilityUsed) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
 // MarshalProtoJSON marshals the ReplayObjective message to JSON.
 func (x *ReplayObjective) MarshalProtoJSON(s *json.MarshalState) {
 	if x == nil {
@@ -5813,6 +7604,66 @@ func (m *ReplayEvent) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.JumpState != nil {
+		size, err := m.JumpState.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xaa
+	}
+	if m.AbilityNotify != nil {
+		size, err := m.AbilityNotify.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa2
+	}
+	if m.ImportantAbilityUsed != nil {
+		size, err := m.ImportantAbilityUsed.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x9a
+	}
+	if m.AbilityCharges != nil {
+		size, err := m.AbilityCharges.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
+	if m.StaminaConsumed != nil {
+		size, err := m.StaminaConsumed.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x8a
 	}
 	if m.ObjectiveEvent != nil {
 		size, err := m.ObjectiveEvent.MarshalToSizedBufferVT(dAtA[:i])
@@ -6975,6 +8826,671 @@ func (m *ReplayKillStreak) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ReplayStaminaConsumed) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayStaminaConsumed) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayStaminaConsumed) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.HasMessageGameTime {
+		i--
+		if m.HasMessageGameTime {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x70
+	}
+	if m.HasStaminaMax {
+		i--
+		if m.HasStaminaMax {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x68
+	}
+	if m.HasDrained {
+		i--
+		if m.HasDrained {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.HasStaminaAfter {
+		i--
+		if m.HasStaminaAfter {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.HasStaminaBefore {
+		i--
+		if m.HasStaminaBefore {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.HasEntindexTarget {
+		i--
+		if m.HasEntindexTarget {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.MessageGameTime != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.MessageGameTime))))
+		i--
+		dAtA[i] = 0x45
+	}
+	if m.StaminaMax != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.StaminaMax))))
+		i--
+		dAtA[i] = 0x3d
+	}
+	if m.Drained {
+		i--
+		if m.Drained {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.StaminaAfter != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.StaminaAfter))))
+		i--
+		dAtA[i] = 0x2d
+	}
+	if m.StaminaBefore != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.StaminaBefore))))
+		i--
+		dAtA[i] = 0x25
+	}
+	if m.EntindexTarget != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.EntindexTarget)<<1)^uint32((m.EntindexTarget>>31))))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ReplayJumpState) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayJumpState) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayJumpState) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.ChangedInSlideJump {
+		i--
+		if m.ChangedInSlideJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc8
+	}
+	if m.ChangedCanDashJump {
+		i--
+		if m.ChangedCanDashJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc0
+	}
+	if m.ChangedConsecutiveWallJumps {
+		i--
+		if m.ChangedConsecutiveWallJumps {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.ChangedConsecutiveAirJumps {
+		i--
+		if m.ChangedConsecutiveAirJumps {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
+	if m.ChangedExecutedAirJumpCount {
+		i--
+		if m.ChangedExecutedAirJumpCount {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa8
+	}
+	if m.ChangedDesiredAirJumpCount {
+		i--
+		if m.ChangedDesiredAirJumpCount {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa0
+	}
+	if m.ChangedJumped {
+		i--
+		if m.ChangedJumped {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.HasInSlideJump {
+		i--
+		if m.HasInSlideJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
+	if m.HasCanDashJump {
+		i--
+		if m.HasCanDashJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x88
+	}
+	if m.HasConsecutiveWallJumps {
+		i--
+		if m.HasConsecutiveWallJumps {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.HasConsecutiveAirJumps {
+		i--
+		if m.HasConsecutiveAirJumps {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.HasExecutedAirJumpCount {
+		i--
+		if m.HasExecutedAirJumpCount {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x70
+	}
+	if m.HasDesiredAirJumpCount {
+		i--
+		if m.HasDesiredAirJumpCount {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x68
+	}
+	if m.HasJumped {
+		i--
+		if m.HasJumped {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.InSlideJump {
+		i--
+		if m.InSlideJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.CanDashJump {
+		i--
+		if m.CanDashJump {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.ConsecutiveWallJumps != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.ConsecutiveWallJumps)<<1)^uint32((m.ConsecutiveWallJumps>>31))))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.ConsecutiveAirJumps != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.ConsecutiveAirJumps)<<1)^uint32((m.ConsecutiveAirJumps>>31))))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.ExecutedAirJumpCount != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.ExecutedAirJumpCount)<<1)^uint32((m.ExecutedAirJumpCount>>31))))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.DesiredAirJumpCount != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.DesiredAirJumpCount)<<1)^uint32((m.DesiredAirJumpCount>>31))))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.Jumped {
+		i--
+		if m.Jumped {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.InitialObservation {
+		i--
+		if m.InitialObservation {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.ClassName) > 0 {
+		i -= len(m.ClassName)
+		copy(dAtA[i:], m.ClassName)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.ClassName)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ReplayAbilityCharges) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayAbilityCharges) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayAbilityCharges) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.RemainingCharges != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.RemainingCharges)<<1)^uint32((m.RemainingCharges>>31))))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.ClassName) > 0 {
+		i -= len(m.ClassName)
+		copy(dAtA[i:], m.ClassName)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.ClassName)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ReplayAbilityNotify) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayAbilityNotify) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayAbilityNotify) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.HasStatusImpact {
+		i--
+		if m.HasStatusImpact {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.HasAbilityId {
+		i--
+		if m.HasAbilityId {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.HasEntindexAttacker {
+		i--
+		if m.HasEntindexAttacker {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.HasEntindexVictim {
+		i--
+		if m.HasEntindexVictim {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.StatusImpact != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.StatusImpact))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.AbilityId != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.AbilityId))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.EntindexAttacker != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.EntindexAttacker)<<1)^uint32((m.EntindexAttacker>>31))))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.EntindexVictim != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.EntindexVictim)<<1)^uint32((m.EntindexVictim>>31))))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ReplayImportantAbilityUsed) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayImportantAbilityUsed) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayImportantAbilityUsed) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.HasAbilityName {
+		i--
+		if m.HasAbilityName {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.HasCaster {
+		i--
+		if m.HasCaster {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.HasPlayer {
+		i--
+		if m.HasPlayer {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x30
+	}
+	if len(m.AbilityName) > 0 {
+		i -= len(m.AbilityName)
+		copy(dAtA[i:], m.AbilityName)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.AbilityName)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.Caster != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Caster))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Player != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Player))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ReplayObjective) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -7739,6 +10255,26 @@ func (m *ReplayEvent) SizeVT() (n int) {
 		l = m.ObjectiveEvent.SizeVT()
 		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 	}
+	if m.StaminaConsumed != nil {
+		l = m.StaminaConsumed.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.AbilityCharges != nil {
+		l = m.AbilityCharges.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.ImportantAbilityUsed != nil {
+		l = m.ImportantAbilityUsed.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.AbilityNotify != nil {
+		l = m.AbilityNotify.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.JumpState != nil {
+		l = m.JumpState.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -8170,6 +10706,242 @@ func (m *ReplayKillStreak) SizeVT() (n int) {
 	}
 	if m.Duration != 0 {
 		n += 5
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ReplayStaminaConsumed) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	if m.EntindexTarget != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.EntindexTarget))
+	}
+	if m.StaminaBefore != 0 {
+		n += 5
+	}
+	if m.StaminaAfter != 0 {
+		n += 5
+	}
+	if m.Drained {
+		n += 2
+	}
+	if m.StaminaMax != 0 {
+		n += 5
+	}
+	if m.MessageGameTime != 0 {
+		n += 5
+	}
+	if m.HasEntindexTarget {
+		n += 2
+	}
+	if m.HasStaminaBefore {
+		n += 2
+	}
+	if m.HasStaminaAfter {
+		n += 2
+	}
+	if m.HasDrained {
+		n += 2
+	}
+	if m.HasStaminaMax {
+		n += 2
+	}
+	if m.HasMessageGameTime {
+		n += 2
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ReplayJumpState) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	l = len(m.ClassName)
+	if l > 0 {
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.InitialObservation {
+		n += 2
+	}
+	if m.Jumped {
+		n += 2
+	}
+	if m.DesiredAirJumpCount != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.DesiredAirJumpCount))
+	}
+	if m.ExecutedAirJumpCount != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.ExecutedAirJumpCount))
+	}
+	if m.ConsecutiveAirJumps != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.ConsecutiveAirJumps))
+	}
+	if m.ConsecutiveWallJumps != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.ConsecutiveWallJumps))
+	}
+	if m.CanDashJump {
+		n += 2
+	}
+	if m.InSlideJump {
+		n += 2
+	}
+	if m.HasJumped {
+		n += 2
+	}
+	if m.HasDesiredAirJumpCount {
+		n += 2
+	}
+	if m.HasExecutedAirJumpCount {
+		n += 2
+	}
+	if m.HasConsecutiveAirJumps {
+		n += 2
+	}
+	if m.HasConsecutiveWallJumps {
+		n += 3
+	}
+	if m.HasCanDashJump {
+		n += 3
+	}
+	if m.HasInSlideJump {
+		n += 3
+	}
+	if m.ChangedJumped {
+		n += 3
+	}
+	if m.ChangedDesiredAirJumpCount {
+		n += 3
+	}
+	if m.ChangedExecutedAirJumpCount {
+		n += 3
+	}
+	if m.ChangedConsecutiveAirJumps {
+		n += 3
+	}
+	if m.ChangedConsecutiveWallJumps {
+		n += 3
+	}
+	if m.ChangedCanDashJump {
+		n += 3
+	}
+	if m.ChangedInSlideJump {
+		n += 3
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ReplayAbilityCharges) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	l = len(m.ClassName)
+	if l > 0 {
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.RemainingCharges != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.RemainingCharges))
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ReplayAbilityNotify) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	if m.EntindexVictim != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.EntindexVictim))
+	}
+	if m.EntindexAttacker != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.EntindexAttacker))
+	}
+	if m.AbilityId != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.AbilityId))
+	}
+	if m.StatusImpact != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.StatusImpact))
+	}
+	if m.HasEntindexVictim {
+		n += 2
+	}
+	if m.HasEntindexAttacker {
+		n += 2
+	}
+	if m.HasAbilityId {
+		n += 2
+	}
+	if m.HasStatusImpact {
+		n += 2
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ReplayImportantAbilityUsed) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	if m.Player != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Player))
+	}
+	if m.Caster != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Caster))
+	}
+	l = len(m.AbilityName)
+	if l > 0 {
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.HasPlayer {
+		n += 2
+	}
+	if m.HasCaster {
+		n += 2
+	}
+	if m.HasAbilityName {
+		n += 2
 	}
 	n += len(m.unknownFields)
 	return n
@@ -8629,6 +11401,41 @@ func (x *ReplayEvent) MarshalProtoText() string {
 		}
 		sb.WriteString("objective_event: ")
 		sb.WriteString(x.ObjectiveEvent.MarshalProtoText())
+	}
+	if x.StaminaConsumed != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("stamina_consumed: ")
+		sb.WriteString(x.StaminaConsumed.MarshalProtoText())
+	}
+	if x.AbilityCharges != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_charges: ")
+		sb.WriteString(x.AbilityCharges.MarshalProtoText())
+	}
+	if x.ImportantAbilityUsed != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("important_ability_used: ")
+		sb.WriteString(x.ImportantAbilityUsed.MarshalProtoText())
+	}
+	if x.AbilityNotify != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_notify: ")
+		sb.WriteString(x.AbilityNotify.MarshalProtoText())
+	}
+	if x.JumpState != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("jump_state: ")
+		sb.WriteString(x.JumpState.MarshalProtoText())
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -9541,6 +12348,488 @@ func (x *ReplayKillStreak) MarshalProtoText() string {
 }
 
 func (x *ReplayKillStreak) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *ReplayStaminaConsumed) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayStaminaConsumed {")
+	if x.Tick != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.EntindexTarget != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("entindex_target: ")
+		sb.WriteString(strconv.FormatInt(int64(x.EntindexTarget), 10))
+	}
+	if x.StaminaBefore != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("stamina_before: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.StaminaBefore), 'g', -1, 32))
+	}
+	if x.StaminaAfter != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("stamina_after: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.StaminaAfter), 'g', -1, 32))
+	}
+	if x.Drained != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("drained: ")
+		sb.WriteString(strconv.FormatBool(x.Drained))
+	}
+	if x.StaminaMax != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("stamina_max: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.StaminaMax), 'g', -1, 32))
+	}
+	if x.MessageGameTime != 0 {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("message_game_time: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.MessageGameTime), 'g', -1, 32))
+	}
+	if x.HasEntindexTarget != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_entindex_target: ")
+		sb.WriteString(strconv.FormatBool(x.HasEntindexTarget))
+	}
+	if x.HasStaminaBefore != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_stamina_before: ")
+		sb.WriteString(strconv.FormatBool(x.HasStaminaBefore))
+	}
+	if x.HasStaminaAfter != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_stamina_after: ")
+		sb.WriteString(strconv.FormatBool(x.HasStaminaAfter))
+	}
+	if x.HasDrained != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_drained: ")
+		sb.WriteString(strconv.FormatBool(x.HasDrained))
+	}
+	if x.HasStaminaMax != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_stamina_max: ")
+		sb.WriteString(strconv.FormatBool(x.HasStaminaMax))
+	}
+	if x.HasMessageGameTime != false {
+		if sb.Len() > 23 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_message_game_time: ")
+		sb.WriteString(strconv.FormatBool(x.HasMessageGameTime))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayStaminaConsumed) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *ReplayJumpState) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayJumpState {")
+	if x.Tick != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.ClassName != "" {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("class_name: ")
+		sb.WriteString(strconv.Quote(x.ClassName))
+	}
+	if x.InitialObservation != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("initial_observation: ")
+		sb.WriteString(strconv.FormatBool(x.InitialObservation))
+	}
+	if x.Jumped != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("jumped: ")
+		sb.WriteString(strconv.FormatBool(x.Jumped))
+	}
+	if x.DesiredAirJumpCount != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("desired_air_jump_count: ")
+		sb.WriteString(strconv.FormatInt(int64(x.DesiredAirJumpCount), 10))
+	}
+	if x.ExecutedAirJumpCount != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("executed_air_jump_count: ")
+		sb.WriteString(strconv.FormatInt(int64(x.ExecutedAirJumpCount), 10))
+	}
+	if x.ConsecutiveAirJumps != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("consecutive_air_jumps: ")
+		sb.WriteString(strconv.FormatInt(int64(x.ConsecutiveAirJumps), 10))
+	}
+	if x.ConsecutiveWallJumps != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("consecutive_wall_jumps: ")
+		sb.WriteString(strconv.FormatInt(int64(x.ConsecutiveWallJumps), 10))
+	}
+	if x.CanDashJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("can_dash_jump: ")
+		sb.WriteString(strconv.FormatBool(x.CanDashJump))
+	}
+	if x.InSlideJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("in_slide_jump: ")
+		sb.WriteString(strconv.FormatBool(x.InSlideJump))
+	}
+	if x.HasJumped != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_jumped: ")
+		sb.WriteString(strconv.FormatBool(x.HasJumped))
+	}
+	if x.HasDesiredAirJumpCount != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_desired_air_jump_count: ")
+		sb.WriteString(strconv.FormatBool(x.HasDesiredAirJumpCount))
+	}
+	if x.HasExecutedAirJumpCount != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_executed_air_jump_count: ")
+		sb.WriteString(strconv.FormatBool(x.HasExecutedAirJumpCount))
+	}
+	if x.HasConsecutiveAirJumps != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_consecutive_air_jumps: ")
+		sb.WriteString(strconv.FormatBool(x.HasConsecutiveAirJumps))
+	}
+	if x.HasConsecutiveWallJumps != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_consecutive_wall_jumps: ")
+		sb.WriteString(strconv.FormatBool(x.HasConsecutiveWallJumps))
+	}
+	if x.HasCanDashJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_can_dash_jump: ")
+		sb.WriteString(strconv.FormatBool(x.HasCanDashJump))
+	}
+	if x.HasInSlideJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_in_slide_jump: ")
+		sb.WriteString(strconv.FormatBool(x.HasInSlideJump))
+	}
+	if x.ChangedJumped != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_jumped: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedJumped))
+	}
+	if x.ChangedDesiredAirJumpCount != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_desired_air_jump_count: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedDesiredAirJumpCount))
+	}
+	if x.ChangedExecutedAirJumpCount != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_executed_air_jump_count: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedExecutedAirJumpCount))
+	}
+	if x.ChangedConsecutiveAirJumps != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_consecutive_air_jumps: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedConsecutiveAirJumps))
+	}
+	if x.ChangedConsecutiveWallJumps != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_consecutive_wall_jumps: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedConsecutiveWallJumps))
+	}
+	if x.ChangedCanDashJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_can_dash_jump: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedCanDashJump))
+	}
+	if x.ChangedInSlideJump != false {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("changed_in_slide_jump: ")
+		sb.WriteString(strconv.FormatBool(x.ChangedInSlideJump))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayJumpState) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *ReplayAbilityCharges) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayAbilityCharges {")
+	if x.Tick != 0 {
+		if sb.Len() > 22 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 22 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.ClassName != "" {
+		if sb.Len() > 22 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("class_name: ")
+		sb.WriteString(strconv.Quote(x.ClassName))
+	}
+	if x.RemainingCharges != 0 {
+		if sb.Len() > 22 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("remaining_charges: ")
+		sb.WriteString(strconv.FormatInt(int64(x.RemainingCharges), 10))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayAbilityCharges) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *ReplayAbilityNotify) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayAbilityNotify {")
+	if x.Tick != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.EntindexVictim != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("entindex_victim: ")
+		sb.WriteString(strconv.FormatInt(int64(x.EntindexVictim), 10))
+	}
+	if x.EntindexAttacker != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("entindex_attacker: ")
+		sb.WriteString(strconv.FormatInt(int64(x.EntindexAttacker), 10))
+	}
+	if x.AbilityId != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_id: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.AbilityId), 10))
+	}
+	if x.StatusImpact != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("status_impact: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.StatusImpact), 10))
+	}
+	if x.HasEntindexVictim != false {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_entindex_victim: ")
+		sb.WriteString(strconv.FormatBool(x.HasEntindexVictim))
+	}
+	if x.HasEntindexAttacker != false {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_entindex_attacker: ")
+		sb.WriteString(strconv.FormatBool(x.HasEntindexAttacker))
+	}
+	if x.HasAbilityId != false {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_ability_id: ")
+		sb.WriteString(strconv.FormatBool(x.HasAbilityId))
+	}
+	if x.HasStatusImpact != false {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_status_impact: ")
+		sb.WriteString(strconv.FormatBool(x.HasStatusImpact))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayAbilityNotify) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *ReplayImportantAbilityUsed) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayImportantAbilityUsed {")
+	if x.Tick != 0 {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.Player != 0 {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("player: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Player), 10))
+	}
+	if x.Caster != 0 {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("caster: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Caster), 10))
+	}
+	if x.AbilityName != "" {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_name: ")
+		sb.WriteString(strconv.Quote(x.AbilityName))
+	}
+	if x.HasPlayer != false {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_player: ")
+		sb.WriteString(strconv.FormatBool(x.HasPlayer))
+	}
+	if x.HasCaster != false {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_caster: ")
+		sb.WriteString(strconv.FormatBool(x.HasCaster))
+	}
+	if x.HasAbilityName != false {
+		if sb.Len() > 28 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_ability_name: ")
+		sb.WriteString(strconv.FormatBool(x.HasAbilityName))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayImportantAbilityUsed) String() string {
 	return x.MarshalProtoText()
 }
 
@@ -10633,6 +13922,146 @@ func (m *ReplayEvent) UnmarshalVT(dAtA []byte) error {
 				m.ObjectiveEvent = &ReplayObjective{}
 			}
 			if err := m.ObjectiveEvent.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 17:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StaminaConsumed", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.StaminaConsumed == nil {
+				m.StaminaConsumed = &ReplayStaminaConsumed{}
+			}
+			if err := m.StaminaConsumed.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 18:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityCharges", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.AbilityCharges == nil {
+				m.AbilityCharges = &ReplayAbilityCharges{}
+			}
+			if err := m.AbilityCharges.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 19:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ImportantAbilityUsed", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ImportantAbilityUsed == nil {
+				m.ImportantAbilityUsed = &ReplayImportantAbilityUsed{}
+			}
+			if err := m.ImportantAbilityUsed.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 20:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityNotify", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.AbilityNotify == nil {
+				m.AbilityNotify = &ReplayAbilityNotify{}
+			}
+			if err := m.AbilityNotify.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 21:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field JumpState", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.JumpState == nil {
+				m.JumpState = &ReplayJumpState{}
+			}
+			if err := m.JumpState.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -12247,6 +15676,948 @@ func (m *ReplayKillStreak) UnmarshalVT(dAtA []byte) error {
 			}
 			v = uint32(_v32)
 			m.Duration = float32(math.Float32frombits(v))
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayStaminaConsumed) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayStaminaConsumed: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayStaminaConsumed: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EntindexTarget", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.EntindexTarget = v
+		case 4:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StaminaBefore", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.StaminaBefore = float32(math.Float32frombits(v))
+		case 5:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StaminaAfter", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.StaminaAfter = float32(math.Float32frombits(v))
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Drained", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.Drained = bool(v != 0)
+		case 7:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StaminaMax", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.StaminaMax = float32(math.Float32frombits(v))
+		case 8:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageGameTime", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.MessageGameTime = float32(math.Float32frombits(v))
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasEntindexTarget", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasEntindexTarget = bool(v != 0)
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasStaminaBefore", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasStaminaBefore = bool(v != 0)
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasStaminaAfter", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasStaminaAfter = bool(v != 0)
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasDrained", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasDrained = bool(v != 0)
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasStaminaMax", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasStaminaMax = bool(v != 0)
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasMessageGameTime", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasMessageGameTime = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayJumpState) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayJumpState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayJumpState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClassName", wireType)
+			}
+			var stringLen uint64
+			stringLen, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClassName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InitialObservation", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.InitialObservation = bool(v != 0)
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Jumped", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.Jumped = bool(v != 0)
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DesiredAirJumpCount", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.DesiredAirJumpCount = v
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExecutedAirJumpCount", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.ExecutedAirJumpCount = v
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConsecutiveAirJumps", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.ConsecutiveAirJumps = v
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConsecutiveWallJumps", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.ConsecutiveWallJumps = v
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CanDashJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.CanDashJump = bool(v != 0)
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InSlideJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.InSlideJump = bool(v != 0)
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasJumped", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasJumped = bool(v != 0)
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasDesiredAirJumpCount", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasDesiredAirJumpCount = bool(v != 0)
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasExecutedAirJumpCount", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasExecutedAirJumpCount = bool(v != 0)
+		case 15:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasConsecutiveAirJumps", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasConsecutiveAirJumps = bool(v != 0)
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasConsecutiveWallJumps", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasConsecutiveWallJumps = bool(v != 0)
+		case 17:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasCanDashJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasCanDashJump = bool(v != 0)
+		case 18:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasInSlideJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasInSlideJump = bool(v != 0)
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedJumped", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedJumped = bool(v != 0)
+		case 20:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedDesiredAirJumpCount", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedDesiredAirJumpCount = bool(v != 0)
+		case 21:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedExecutedAirJumpCount", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedExecutedAirJumpCount = bool(v != 0)
+		case 22:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedConsecutiveAirJumps", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedConsecutiveAirJumps = bool(v != 0)
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedConsecutiveWallJumps", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedConsecutiveWallJumps = bool(v != 0)
+		case 24:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedCanDashJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedCanDashJump = bool(v != 0)
+		case 25:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChangedInSlideJump", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.ChangedInSlideJump = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayAbilityCharges) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayAbilityCharges: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayAbilityCharges: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClassName", wireType)
+			}
+			var stringLen uint64
+			stringLen, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClassName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemainingCharges", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.RemainingCharges = v
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayAbilityNotify) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayAbilityNotify: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayAbilityNotify: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EntindexVictim", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.EntindexVictim = v
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EntindexAttacker", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.EntindexAttacker = v
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityId", wireType)
+			}
+			m.AbilityId = 0
+			m.AbilityId, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StatusImpact", wireType)
+			}
+			m.StatusImpact = 0
+			m.StatusImpact, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasEntindexVictim", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasEntindexVictim = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasEntindexAttacker", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasEntindexAttacker = bool(v != 0)
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasAbilityId", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasAbilityId = bool(v != 0)
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasStatusImpact", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasStatusImpact = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayImportantAbilityUsed) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayImportantAbilityUsed: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayImportantAbilityUsed: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Player", wireType)
+			}
+			m.Player = 0
+			m.Player, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Caster", wireType)
+			}
+			m.Caster = 0
+			m.Caster, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityName", wireType)
+			}
+			var stringLen uint64
+			stringLen, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AbilityName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasPlayer", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasPlayer = bool(v != 0)
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasCaster", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasCaster = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasAbilityName", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasAbilityName = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

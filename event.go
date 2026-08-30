@@ -35,6 +35,14 @@ const (
 	// EventStaminaConsumed identifies a stamina spend from the user message
 	// stream.
 	EventStaminaConsumed EventType = "stamina_consumed"
+	// EventImportantAbilityUsed identifies the game-authored ability-use
+	// notification from the user message stream.
+	EventImportantAbilityUsed EventType = "important_ability_used"
+	// EventAbilityNotify identifies the game-authored ability contact
+	// notification from the user message stream.
+	EventAbilityNotify EventType = "ability_notify"
+	// EventJumpState identifies an observed jump-ability state transition.
+	EventJumpState EventType = "jump_state"
 	// EventAbilityCharges identifies an ability charge-count change from the
 	// entity stream.
 	EventAbilityCharges EventType = "ability_charges"
@@ -59,24 +67,27 @@ type PurchaseEvent struct {
 // Event is the unified typed stream used by downstream Deadlock analysis.
 // OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
-	SchemaVersion    int                   `json:"schema_version"`
-	Type             EventType             `json:"type"`
-	Tick             uint32                `json:"tick"`
-	GameTime         float64               `json:"game_time"`
-	Entity           int32                 `json:"entity"`
-	PlayerSlot       int32                 `json:"player_slot"`
-	OwnedItems       []uint32              `json:"owned_items,omitempty"`
-	Damage           *DamageEvent          `json:"damage,omitempty"`
-	Modifier         *ModifierEvent        `json:"modifier,omitempty"`
-	Purchase         *PurchaseEvent        `json:"purchase,omitempty"`
-	EntitySample     *EntitySample         `json:"entity_sample,omitempty"`
-	DamageSummary    *DamageSummaryEvent   `json:"damage_summary,omitempty"`
-	PostMatch        *PostMatchEvent       `json:"post_match,omitempty"`
-	ControllerSample *ControllerSample     `json:"controller_sample,omitempty"`
-	KillStreak       *KillStreakEvent      `json:"kill_streak,omitempty"`
-	StaminaConsumed  *StaminaConsumedEvent `json:"stamina_consumed,omitempty"`
-	AbilityCharges   *AbilityChargesEvent  `json:"ability_charges,omitempty"`
-	Objective        *ObjectiveEvent       `json:"objective_event,omitempty"`
+	SchemaVersion        int                        `json:"schema_version"`
+	Type                 EventType                  `json:"type"`
+	Tick                 uint32                     `json:"tick"`
+	GameTime             float64                    `json:"game_time"`
+	Entity               int32                      `json:"entity"`
+	PlayerSlot           int32                      `json:"player_slot"`
+	OwnedItems           []uint32                   `json:"owned_items,omitempty"`
+	Damage               *DamageEvent               `json:"damage,omitempty"`
+	Modifier             *ModifierEvent             `json:"modifier,omitempty"`
+	Purchase             *PurchaseEvent             `json:"purchase,omitempty"`
+	EntitySample         *EntitySample              `json:"entity_sample,omitempty"`
+	DamageSummary        *DamageSummaryEvent        `json:"damage_summary,omitempty"`
+	PostMatch            *PostMatchEvent            `json:"post_match,omitempty"`
+	ControllerSample     *ControllerSample          `json:"controller_sample,omitempty"`
+	KillStreak           *KillStreakEvent           `json:"kill_streak,omitempty"`
+	StaminaConsumed      *StaminaConsumedEvent      `json:"stamina_consumed,omitempty"`
+	ImportantAbilityUsed *ImportantAbilityUsedEvent `json:"important_ability_used,omitempty"`
+	AbilityNotify        *AbilityNotifyEvent        `json:"ability_notify,omitempty"`
+	JumpState            *JumpStateEvent            `json:"jump_state,omitempty"`
+	AbilityCharges       *AbilityChargesEvent       `json:"ability_charges,omitempty"`
+	Objective            *ObjectiveEvent            `json:"objective_event,omitempty"`
 }
 
 // DamageSummaryRecord is one engine-attributed damage entry in a
@@ -121,13 +132,77 @@ type KillStreakEvent struct {
 // StaminaConsumedEvent is one stamina spend observed in the user message
 // stream. Before/After/Max are the player's stamina bars at the spend.
 type StaminaConsumedEvent struct {
+	Tick               uint32  `json:"tick"`
+	GameTime           float64 `json:"game_time"`
+	EntindexTarget     int32   `json:"entindex_target"`
+	StaminaBefore      float32 `json:"stamina_before"`
+	StaminaAfter       float32 `json:"stamina_after"`
+	Drained            bool    `json:"drained"`
+	StaminaMax         float32 `json:"stamina_max"`
+	MessageGameTime    float32 `json:"message_game_time"`
+	HasEntindexTarget  bool    `json:"has_entindex_target"`
+	HasStaminaBefore   bool    `json:"has_stamina_before"`
+	HasStaminaAfter    bool    `json:"has_stamina_after"`
+	HasDrained         bool    `json:"has_drained"`
+	HasStaminaMax      bool    `json:"has_stamina_max"`
+	HasMessageGameTime bool    `json:"has_message_game_time"`
+}
+
+// ImportantAbilityUsedEvent is one game-authored important ability-use
+// notification. Player and Caster retain the message's complete entity handles.
+type ImportantAbilityUsedEvent struct {
 	Tick           uint32  `json:"tick"`
 	GameTime       float64 `json:"game_time"`
-	EntindexTarget int32   `json:"entindex_target"`
-	StaminaBefore  float32 `json:"stamina_before"`
-	StaminaAfter   float32 `json:"stamina_after"`
-	Drained        bool    `json:"drained"`
-	StaminaMax     float32 `json:"stamina_max"`
+	Player         uint32  `json:"player"`
+	Caster         uint32  `json:"caster"`
+	AbilityName    string  `json:"ability_name"`
+	HasPlayer      bool    `json:"has_player"`
+	HasCaster      bool    `json:"has_caster"`
+	HasAbilityName bool    `json:"has_ability_name"`
+}
+
+// AbilityNotifyEvent is one game-authored ability contact notification.
+type AbilityNotifyEvent struct {
+	Tick                uint32  `json:"tick"`
+	GameTime            float64 `json:"game_time"`
+	EntindexVictim      int32   `json:"entindex_victim"`
+	EntindexAttacker    int32   `json:"entindex_attacker"`
+	AbilityID           uint32  `json:"ability_id"`
+	StatusImpact        uint32  `json:"status_impact"`
+	HasEntindexVictim   bool    `json:"has_entindex_victim"`
+	HasEntindexAttacker bool    `json:"has_entindex_attacker"`
+	HasAbilityID        bool    `json:"has_ability_id"`
+	HasStatusImpact     bool    `json:"has_status_impact"`
+}
+
+// JumpStateEvent is one initial observation or changed sample from
+// CCitadel_Ability_Jump. Field names retain the measured game-state semantics.
+type JumpStateEvent struct {
+	Tick                        uint32  `json:"tick"`
+	GameTime                    float64 `json:"game_time"`
+	ClassName                   string  `json:"class_name"`
+	InitialObservation          bool    `json:"initial_observation"`
+	Jumped                      bool    `json:"jumped"`
+	DesiredAirJumpCount         int32   `json:"desired_air_jump_count"`
+	ExecutedAirJumpCount        int32   `json:"executed_air_jump_count"`
+	ConsecutiveAirJumps         int32   `json:"consecutive_air_jumps"`
+	ConsecutiveWallJumps        int32   `json:"consecutive_wall_jumps"`
+	CanDashJump                 bool    `json:"can_dash_jump"`
+	InSlideJump                 bool    `json:"in_slide_jump"`
+	HasJumped                   bool    `json:"has_jumped"`
+	HasDesiredAirJumpCount      bool    `json:"has_desired_air_jump_count"`
+	HasExecutedAirJumpCount     bool    `json:"has_executed_air_jump_count"`
+	HasConsecutiveAirJumps      bool    `json:"has_consecutive_air_jumps"`
+	HasConsecutiveWallJumps     bool    `json:"has_consecutive_wall_jumps"`
+	HasCanDashJump              bool    `json:"has_can_dash_jump"`
+	HasInSlideJump              bool    `json:"has_in_slide_jump"`
+	ChangedJumped               bool    `json:"changed_jumped"`
+	ChangedDesiredAirJumpCount  bool    `json:"changed_desired_air_jump_count"`
+	ChangedExecutedAirJumpCount bool    `json:"changed_executed_air_jump_count"`
+	ChangedConsecutiveAirJumps  bool    `json:"changed_consecutive_air_jumps"`
+	ChangedConsecutiveWallJumps bool    `json:"changed_consecutive_wall_jumps"`
+	ChangedCanDashJump          bool    `json:"changed_can_dash_jump"`
+	ChangedInSlideJump          bool    `json:"changed_in_slide_jump"`
 }
 
 // AbilityChargesEvent is one ability charge-count change observed on an

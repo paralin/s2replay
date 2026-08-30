@@ -148,6 +148,12 @@ func (e *Entity) String(name string) (string, bool) {
 	return v, ok
 }
 
+// Bool returns the current field value as a bool when present.
+func (e *Entity) Bool(name string) (bool, bool) {
+	v, ok := e.Get(name).(bool)
+	return v, ok
+}
+
 // UInt32 returns the current field value as a uint32 when it fits.
 func (e *Entity) UInt32(name string) (uint32, bool) {
 	switch v := e.Get(name).(type) {
@@ -546,6 +552,11 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 		p.appendControllerSample(tick, e)
 		return
 	}
+	if e.class.name == "CCitadel_Ability_Jump" {
+		p.appendJumpStateEvent(tick, e)
+		p.appendAbilityChargeEvent(tick, e)
+		return
+	}
 	if stringsContains(e.class.name, "Ability") {
 		p.appendAbilityChargeEvent(tick, e)
 		return
@@ -568,6 +579,81 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 			EntitySample: &sample,
 		})
 	}
+}
+
+type entityEpoch struct {
+	index  int32
+	serial int32
+}
+
+type jumpState struct {
+	jumped, hasJumped                               bool
+	desiredAirJumpCount, executedAirJumpCount       int32
+	consecutiveAirJumps, consecutiveWallJumps       int32
+	hasDesiredAirJumpCount, hasExecutedAirJumpCount bool
+	hasConsecutiveAirJumps, hasConsecutiveWallJumps bool
+	canDashJump, hasCanDashJump                     bool
+	inSlideJump, hasInSlideJump                     bool
+}
+
+func (p *Parser) appendJumpStateEvent(tick uint32, e *Entity) {
+	current := jumpState{}
+	current.jumped, current.hasJumped = e.Bool("m_bJumped")
+	current.desiredAirJumpCount, current.hasDesiredAirJumpCount = e.Int32("m_nDesiredAirJumpCount")
+	current.executedAirJumpCount, current.hasExecutedAirJumpCount = e.Int32("m_nExecutedAirJumpCount")
+	current.consecutiveAirJumps, current.hasConsecutiveAirJumps = e.Int32("m_nConsecutiveAirJumps")
+	current.consecutiveWallJumps, current.hasConsecutiveWallJumps = e.Int32("m_nConsecutiveWallJumps")
+	current.canDashJump, current.hasCanDashJump = e.Bool("m_bCanDashJump")
+	current.inSlideJump, current.hasInSlideJump = e.Bool("m_bInSlideJump")
+	if !current.hasJumped && !current.hasDesiredAirJumpCount && !current.hasExecutedAirJumpCount &&
+		!current.hasConsecutiveAirJumps && !current.hasConsecutiveWallJumps &&
+		!current.hasCanDashJump && !current.hasInSlideJump {
+		return
+	}
+
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	if p.jumpLastSeen == nil {
+		p.jumpLastSeen = make(map[entityEpoch]jumpState)
+	}
+	prior, seen := p.jumpLastSeen[epoch]
+	if seen && prior == current {
+		return
+	}
+	p.jumpLastSeen[epoch] = current
+
+	slot := int32(-1)
+	if ownerHandle, ok := e.UInt32("m_hOwnerEntity"); ok {
+		if owner := p.FindEntityByHandle(uint64(ownerHandle)); owner != nil {
+			if mapped, mappedOK := p.entityPlayerSlots[owner.index]; mappedOK {
+				slot = mapped
+			}
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type: EventJumpState, Tick: normalizedTick(tick), GameTime: p.clock.GameTime(),
+		Entity: e.index, PlayerSlot: slot,
+		JumpState: &JumpStateEvent{
+			Tick: normalizedTick(tick), GameTime: p.clock.GameTime(), ClassName: e.class.name,
+			InitialObservation: !seen,
+			Jumped:             current.jumped, DesiredAirJumpCount: current.desiredAirJumpCount,
+			ExecutedAirJumpCount: current.executedAirJumpCount,
+			ConsecutiveAirJumps:  current.consecutiveAirJumps,
+			ConsecutiveWallJumps: current.consecutiveWallJumps,
+			CanDashJump:          current.canDashJump, InSlideJump: current.inSlideJump,
+			HasJumped: current.hasJumped, HasDesiredAirJumpCount: current.hasDesiredAirJumpCount,
+			HasExecutedAirJumpCount: current.hasExecutedAirJumpCount,
+			HasConsecutiveAirJumps:  current.hasConsecutiveAirJumps,
+			HasConsecutiveWallJumps: current.hasConsecutiveWallJumps,
+			HasCanDashJump:          current.hasCanDashJump, HasInSlideJump: current.hasInSlideJump,
+			ChangedJumped:               seen && (prior.jumped != current.jumped || prior.hasJumped != current.hasJumped),
+			ChangedDesiredAirJumpCount:  seen && (prior.desiredAirJumpCount != current.desiredAirJumpCount || prior.hasDesiredAirJumpCount != current.hasDesiredAirJumpCount),
+			ChangedExecutedAirJumpCount: seen && (prior.executedAirJumpCount != current.executedAirJumpCount || prior.hasExecutedAirJumpCount != current.hasExecutedAirJumpCount),
+			ChangedConsecutiveAirJumps:  seen && (prior.consecutiveAirJumps != current.consecutiveAirJumps || prior.hasConsecutiveAirJumps != current.hasConsecutiveAirJumps),
+			ChangedConsecutiveWallJumps: seen && (prior.consecutiveWallJumps != current.consecutiveWallJumps || prior.hasConsecutiveWallJumps != current.hasConsecutiveWallJumps),
+			ChangedCanDashJump:          seen && (prior.canDashJump != current.canDashJump || prior.hasCanDashJump != current.hasCanDashJump),
+			ChangedInSlideJump:          seen && (prior.inSlideJump != current.inSlideJump || prior.hasInSlideJump != current.hasInSlideJump),
+		},
+	})
 }
 
 // appendAbilityChargeEvent emits a charge-count event when an ability

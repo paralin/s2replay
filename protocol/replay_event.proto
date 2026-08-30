@@ -20,6 +20,16 @@ message ReplayEvent {
   ReplayControllerSample controller_sample = 14;
   ReplayKillStreak kill_streak = 15;
   ReplayObjective objective_event = 16;
+  // StaminaConsumed contains a game-authored stamina-consumption message.
+  ReplayStaminaConsumed stamina_consumed = 17;
+  // AbilityCharges contains a measured ability charge-count observation.
+  ReplayAbilityCharges ability_charges = 18;
+  // ImportantAbilityUsed contains a game-authored important-ability notification.
+  ReplayImportantAbilityUsed important_ability_used = 19;
+  // AbilityNotify contains a game-authored ability contact notification.
+  ReplayAbilityNotify ability_notify = 20;
+  // JumpState contains a measured CCitadel_Ability_Jump state observation.
+  ReplayJumpState jump_state = 21;
 }
 
 message ReplayDamage {
@@ -158,6 +168,148 @@ message ReplayKillStreak {
   bool is_first_blood = 5;
   bool streak_ended = 6;
   float duration = 7;
+}
+
+// ReplayStaminaConsumed preserves one game-authored stamina-consumption message.
+message ReplayStaminaConsumed {
+  // Tick identifies the normalized server tick of the message.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the message.
+  double game_time = 2;
+  // EntindexTarget is the raw target entity index when HasEntindexTarget is true.
+  sint32 entindex_target = 3;
+  // StaminaBefore is the measured stamina before consumption when HasStaminaBefore is true.
+  float stamina_before = 4;
+  // StaminaAfter is the measured stamina after consumption when HasStaminaAfter is true.
+  float stamina_after = 5;
+  // Drained is the game-authored drained state when HasDrained is true.
+  bool drained = 6;
+  // StaminaMax is the measured maximum stamina when HasStaminaMax is true.
+  float stamina_max = 7;
+  // MessageGameTime is the source message time in seconds when HasMessageGameTime is true.
+  float message_game_time = 8;
+  // HasEntindexTarget distinguishes a present target index from its absent default.
+  bool has_entindex_target = 9;
+  // HasStaminaBefore distinguishes a present zero stamina value from absence.
+  bool has_stamina_before = 10;
+  // HasStaminaAfter distinguishes a present zero stamina value from absence.
+  bool has_stamina_after = 11;
+  // HasDrained distinguishes a present false drained state from absence.
+  bool has_drained = 12;
+  // HasStaminaMax distinguishes a present zero maximum from absence.
+  bool has_stamina_max = 13;
+  // HasMessageGameTime distinguishes a present zero source time from absence.
+  bool has_message_game_time = 14;
+}
+
+// ReplayJumpState preserves an initial or changed measured jump-ability state.
+message ReplayJumpState {
+  // Tick identifies the normalized server tick of the observation.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the observation.
+  double game_time = 2;
+  // ClassName identifies the measured entity class without inferring a technique.
+  string class_name = 3;
+  // InitialObservation reports that this is the first state seen in the entity epoch.
+  bool initial_observation = 4;
+  // Jumped is the measured m_bJumped value when HasJumped is true.
+  bool jumped = 5;
+  // DesiredAirJumpCount is the measured desired count, not an inferred action.
+  sint32 desired_air_jump_count = 6;
+  // ExecutedAirJumpCount is the measured executed count, not an inferred action.
+  sint32 executed_air_jump_count = 7;
+  // ConsecutiveAirJumps is the measured consecutive count, not an inferred action.
+  sint32 consecutive_air_jumps = 8;
+  // ConsecutiveWallJumps is the measured consecutive count, not an inferred action.
+  sint32 consecutive_wall_jumps = 9;
+  // CanDashJump is the measured m_bCanDashJump value when HasCanDashJump is true.
+  bool can_dash_jump = 10;
+  // InSlideJump is the measured m_bInSlideJump value when HasInSlideJump is true.
+  bool in_slide_jump = 11;
+  // HasJumped distinguishes a present false Jumped value from absence.
+  bool has_jumped = 12;
+  // HasDesiredAirJumpCount distinguishes a present zero desired count from absence.
+  bool has_desired_air_jump_count = 13;
+  // HasExecutedAirJumpCount distinguishes a present zero executed count from absence.
+  bool has_executed_air_jump_count = 14;
+  // HasConsecutiveAirJumps distinguishes a present zero air count from absence.
+  bool has_consecutive_air_jumps = 15;
+  // HasConsecutiveWallJumps distinguishes a present zero wall count from absence.
+  bool has_consecutive_wall_jumps = 16;
+  // HasCanDashJump distinguishes a present false CanDashJump value from absence.
+  bool has_can_dash_jump = 17;
+  // HasInSlideJump distinguishes a present false InSlideJump value from absence.
+  bool has_in_slide_jump = 18;
+  // ChangedJumped reports a value or presence change after the initial observation.
+  bool changed_jumped = 19;
+  // ChangedDesiredAirJumpCount reports a measured value or presence change.
+  bool changed_desired_air_jump_count = 20;
+  // ChangedExecutedAirJumpCount reports a measured value or presence change.
+  bool changed_executed_air_jump_count = 21;
+  // ChangedConsecutiveAirJumps reports a measured value or presence change.
+  bool changed_consecutive_air_jumps = 22;
+  // ChangedConsecutiveWallJumps reports a measured value or presence change.
+  bool changed_consecutive_wall_jumps = 23;
+  // ChangedCanDashJump reports a measured value or presence change.
+  bool changed_can_dash_jump = 24;
+  // ChangedInSlideJump reports a measured value or presence change.
+  bool changed_in_slide_jump = 25;
+}
+
+// ReplayAbilityCharges preserves a measured ability charge-count observation.
+message ReplayAbilityCharges {
+  // Tick identifies the normalized server tick of the observation.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the observation.
+  double game_time = 2;
+  // ClassName identifies the measured ability entity class.
+  string class_name = 3;
+  // RemainingCharges is the measured count and does not infer a movement action.
+  sint32 remaining_charges = 4;
+}
+
+// ReplayAbilityNotify preserves one game-authored ability contact notification.
+message ReplayAbilityNotify {
+  // Tick identifies the normalized server tick of the notification.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the notification.
+  double game_time = 2;
+  // EntindexVictim is the raw victim entity index when HasEntindexVictim is true.
+  sint32 entindex_victim = 3;
+  // EntindexAttacker is the raw attacker entity index when HasEntindexAttacker is true.
+  sint32 entindex_attacker = 4;
+  // AbilityId is the game-authored ability identifier when HasAbilityId is true.
+  uint32 ability_id = 5;
+  // StatusImpact is the raw game-authored value and has no inferred technique meaning.
+  uint32 status_impact = 6;
+  // HasEntindexVictim distinguishes a present victim index from its absent default.
+  bool has_entindex_victim = 7;
+  // HasEntindexAttacker distinguishes a present attacker index from its absent default.
+  bool has_entindex_attacker = 8;
+  // HasAbilityId distinguishes a present zero ability identifier from absence.
+  bool has_ability_id = 9;
+  // HasStatusImpact distinguishes a present zero status impact from absence.
+  bool has_status_impact = 10;
+}
+
+// ReplayImportantAbilityUsed preserves one game-authored important-ability notification.
+message ReplayImportantAbilityUsed {
+  // Tick identifies the normalized server tick of the notification.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the notification.
+  double game_time = 2;
+  // Player is the raw full Source 2 entity handle when HasPlayer is true.
+  uint32 player = 3;
+  // Caster is the raw full Source 2 entity handle when HasCaster is true.
+  uint32 caster = 4;
+  // AbilityName is the game-authored name when HasAbilityName is true.
+  string ability_name = 5;
+  // HasPlayer distinguishes a present zero player handle from absence.
+  bool has_player = 6;
+  // HasCaster distinguishes a present zero caster handle from absence.
+  bool has_caster = 7;
+  // HasAbilityName distinguishes a present empty ability name from absence.
+  bool has_ability_name = 8;
 }
 
 message ReplayObjective {

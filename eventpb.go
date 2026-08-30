@@ -266,6 +266,63 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 			Duration:     k.Duration,
 		}
 	}
+	if e.StaminaConsumed != nil {
+		sc := e.StaminaConsumed
+		out.StaminaConsumed = &protocol.ReplayStaminaConsumed{
+			Tick: sc.Tick, GameTime: sc.GameTime, EntindexTarget: sc.EntindexTarget,
+			StaminaBefore: sc.StaminaBefore, StaminaAfter: sc.StaminaAfter,
+			Drained: sc.Drained, StaminaMax: sc.StaminaMax,
+			MessageGameTime:   sc.MessageGameTime,
+			HasEntindexTarget: sc.HasEntindexTarget, HasStaminaBefore: sc.HasStaminaBefore,
+			HasStaminaAfter: sc.HasStaminaAfter, HasDrained: sc.HasDrained,
+			HasStaminaMax: sc.HasStaminaMax, HasMessageGameTime: sc.HasMessageGameTime,
+		}
+	}
+	if e.JumpState != nil {
+		js := e.JumpState
+		out.JumpState = &protocol.ReplayJumpState{
+			Tick: js.Tick, GameTime: js.GameTime, ClassName: js.ClassName,
+			InitialObservation: js.InitialObservation, Jumped: js.Jumped,
+			DesiredAirJumpCount: js.DesiredAirJumpCount, ExecutedAirJumpCount: js.ExecutedAirJumpCount,
+			ConsecutiveAirJumps: js.ConsecutiveAirJumps, ConsecutiveWallJumps: js.ConsecutiveWallJumps,
+			CanDashJump: js.CanDashJump, InSlideJump: js.InSlideJump,
+			HasJumped: js.HasJumped, HasDesiredAirJumpCount: js.HasDesiredAirJumpCount,
+			HasExecutedAirJumpCount: js.HasExecutedAirJumpCount,
+			HasConsecutiveAirJumps:  js.HasConsecutiveAirJumps,
+			HasConsecutiveWallJumps: js.HasConsecutiveWallJumps,
+			HasCanDashJump:          js.HasCanDashJump, HasInSlideJump: js.HasInSlideJump,
+			ChangedJumped: js.ChangedJumped, ChangedDesiredAirJumpCount: js.ChangedDesiredAirJumpCount,
+			ChangedExecutedAirJumpCount: js.ChangedExecutedAirJumpCount,
+			ChangedConsecutiveAirJumps:  js.ChangedConsecutiveAirJumps,
+			ChangedConsecutiveWallJumps: js.ChangedConsecutiveWallJumps,
+			ChangedCanDashJump:          js.ChangedCanDashJump, ChangedInSlideJump: js.ChangedInSlideJump,
+		}
+	}
+	if e.AbilityCharges != nil {
+		ac := e.AbilityCharges
+		out.AbilityCharges = &protocol.ReplayAbilityCharges{
+			Tick: ac.Tick, GameTime: ac.GameTime, ClassName: ac.ClassName,
+			RemainingCharges: ac.RemainingCharges,
+		}
+	}
+	if e.AbilityNotify != nil {
+		an := e.AbilityNotify
+		out.AbilityNotify = &protocol.ReplayAbilityNotify{
+			Tick: an.Tick, GameTime: an.GameTime, EntindexVictim: an.EntindexVictim,
+			EntindexAttacker: an.EntindexAttacker, AbilityId: an.AbilityID,
+			StatusImpact:      an.StatusImpact,
+			HasEntindexVictim: an.HasEntindexVictim, HasEntindexAttacker: an.HasEntindexAttacker,
+			HasAbilityId: an.HasAbilityID, HasStatusImpact: an.HasStatusImpact,
+		}
+	}
+	if e.ImportantAbilityUsed != nil {
+		iau := e.ImportantAbilityUsed
+		out.ImportantAbilityUsed = &protocol.ReplayImportantAbilityUsed{
+			Tick: iau.Tick, GameTime: iau.GameTime, Player: iau.Player,
+			Caster: iau.Caster, AbilityName: iau.AbilityName,
+			HasPlayer: iau.HasPlayer, HasCaster: iau.HasCaster, HasAbilityName: iau.HasAbilityName,
+		}
+	}
 	if e.Objective != nil {
 		ob := e.Objective
 		out.ObjectiveEvent = &protocol.ReplayObjective{

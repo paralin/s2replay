@@ -169,6 +169,10 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 		p.appendKillStreakEvent(tick, m)
 	case *protocol.CCitadelUserMsg_StaminaConsumed:
 		p.appendStaminaConsumedEvent(tick, m)
+	case *protocol.CCitadelUserMessage_ImportantAbilityUsed:
+		p.appendImportantAbilityUsedEvent(tick, m)
+	case *protocol.CCitadelUserMessage_AbilityNotify:
+		p.appendAbilityNotifyEvent(tick, m)
 	case *protocol.CCitadelUserMsg_BossKilled:
 		p.appendObjectiveEvent(tick, "boss_killed", int32(m.GetObjectiveTeam()), int32(m.GetObjectiveMaskChange()), int32(m.GetEntityKilledClass()), int32(m.GetBossesRemaining()), m.GetGametime())
 	case *protocol.CCitadelUserMsg_BossDamaged:
@@ -219,13 +223,71 @@ func (p *Parser) appendStaminaConsumedEvent(tick uint32, msg *protocol.CCitadelU
 		Entity:     target,
 		PlayerSlot: slot,
 		StaminaConsumed: &StaminaConsumedEvent{
-			Tick:           normalizedTick(tick),
-			GameTime:       p.clock.GameTime(),
-			EntindexTarget: target,
-			StaminaBefore:  msg.GetStaminaBefore(),
-			StaminaAfter:   msg.GetStaminaAfter(),
-			Drained:        msg.GetDrained(),
-			StaminaMax:     msg.GetStaminaMax(),
+			Tick:               normalizedTick(tick),
+			GameTime:           p.clock.GameTime(),
+			EntindexTarget:     target,
+			StaminaBefore:      msg.GetStaminaBefore(),
+			StaminaAfter:       msg.GetStaminaAfter(),
+			Drained:            msg.GetDrained(),
+			StaminaMax:         msg.GetStaminaMax(),
+			MessageGameTime:    msg.GetGametime(),
+			HasEntindexTarget:  msg.EntindexTarget != nil,
+			HasStaminaBefore:   msg.StaminaBefore != nil,
+			HasStaminaAfter:    msg.StaminaAfter != nil,
+			HasDrained:         msg.Drained != nil,
+			HasStaminaMax:      msg.StaminaMax != nil,
+			HasMessageGameTime: msg.Gametime != nil,
+		},
+	})
+}
+
+func (p *Parser) appendAbilityNotifyEvent(tick uint32, msg *protocol.CCitadelUserMessage_AbilityNotify) {
+	attacker := int32(-1)
+	slot := int32(-1)
+	if msg.EntindexAttacker != nil && msg.GetEntindexAttacker() >= 0 {
+		attacker = int32(uint32(msg.GetEntindexAttacker()) & uint32(entityHandleMask))
+		if mapped, ok := p.entityPlayerSlots[attacker]; ok {
+			slot = mapped
+		}
+	}
+	victim := int32(-1)
+	if msg.EntindexVictim != nil && msg.GetEntindexVictim() >= 0 {
+		victim = int32(uint32(msg.GetEntindexVictim()) & uint32(entityHandleMask))
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type: EventAbilityNotify, Tick: normalizedTick(tick), GameTime: p.clock.GameTime(),
+		Entity: attacker, PlayerSlot: slot,
+		AbilityNotify: &AbilityNotifyEvent{
+			Tick: normalizedTick(tick), GameTime: p.clock.GameTime(),
+			EntindexVictim: victim, EntindexAttacker: attacker,
+			AbilityID: msg.GetAbilityId(), StatusImpact: msg.GetStatusImpact(),
+			HasEntindexVictim: msg.EntindexVictim != nil, HasEntindexAttacker: msg.EntindexAttacker != nil,
+			HasAbilityID: msg.AbilityId != nil, HasStatusImpact: msg.StatusImpact != nil,
+		},
+	})
+}
+
+func (p *Parser) appendImportantAbilityUsedEvent(tick uint32, msg *protocol.CCitadelUserMessage_ImportantAbilityUsed) {
+	player := int32(-1)
+	slot := int32(-1)
+	if msg.Player != nil {
+		if playerEntity := p.FindEntityByHandle(uint64(msg.GetPlayer())); playerEntity != nil {
+			player = playerEntity.index
+			if mapped, ok := p.entityPlayerSlots[player]; ok {
+				slot = mapped
+			}
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:       EventImportantAbilityUsed,
+		Tick:       normalizedTick(tick),
+		GameTime:   p.clock.GameTime(),
+		Entity:     player,
+		PlayerSlot: slot,
+		ImportantAbilityUsed: &ImportantAbilityUsedEvent{
+			Tick: normalizedTick(tick), GameTime: p.clock.GameTime(),
+			Player: msg.GetPlayer(), Caster: msg.GetCaster(), AbilityName: msg.GetAbilityName(),
+			HasPlayer: msg.Player != nil, HasCaster: msg.Caster != nil, HasAbilityName: msg.AbilityName != nil,
 		},
 	})
 }
