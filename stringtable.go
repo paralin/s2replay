@@ -8,7 +8,17 @@ import (
 	"github.com/paralin/s2replay/protocol"
 )
 
-const stringTableKeyHistorySize = 32
+const (
+	stringTableKeyHistorySize = 32
+
+	// Source string tables use 20-bit entry indexes, 1 KiB network strings,
+	// and 14-bit user-data byte lengths.
+	maxStringTableUpdates       = 1 << 20
+	maxStringTableIndex         = maxStringTableUpdates - 1
+	maxStringTableKeyBytes      = 1 << 10
+	maxStringTableUserDataBytes = 1 << 14
+	maxStringTableDataBytes     = 1 << 24
+)
 
 type stringTables struct {
 	tables    map[int32]*stringTable
@@ -66,15 +76,21 @@ func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_Creat
 
 	buf := msg.GetStringData()
 	if msg.GetDataCompressed() {
-		decoded, err := snappy.Decode(nil, buf)
+		decodedLen, err := snappy.DecodedLen(buf)
 		if err != nil {
-			return nil
+			return err
 		}
-		buf = decoded
+		if decodedLen > maxStringTableDataBytes {
+			return errStringTableDataTooLarge
+		}
+		buf, err = snappy.Decode(nil, buf)
+		if err != nil {
+			return err
+		}
 	}
 	items, err := parseStringTable(buf, msg.GetNumEntries(), t.userDataFixedSize, t.userDataSizeBits, t.flags, t.varintBitCounts)
 	if err != nil {
-		return nil
+		return err
 	}
 	for _, item := range items {
 		t.items[item.index] = item
@@ -97,7 +113,7 @@ func (p *Parser) applyUpdateStringTable(tick uint32, msg *protocol.CSVCMsg_Updat
 	}
 	items, err := parseStringTable(msg.GetStringData(), msg.GetNumChangedEntries(), t.userDataFixedSize, t.userDataSizeBits, t.flags, t.varintBitCounts)
 	if err != nil {
-		return nil
+		return err
 	}
 	for _, item := range items {
 		if old := t.items[item.index]; old != nil {
@@ -190,11 +206,24 @@ func (p *Parser) updateInstanceBaseline() {
 }
 
 func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userDataSizeBits int32, flags int32, varintBitCounts bool) ([]*stringTableItem, error) {
+	if numUpdates < 0 {
+		return nil, errInvalidStringTableUpdateCount
+	}
+	if numUpdates > maxStringTableUpdates || int64(numUpdates) > int64(len(buf))*8 {
+		return nil, errStringTableUpdateCountTooLarge
+	}
+	if userDataSizeBits < 0 {
+		return nil, errInvalidStringTableUserDataSize
+	}
+	if userDataFixed && userDataSizeBits > maxStringTableUserDataBytes*8 {
+		return nil, errStringTableUserDataTooLarge
+	}
+
 	r := newPacketReader(buf)
-	items := make([]*stringTableItem, 0, numUpdates)
+	items := make([]*stringTableItem, 0, int(numUpdates))
 	keys := make([]string, 0, stringTableKeyHistorySize)
 	index := int32(-1)
-	for i := 0; i < int(numUpdates) && r.bitsRemaining() > 0; i++ {
+	for i := int32(0); i < numUpdates && r.bitsRemaining() > 0; i++ {
 		incr, err := r.readBool()
 		if err != nil {
 			return nil, err
@@ -206,8 +235,12 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			if err != nil {
 				return nil, err
 			}
-			index = int32(v) + 1
+			if v >= maxStringTableIndex {
+				return nil, errStringTableIndexTooLarge
+			}
+			index = int32(v + 1)
 		}
+
 		key := ""
 		hasKey, err := r.readBool()
 		if err != nil {
@@ -236,7 +269,7 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 					}
 				}
 			}
-			suffix, err := r.readString()
+			suffix, err := r.readStringMax(maxStringTableKeyBytes - len(key))
 			if err != nil {
 				return nil, err
 			}
@@ -247,41 +280,51 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			}
 			keys = append(keys, key)
 		}
+
 		value := []byte(nil)
 		hasValue, err := r.readBool()
 		if err != nil {
 			return nil, err
 		}
 		if hasValue {
-			bits := int(userDataSizeBits)
+			bits := uint64(userDataSizeBits)
 			compressed := false
 			if !userDataFixed {
 				if flags&0x1 != 0 {
-					var err error
 					compressed, err = r.readBool()
 					if err != nil {
 						return nil, err
 					}
 				}
+				var bytes uint32
 				if varintBitCounts {
-					v, err := r.readUBitVar()
-					if err != nil {
-						return nil, err
-					}
-					bits = int(v) * 8
+					bytes, err = r.readUBitVar()
 				} else {
-					v, err := r.readBits(17)
-					if err != nil {
-						return nil, err
-					}
-					bits = int(v) * 8
+					bytes, err = r.readBits(17)
 				}
+				if err != nil {
+					return nil, err
+				}
+				bits = uint64(bytes) * 8
 			}
-			value, err = r.readBitsAsBytes(bits)
+			if bits > maxStringTableUserDataBytes*8 {
+				return nil, errStringTableUserDataTooLarge
+			}
+			if bits > uint64(r.bitsRemaining()) {
+				return nil, errBitReadOverflow
+			}
+			value, err = r.readBitsAsBytes(int(bits))
 			if err != nil {
 				return nil, err
 			}
 			if compressed {
+				decodedLen, err := snappy.DecodedLen(value)
+				if err != nil {
+					return nil, err
+				}
+				if decodedLen > maxStringTableUserDataBytes {
+					return nil, errStringTableUserDataTooLarge
+				}
 				value, err = snappy.Decode(nil, value)
 				if err != nil {
 					return nil, err

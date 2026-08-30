@@ -32,6 +32,28 @@ var errUnknownStringTable = errors.New("s2replay: string-table update referenced
 // errInvalidWorldSnapshotTick rejects the pre-game sentinel as a timecode.
 var errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot tick")
 
+// errInvalidStringTableUpdateCount indicates a negative string-table update count.
+var errInvalidStringTableUpdateCount = errors.New("s2replay: negative string-table update count")
+
+// errStringTableUpdateCountTooLarge indicates an implausible string-table update count.
+var errStringTableUpdateCountTooLarge = errors.New("s2replay: string-table update count too large")
+
+// errStringTableIndexTooLarge indicates an explicit entry index exceeds the Source limit.
+var errStringTableIndexTooLarge = errors.New("s2replay: string-table index too large")
+
+// errInvalidStringTableUserDataSize indicates a negative fixed user-data bit count.
+var errInvalidStringTableUserDataSize = errors.New("s2replay: negative string-table user-data size")
+
+// errStringTableUserDataTooLarge indicates user data exceeds the Source string-table limit.
+var errStringTableUserDataTooLarge = errors.New("s2replay: string-table user data too large")
+
+// errStringTableKeyTooLarge indicates a key exceeds the Source network-string limit.
+var errStringTableKeyTooLarge = errors.New("s2replay: string-table key too large")
+
+// errStringTableDataTooLarge indicates a compressed table expands beyond the parser limit.
+var errStringTableDataTooLarge = errors.New("s2replay: string-table data too large")
+
+
 // errWorldSnapshotPastTick rejects a request older than the parser position.
 var errWorldSnapshotPastTick = errors.New("s2replay: world snapshot tick is behind parser position")
 
