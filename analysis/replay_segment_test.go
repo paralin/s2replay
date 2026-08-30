@@ -331,8 +331,25 @@ func TestOptInPinnedVelocityFixture(t *testing.T) {
 	if !bytes.Equal(j, j2) {
 		t.Fatal("fixture output is not deterministic")
 	}
+	const pinnedSHA = "b612e43f4055d4dde728c7eedbdd7ec38c3478ef90f33b870bfb29310b79194f"
+	if got := sha256.Sum256(b); hex.EncodeToString(got[:]) != pinnedSHA {
+		t.Fatalf("fixture source SHA256: got %x want %s", got, pinnedSHA)
+	}
+	if a.Source.SHA256 != pinnedSHA || a.Source.MatchID != 101514223 || a.Source.Map != "start" || a.Source.GameBuild != 10854 {
+		t.Fatalf("fixture identity: %+v", a.Source)
+	}
 	if len(a.Rows) != 12 || a.Quality.ExactVelocityRows == 0 {
 		t.Fatalf("fixture quality: %+v", a.Quality)
+	}
+	var slotOne *ReplaySegmentRow
+	for i := range a.Rows {
+		if a.Rows[i].PlayerSlot == 1 && a.Rows[i].EntityID == 92 {
+			slotOne = &a.Rows[i]
+			break
+		}
+	}
+	if slotOne == nil || slotOne.Tick != 63280 || slotOne.VelocityX.Value != float32(-52.98462) || slotOne.VelocityY.Value != float32(-339.14185) || slotOne.VelocityZ.Value != 0 || slotOne.VelocityX.SampleTick != 63280 || slotOne.VelocityY.SampleTick != 63240 || slotOne.VelocityZ.SampleTick != 62285 || slotOne.VelocityX.SourceField != "m_vecVelocity.m_vecX" || slotOne.VelocityY.SourceField != "m_vecVelocity.m_vecY" || slotOne.VelocityZ.SourceField != "m_vecVelocity.m_vecZ" {
+		t.Fatalf("fixture exact velocity row: %+v", slotOne)
 	}
 	sum := sha256.Sum256(j)
 	if len(j) != 20876 || hex.EncodeToString(sum[:]) != "702e98e43aade943aee6f6f5d483bccd4dc852516076b7ecb5005604d63138e4" {
