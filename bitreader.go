@@ -90,7 +90,7 @@ func (r *packetReader) readBytes(n int) ([]byte, error) {
 }
 
 func (r *packetReader) readBitsAsBytes(bits int) ([]byte, error) {
-	if bits < 0 {
+	if bits < 0 || bits > r.bitsRemaining() {
 		return nil, errShortRead
 	}
 	b := make([]byte, 0, (bits+7)/8)
@@ -256,6 +256,23 @@ func (r *packetReader) readString() (string, error) {
 		}
 		if c == 0 {
 			return string(b), nil
+		}
+		b = append(b, c)
+	}
+}
+
+func (r *packetReader) readStringMax(maxBytes int) (string, error) {
+	b := make([]byte, 0, min(32, maxBytes))
+	for {
+		c, err := r.readByte()
+		if err != nil {
+			return "", err
+		}
+		if c == 0 {
+			return string(b), nil
+		}
+		if len(b) == maxBytes {
+			return "", errStringTableKeyTooLarge
 		}
 		b = append(b, c)
 	}
