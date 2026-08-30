@@ -41,7 +41,7 @@ type Parser struct {
 	pendingSamples   []EntitySample
 	pendingModifiers []ModifierEvent
 	pendingEvents    []Event
-	chargeLastSeen   map[int32]int32
+	chargeLastSeen   map[entityEpoch]int32
 	jumpLastSeen     map[entityEpoch]jumpState
 	stopped          bool
 
@@ -84,7 +84,7 @@ func NewParser(demo []byte) (*Parser, error) {
 		modifiers:            make(map[int32]modifierState),
 		playerItems:          make(map[int32]map[uint32]struct{}),
 		entityPlayerSlots:    make(map[int32]int32),
-		chargeLastSeen:       make(map[int32]int32),
+		chargeLastSeen:       make(map[entityEpoch]int32),
 		jumpLastSeen:         make(map[entityEpoch]jumpState),
 		stringTables:         newStringTables(),
 		entityStateErrors:    make(map[string]int),

@@ -664,15 +664,21 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 	if !ok {
 		return
 	}
-	if last, seen := p.chargeLastSeen[e.index]; seen && last == charges {
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	if p.chargeLastSeen == nil {
+		p.chargeLastSeen = make(map[entityEpoch]int32)
+	}
+	if last, seen := p.chargeLastSeen[epoch]; seen && last == charges {
 		return
 	}
-	p.chargeLastSeen[e.index] = charges
+	p.chargeLastSeen[epoch] = charges
+
 	slot := int32(-1)
-	if owner, ok := e.Int32("m_hOwnerEntity"); ok && owner >= 0 {
-		ownerIndex := int32(uint32(owner) & uint32(entityHandleMask))
-		if mapped, mappedOk := p.entityPlayerSlots[ownerIndex]; mappedOk {
-			slot = mapped
+	if ownerHandle, ok := e.UInt32("m_hOwnerEntity"); ok {
+		if owner := p.FindEntityByHandle(uint64(ownerHandle)); owner != nil {
+			if mapped, mappedOK := p.entityPlayerSlots[owner.index]; mappedOK {
+				slot = mapped
+			}
 		}
 	}
 	p.pendingEvents = append(p.pendingEvents, Event{
