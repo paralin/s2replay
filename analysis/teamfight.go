@@ -20,8 +20,8 @@ const TeamfightCensusSize = 12
 // participant slots instead of selecting all participants.
 var ErrTeamfightExplicitSlots = errors.New("teamfight request is all-participant and refuses explicit participant slots")
 
-// ErrTeamfightAmbiguousEvidence indicates two source rows or two source
-// samples for one participant disagree.
+// ErrTeamfightAmbiguousEvidence indicates duplicate source rows for one
+// tick and participant disagree. Identity conflicts are returned as evidence.
 var ErrTeamfightAmbiguousEvidence = errors.New("teamfight evidence has ambiguous duplicate source rows")
 
 // ErrTeamfightNonFiniteSource indicates an exact source field carried a
@@ -39,6 +39,23 @@ type TeamfightCensusSizeError struct {
 func (e *TeamfightCensusSizeError) Error() string {
 	return "teamfight census requires exactly " + strconv.Itoa(TeamfightCensusSize) + " participants: observed " + strconv.Itoa(e.Observed)
 }
+
+// TeamfightIdentityStatus states whether participant hero/team identity is
+// usable by a caller. The wrapped evidence remains authoritative for the
+// exact conflicting participant slots.
+type TeamfightIdentityStatus string
+
+const (
+	// TeamfightIdentityResolved means every observed participant identity is
+	// consistent and complete.
+	TeamfightIdentityResolved TeamfightIdentityStatus = "resolved"
+	// TeamfightIdentityIncomplete means identity fields are absent or still a
+	// zero placeholder, but no conflicting nonzero values were observed.
+	TeamfightIdentityIncomplete TeamfightIdentityStatus = "incomplete"
+	// TeamfightIdentityAmbiguous means a participant has conflicting hero/team
+	// values and the evidence is launch-ineligible.
+	TeamfightIdentityAmbiguous TeamfightIdentityStatus = "ambiguous"
+)
 
 // TeamfightParticipantStatus states whether a census participant has rows in
 // the requested window.
@@ -95,10 +112,12 @@ type TeamfightBoundary struct {
 // all-participant replay segment. Participants is exactly the observed
 // replay-local census sorted ascending by PlayerSlot.
 type TeamfightEvidence struct {
-	SchemaVersion int                    `json:"schema_version"`
-	Participants  []TeamfightParticipant `json:"participants"`
-	Boundary      TeamfightBoundary      `json:"boundary"`
-	Evidence      ReplaySegmentEvidence  `json:"evidence"`
+	SchemaVersion  int                     `json:"schema_version"`
+	IdentityStatus TeamfightIdentityStatus `json:"identity_status"`
+	IdentityReason string                  `json:"identity_reason,omitempty"`
+	Participants   []TeamfightParticipant  `json:"participants"`
+	Boundary       TeamfightBoundary       `json:"boundary"`
+	Evidence       ReplaySegmentEvidence   `json:"evidence"`
 }
 
 // ExtractTeamfightEvidence extracts the teamfight census projection for one
@@ -135,6 +154,14 @@ func TeamfightEvidenceFromSegment(segment ReplaySegmentEvidence) (TeamfightEvide
 	if len(segment.Participants) != TeamfightCensusSize {
 		return TeamfightEvidence{}, &TeamfightCensusSizeError{Observed: len(segment.Participants)}
 	}
+	identityStatus, identityReason := teamfightIdentityStatus(segment)
+	if identityStatus == TeamfightIdentityAmbiguous {
+		// Identity conflicts are a valid evidence result, not a reason to drop
+		// the source rows. They must nevertheless be launch-ineligible even
+		// when the caller did not declare a freshness policy.
+		segment.Eligibility = ReplayEligibilityIneligible
+		segment.EligibilityReasons = append(segment.EligibilityReasons, "ambiguous participant identity")
+	}
 
 	// Classify window coverage and boundary coverage from observed rows.
 	windowSlots := map[int32]bool{}
@@ -156,9 +183,11 @@ func TeamfightEvidenceFromSegment(segment ReplaySegmentEvidence) (TeamfightEvide
 	}
 
 	out := TeamfightEvidence{
-		SchemaVersion: TeamfightEvidenceSchemaVersion,
-		Participants:  make([]TeamfightParticipant, 0, TeamfightCensusSize),
-		Evidence:      segment,
+		SchemaVersion:  TeamfightEvidenceSchemaVersion,
+		IdentityStatus: identityStatus,
+		IdentityReason: identityReason,
+		Participants:   make([]TeamfightParticipant, 0, TeamfightCensusSize),
+		Evidence:       segment,
 	}
 	for _, replay := range segment.Participants {
 		participant := TeamfightParticipant{
@@ -198,16 +227,42 @@ func validateTeamfightRequest(request ReplaySegmentRequest) error {
 	return nil
 }
 
-// refuseTeamfightAmbiguity refuses conflicting duplicate rows instead of
-// picking one silently. Conflicting hero or team samples across one
-// participant's entity lifetime stay in the observed evidence: heroes are
-// observed mid-pregame before hero selection, and the projection keeps those
-// samples explicit.
+// refuseTeamfightAmbiguity refuses conflicting duplicate source rows instead
+// of picking one silently. Hero/team identity conflicts are deliberately not
+// refused here: TeamfightEvidenceFromSegment exposes them at the top level
+// while retaining Quality.AmbiguousParticipants in the wrapped evidence.
 func refuseTeamfightAmbiguity(segment ReplaySegmentEvidence) error {
 	if segment.Quality.AmbiguousRows != 0 {
 		return ErrTeamfightAmbiguousEvidence
 	}
 	return nil
+}
+
+func teamfightIdentityStatus(segment ReplaySegmentEvidence) (TeamfightIdentityStatus, string) {
+	if len(segment.Quality.AmbiguousParticipants) != 0 {
+		return TeamfightIdentityAmbiguous, "hero or team identity conflicts for participant slots " + formatTeamfightSlots(segment.Quality.AmbiguousParticipants)
+	}
+	missing := make([]int32, 0)
+	for _, participant := range segment.Participants {
+		if !participant.HasHeroID || participant.HeroID == 0 || !participant.HasTeam {
+			missing = append(missing, participant.PlayerSlot)
+		}
+	}
+	if len(missing) != 0 {
+		return TeamfightIdentityIncomplete, "hero or team identity is missing for participant slots " + formatTeamfightSlots(missing)
+	}
+	return TeamfightIdentityResolved, ""
+}
+
+func formatTeamfightSlots(slots []int32) string {
+	text := "["
+	for i, slot := range slots {
+		if i != 0 {
+			text += ","
+		}
+		text += strconv.FormatInt(int64(slot), 10)
+	}
+	return text + "]"
 }
 
 // refuseTeamfightNonFiniteRows refuses exact source rows that carried

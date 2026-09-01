@@ -161,6 +161,53 @@ func TestTeamfightEvidenceIsByteDeterministic(t *testing.T) {
 	}
 }
 
+func TestTeamfightEvidenceNormalizesUnselectedHeroPlaceholder(t *testing.T) {
+	// The replay entity sample contract uses hero_id=0 as the pre-selection
+	// placeholder; one later nonzero value is the selected hero identity.
+	slots := []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	events := teamfightEvents([]uint32{100, 110}, slots)
+	events[0].EntitySample.HeroID = 0
+	out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.IdentityStatus != TeamfightIdentityResolved || out.IdentityReason != "" {
+		t.Fatalf("placeholder transition should resolve identity: %+v", out)
+	}
+	if out.Participants[0].HeroID != 101 || !out.Participants[0].HasHeroID || len(out.Evidence.Quality.AmbiguousParticipants) != 0 {
+		t.Fatalf("placeholder transition identity: participant=%+v quality=%+v", out.Participants[0], out.Evidence.Quality)
+	}
+}
+
+func TestTeamfightEvidenceExposesNonzeroIdentityConflict(t *testing.T) {
+	for _, change := range []struct {
+		name  string
+		apply func(*s2replay.Event)
+	}{
+		{name: "hero", apply: func(event *s2replay.Event) { event.EntitySample.HeroID = 999 }},
+		{name: "team", apply: func(event *s2replay.Event) { event.EntitySample.Team = 99 }},
+	} {
+		t.Run(change.name, func(t *testing.T) {
+			slots := []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+			events := teamfightEvents([]uint32{100, 110}, slots)
+			change.apply(&events[len(slots)])
+			out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.IdentityStatus != TeamfightIdentityAmbiguous || out.IdentityReason == "" {
+				t.Fatalf("identity conflict must be explicit: %+v", out)
+			}
+			if !slices.Equal(out.Evidence.Quality.AmbiguousParticipants, []int32{1}) {
+				t.Fatalf("wrapped ambiguous participants hidden or changed: %+v", out.Evidence.Quality)
+			}
+			if out.Evidence.Eligibility != ReplayEligibilityIneligible {
+				t.Fatalf("identity conflict must be launch-ineligible: %+v", out.Evidence)
+			}
+		})
+	}
+}
+
 func TestTeamfightEvidenceRefusesAmbiguousAndNonFiniteSource(t *testing.T) {
 	conflict := replaySample(100, 1, 44, true, 1, 2, 1, 2, 3, 4, 5, 6)
 	other := replaySample(100, 1, 44, true, 1, 2, 9, 8, 7, 6, 5, 4)
