@@ -328,7 +328,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.PositionZSourceField = zField + "+" + vzField
 		s.HasPosition = true
 	}
-	return s, true
+	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
 }
 
 func (e *Entity) fieldValue(name string) (any, uint32, bool) {
@@ -699,6 +699,9 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	}
 	if stringsContains(e.class.name, "Ability") {
 		p.appendAbilityChargeEvent(tick, e)
+		return
+	}
+	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
 	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {
