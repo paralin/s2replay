@@ -701,10 +701,10 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 		p.appendAbilityChargeEvent(tick, e)
 		return
 	}
-	if !isLikelyHeroClass(e.class.name) {
+	if !p.worldEntityMode && !isLikelyHeroClass(e.class.name) {
 		return
 	}
-	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {
+	if sample, ok := e.sample(tick, p.clock.GameTime()); ok || p.worldEntityMode {
 		if !p.eventOnly {
 			p.pendingSamples = append(p.pendingSamples, sample)
 		}
@@ -807,6 +807,10 @@ func stringsContains(s, sub string) bool {
 
 // SetEventMode configures unified event consumption without retaining duplicate samples.
 func (p *Parser) SetEventMode(enabled bool) { p.eventOnly = enabled }
+
+// SetWorldEntityMode includes generic entities in the event stream for bounded
+// Runback census extraction. The default keeps the established hero-only stream.
+func (p *Parser) SetWorldEntityMode(enabled bool) { p.worldEntityMode = enabled }
 
 // ReleasePendingQueues releases decoded queues while preserving entity delta state.
 func (p *Parser) ReleasePendingQueues() {

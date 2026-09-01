@@ -5,7 +5,7 @@ import "runtime/debug"
 //go:generate go run ./scripts/parserdigest -write
 
 // ParserSourceDigest identifies the canonical parser source and module inputs.
-const ParserSourceDigest = "1e242d170d12f9ec92ee45b042e85b40fa2b263847c4589746557a4c9d008e84"
+const ParserSourceDigest = "35cf479a5338fd7da0e20857530ce9c3066c7b4f332bb46a7aeba48b581f528c"
 
 // BuildRevision returns the clean VCS revision embedded in the running binary.
 // It refuses unknown and modified builds because they cannot identify durable evidence.

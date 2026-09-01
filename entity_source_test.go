@@ -60,3 +60,20 @@ func TestSanitizeEntitySamplePreservesInvalidSourceEvidence(t *testing.T) {
 		t.Fatalf("invalid source evidence: %+v", sample.InvalidFields)
 	}
 }
+
+func TestWorldEntityModeIsOptIn(t *testing.T) {
+	entity := newEntity(7, 3, &entityClass{id: 11, name: "npc_deadlock_tower"})
+	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32)}
+	parser.appendEntitySample(100, entity)
+	if len(parser.pendingEvents) != 0 {
+		t.Fatal("generic entity leaked into ordinary event mode")
+	}
+	parser.SetWorldEntityMode(true)
+	parser.appendEntitySample(100, entity)
+	if len(parser.pendingEvents) != 1 {
+		t.Fatalf("generic entity missing in world mode: %d", len(parser.pendingEvents))
+	}
+	if got := parser.pendingEvents[0].EntitySample.ClassName; got != "npc_deadlock_tower" {
+		t.Fatalf("class evidence: %q", got)
+	}
+}

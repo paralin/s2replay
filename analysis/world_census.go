@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"slices"
 
@@ -79,6 +80,43 @@ type WorldCensusError struct {
 
 func (e *WorldCensusError) Error() string {
 	return fmt.Sprintf("world census: %s tick=%d entity=%d serial=%d field=%s", e.Kind, e.Tick, e.EntityID, e.EntitySerial, e.Field)
+}
+
+// WorldCensusEventSource is the parser seam used by bounded census extraction.
+type WorldCensusEventSource interface {
+	NextEvent() (s2replay.Event, error)
+	SetEventMode(bool)
+	SetWorldEntityMode(bool)
+	ReleasePendingQueues()
+}
+
+// ExtractWorldCensus reads entity events through the requested tick and then
+// builds a census. The parser's generic-entity mode is opt-in and all pending
+// decoded queues are released before the call returns.
+func ExtractWorldCensus(parser WorldCensusEventSource, tick uint32) (WorldCensus, error) {
+	parser.SetEventMode(true)
+	parser.SetWorldEntityMode(true)
+	defer func() {
+		parser.SetWorldEntityMode(false)
+		parser.SetEventMode(false)
+		parser.ReleasePendingQueues()
+	}()
+
+	events := make([]s2replay.Event, 0)
+	for {
+		event, err := parser.NextEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return WorldCensus{}, err
+		}
+		if event.Tick != s2replay.PreGameTick && event.Tick > tick {
+			break
+		}
+		events = append(events, event)
+	}
+	return BuildWorldCensus(events, tick)
 }
 
 // BuildWorldCensus selects the latest typed entity sample at or before tick for
