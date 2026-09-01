@@ -62,8 +62,10 @@ type WorldCensusErrorKind string
 
 const (
 	WorldCensusDuplicateGeneration WorldCensusErrorKind = "duplicate_entity_generation"
+	WorldCensusInvalidEntity       WorldCensusErrorKind = "invalid_entity"
 	WorldCensusNonFinite           WorldCensusErrorKind = "non_finite_data"
 	WorldCensusInvalidSourceTick   WorldCensusErrorKind = "invalid_source_tick"
+	WorldCensusInvalidSampleTick   WorldCensusErrorKind = "invalid_sample_tick"
 )
 
 // WorldCensusError reports why direct world evidence was refused.
@@ -85,8 +87,11 @@ func (e *WorldCensusError) Error() string {
 func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error) {
 	selected := make(map[int32]s2replay.Event)
 	for _, event := range events {
-		if event.Type != s2replay.EventEntitySample || event.EntitySample == nil || event.Tick > tick {
+		if event.Type != s2replay.EventEntitySample || event.Tick > tick {
 			continue
+		}
+		if event.EntitySample == nil {
+			return WorldCensus{}, &WorldCensusError{Kind: WorldCensusInvalidEntity, Tick: event.Tick, EntityID: event.Entity, Field: "entity_sample"}
 		}
 		if err := validateWorldCensusEvent(event, tick); err != nil {
 			return WorldCensus{}, err
@@ -132,43 +137,62 @@ func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error)
 
 func validateWorldCensusEvent(event s2replay.Event, requestedTick uint32) error {
 	sample := event.EntitySample
+	if sample.Entity != event.Entity || sample.EntitySerial < 0 || event.EntitySerial < 0 || event.EntitySerial != sample.EntitySerial {
+		return &WorldCensusError{Kind: WorldCensusInvalidEntity, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial}
+	}
+	if sample.Tick != event.Tick {
+		return &WorldCensusError{Kind: WorldCensusInvalidSampleTick, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: "tick"}
+	}
+	if len(sample.InvalidFields) != 0 {
+		return &WorldCensusError{Kind: WorldCensusNonFinite, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: sample.InvalidFields[0]}
+	}
 	values := []struct {
-		name  string
-		value float64
+		name    string
+		value   float64
+		present bool
 	}{
-		{"event.game_time", event.GameTime},
-		{"sample.game_time", sample.GameTime},
-		{"health", float64(sample.Health)},
-		{"max_health", float64(sample.MaxHealth)},
-		{"shield", float64(sample.Shield)},
-		{"max_shield", float64(sample.MaxShield)},
-		{"position_x", float64(sample.PositionX)},
-		{"position_y", float64(sample.PositionY)},
-		{"position_z", float64(sample.PositionZ)},
-		{"facing_x", float64(sample.FacingX)},
-		{"facing_y", float64(sample.FacingY)},
-		{"facing_z", float64(sample.FacingZ)},
-		{"velocity_x", float64(sample.VelocityX)},
-		{"velocity_y", float64(sample.VelocityY)},
-		{"velocity_z", float64(sample.VelocityZ)},
+		{"event.game_time", event.GameTime, true},
+		{"sample.game_time", sample.GameTime, true},
+		{"health", float64(sample.Health), sample.HasHealth},
+		{"max_health", float64(sample.MaxHealth), sample.HasHealth},
+		{"shield", float64(sample.Shield), sample.HasShield},
+		{"max_shield", float64(sample.MaxShield), sample.HasShield},
+		{"position_x", float64(sample.PositionX), sample.HasPosition},
+		{"position_y", float64(sample.PositionY), sample.HasPosition},
+		{"position_z", float64(sample.PositionZ), sample.HasPosition},
+		{"facing_x", float64(sample.FacingX), sample.HasFacingX || sample.HasFacing},
+		{"facing_y", float64(sample.FacingY), sample.HasFacingY || sample.HasFacing},
+		{"facing_z", float64(sample.FacingZ), sample.HasFacingZ || sample.HasFacing},
+		{"velocity_x", float64(sample.VelocityX), sample.HasVelocityX || sample.HasVelocity},
+		{"velocity_y", float64(sample.VelocityY), sample.HasVelocityY || sample.HasVelocity},
+		{"velocity_z", float64(sample.VelocityZ), sample.HasVelocityZ || sample.HasVelocity},
 	}
 	for _, value := range values {
-		if math.IsNaN(value.value) || math.IsInf(value.value, 0) {
+		if value.present && (math.IsNaN(value.value) || math.IsInf(value.value, 0)) {
 			return &WorldCensusError{Kind: WorldCensusNonFinite, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: value.name}
 		}
 	}
-	if sample.HasPosition {
-		for _, field := range []struct {
-			name string
-			tick uint32
-		}{
-			{"position_x", censusPositionTick(sample.PositionXTick, event.Tick)},
-			{"position_y", censusPositionTick(sample.PositionYTick, event.Tick)},
-			{"position_z", censusPositionTick(sample.PositionZTick, event.Tick)},
-		} {
-			if field.tick > requestedTick {
-				return &WorldCensusError{Kind: WorldCensusInvalidSourceTick, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: field.name}
-			}
+	fields := []struct {
+		name    string
+		tick    uint32
+		present bool
+	}{
+		{"health", censusSourceTick(sample.HealthTick, event.Tick), sample.HasHealth},
+		{"max_health", censusSourceTick(sample.MaxHealthTick, event.Tick), sample.HasHealth},
+		{"shield", censusSourceTick(sample.ShieldTick, event.Tick), sample.HasShield},
+		{"max_shield", censusSourceTick(sample.MaxShieldTick, event.Tick), sample.HasShield},
+		{"hero_id", censusSourceTick(sample.HeroIDTick, event.Tick), sample.HasHeroID},
+		{"team", censusSourceTick(sample.TeamTick, event.Tick), sample.HasTeam},
+		{"position_x", censusPositionTick(sample.PositionXTick, event.Tick), sample.HasPosition},
+		{"position_y", censusPositionTick(sample.PositionYTick, event.Tick), sample.HasPosition},
+		{"position_z", censusPositionTick(sample.PositionZTick, event.Tick), sample.HasPosition},
+	}
+	for _, field := range fields {
+		if field.present && field.tick > event.Tick {
+			return &WorldCensusError{Kind: WorldCensusInvalidSourceTick, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: field.name}
+		}
+		if field.present && field.tick > requestedTick {
+			return &WorldCensusError{Kind: WorldCensusInvalidSourceTick, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial, Field: field.name}
 		}
 	}
 	return nil
@@ -182,10 +206,10 @@ func worldCensusEntity(event s2replay.Event, requestedTick uint32) WorldCensusEn
 		FreshnessTicks: requestedTick - event.Tick,
 	}
 	if sample.HasHealth {
-		row.Health = censusFloat(sample.Health, event.Tick, requestedTick)
+		row.Health = censusFloat(sample.Health, censusSourceTick(sample.HealthTick, event.Tick), requestedTick)
 	}
 	if sample.HasShield {
-		row.Shield = censusFloat(sample.Shield, event.Tick, requestedTick)
+		row.Shield = censusFloat(sample.Shield, censusSourceTick(sample.ShieldTick, event.Tick), requestedTick)
 	}
 	if sample.HasPosition {
 		row.PositionX = censusFloat(sample.PositionX, censusPositionTick(sample.PositionXTick, event.Tick), requestedTick)
@@ -193,16 +217,25 @@ func worldCensusEntity(event s2replay.Event, requestedTick uint32) WorldCensusEn
 		row.PositionZ = censusFloat(sample.PositionZ, censusPositionTick(sample.PositionZTick, event.Tick), requestedTick)
 	}
 	if sample.HasHeroID {
-		row.HeroID = WorldCensusUint{Value: sample.HeroID, Present: true, SourceTick: event.Tick, FreshnessTicks: requestedTick - event.Tick}
+		sourceTick := censusSourceTick(sample.HeroIDTick, event.Tick)
+		row.HeroID = WorldCensusUint{Value: sample.HeroID, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
 	}
 	if sample.HasTeam {
-		row.Team = WorldCensusInt{Value: sample.Team, Present: true, SourceTick: event.Tick, FreshnessTicks: requestedTick - event.Tick}
+		sourceTick := censusSourceTick(sample.TeamTick, event.Tick)
+		row.Team = WorldCensusInt{Value: sample.Team, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
 	}
 	return row
 }
 
 func censusFloat(value float32, sourceTick, requestedTick uint32) WorldCensusFloat {
 	return WorldCensusFloat{Value: value, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
+}
+
+func censusSourceTick(sourceTick, eventTick uint32) uint32 {
+	if sourceTick == 0 && eventTick != 0 {
+		return eventTick
+	}
+	return sourceTick
 }
 
 func censusPositionTick(sourceTick, eventTick uint32) uint32 {

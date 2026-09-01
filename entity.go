@@ -25,58 +25,65 @@ type Entity struct {
 
 // EntitySample is the typed Phase 4 projection used by downstream event code.
 type EntitySample struct {
-	Tick                 uint32  `json:"tick"`
-	GameTime             float64 `json:"game_time"`
-	Entity               int32   `json:"entity"`
-	EntitySerial         int32   `json:"entity_serial,omitempty"`
-	ClassID              int32   `json:"class_id"`
-	ClassName            string  `json:"class_name"`
-	Health               float32 `json:"health"`
-	MaxHealth            float32 `json:"max_health"`
-	Shield               float32 `json:"shield"`
-	MaxShield            float32 `json:"max_shield"`
-	PositionX            float32 `json:"position_x"`
-	PositionY            float32 `json:"position_y"`
-	PositionZ            float32 `json:"position_z"`
-	PositionXTick        uint32  `json:"position_x_tick,omitempty"`
-	PositionYTick        uint32  `json:"position_y_tick,omitempty"`
-	PositionZTick        uint32  `json:"position_z_tick,omitempty"`
-	PositionXSourceField string  `json:"position_x_source_field,omitempty"`
-	PositionYSourceField string  `json:"position_y_source_field,omitempty"`
-	PositionZSourceField string  `json:"position_z_source_field,omitempty"`
-	FacingXSourceField   string  `json:"facing_x_source_field,omitempty"`
-	FacingYSourceField   string  `json:"facing_y_source_field,omitempty"`
-	FacingZSourceField   string  `json:"facing_z_source_field,omitempty"`
-	VelocityXSourceField string  `json:"velocity_x_source_field,omitempty"`
-	VelocityYSourceField string  `json:"velocity_y_source_field,omitempty"`
-	VelocityZSourceField string  `json:"velocity_z_source_field,omitempty"`
-	FacingX              float32 `json:"facing_x,omitempty"`
-	FacingY              float32 `json:"facing_y,omitempty"`
-	FacingZ              float32 `json:"facing_z,omitempty"`
-	VelocityX            float32 `json:"velocity_x,omitempty"`
-	VelocityY            float32 `json:"velocity_y,omitempty"`
-	VelocityZ            float32 `json:"velocity_z,omitempty"`
-	FacingXTick          uint32  `json:"facing_x_tick,omitempty"`
-	FacingYTick          uint32  `json:"facing_y_tick,omitempty"`
-	FacingZTick          uint32  `json:"facing_z_tick,omitempty"`
-	VelocityXTick        uint32  `json:"velocity_x_tick,omitempty"`
-	VelocityYTick        uint32  `json:"velocity_y_tick,omitempty"`
-	VelocityZTick        uint32  `json:"velocity_z_tick,omitempty"`
-	HasFacing            bool    `json:"has_facing,omitempty"`
-	HasFacingX           bool    `json:"has_facing_x,omitempty"`
-	HasFacingY           bool    `json:"has_facing_y,omitempty"`
-	HasFacingZ           bool    `json:"has_facing_z,omitempty"`
-	HasVelocity          bool    `json:"has_velocity,omitempty"`
-	HasVelocityX         bool    `json:"has_velocity_x,omitempty"`
-	HasVelocityY         bool    `json:"has_velocity_y,omitempty"`
-	HasVelocityZ         bool    `json:"has_velocity_z,omitempty"`
-	HeroID               uint32  `json:"hero_id,omitempty"`
-	Team                 int32   `json:"team,omitempty"`
-	HasHealth            bool    `json:"has_health"`
-	HasShield            bool    `json:"has_shield"`
-	HasPosition          bool    `json:"has_position"`
-	HasHeroID            bool    `json:"has_hero_id"`
-	HasTeam              bool    `json:"has_team"`
+	Tick                 uint32   `json:"tick"`
+	GameTime             float64  `json:"game_time"`
+	Entity               int32    `json:"entity"`
+	EntitySerial         int32    `json:"entity_serial,omitempty"`
+	ClassID              int32    `json:"class_id"`
+	ClassName            string   `json:"class_name"`
+	Health               float32  `json:"health"`
+	MaxHealth            float32  `json:"max_health"`
+	Shield               float32  `json:"shield"`
+	MaxShield            float32  `json:"max_shield"`
+	HealthTick           uint32   `json:"health_tick,omitempty"`
+	MaxHealthTick        uint32   `json:"max_health_tick,omitempty"`
+	ShieldTick           uint32   `json:"shield_tick,omitempty"`
+	MaxShieldTick        uint32   `json:"max_shield_tick,omitempty"`
+	PositionX            float32  `json:"position_x"`
+	PositionY            float32  `json:"position_y"`
+	PositionZ            float32  `json:"position_z"`
+	PositionXTick        uint32   `json:"position_x_tick,omitempty"`
+	PositionYTick        uint32   `json:"position_y_tick,omitempty"`
+	PositionZTick        uint32   `json:"position_z_tick,omitempty"`
+	PositionXSourceField string   `json:"position_x_source_field,omitempty"`
+	PositionYSourceField string   `json:"position_y_source_field,omitempty"`
+	PositionZSourceField string   `json:"position_z_source_field,omitempty"`
+	FacingXSourceField   string   `json:"facing_x_source_field,omitempty"`
+	FacingYSourceField   string   `json:"facing_y_source_field,omitempty"`
+	FacingZSourceField   string   `json:"facing_z_source_field,omitempty"`
+	VelocityXSourceField string   `json:"velocity_x_source_field,omitempty"`
+	VelocityYSourceField string   `json:"velocity_y_source_field,omitempty"`
+	VelocityZSourceField string   `json:"velocity_z_source_field,omitempty"`
+	FacingX              float32  `json:"facing_x,omitempty"`
+	FacingY              float32  `json:"facing_y,omitempty"`
+	FacingZ              float32  `json:"facing_z,omitempty"`
+	VelocityX            float32  `json:"velocity_x,omitempty"`
+	VelocityY            float32  `json:"velocity_y,omitempty"`
+	VelocityZ            float32  `json:"velocity_z,omitempty"`
+	FacingXTick          uint32   `json:"facing_x_tick,omitempty"`
+	FacingYTick          uint32   `json:"facing_y_tick,omitempty"`
+	FacingZTick          uint32   `json:"facing_z_tick,omitempty"`
+	VelocityXTick        uint32   `json:"velocity_x_tick,omitempty"`
+	VelocityYTick        uint32   `json:"velocity_y_tick,omitempty"`
+	VelocityZTick        uint32   `json:"velocity_z_tick,omitempty"`
+	HasFacing            bool     `json:"has_facing,omitempty"`
+	HasFacingX           bool     `json:"has_facing_x,omitempty"`
+	HasFacingY           bool     `json:"has_facing_y,omitempty"`
+	HasFacingZ           bool     `json:"has_facing_z,omitempty"`
+	HasVelocity          bool     `json:"has_velocity,omitempty"`
+	HasVelocityX         bool     `json:"has_velocity_x,omitempty"`
+	HasVelocityY         bool     `json:"has_velocity_y,omitempty"`
+	HasVelocityZ         bool     `json:"has_velocity_z,omitempty"`
+	HeroID               uint32   `json:"hero_id,omitempty"`
+	HeroIDTick           uint32   `json:"hero_id_tick,omitempty"`
+	Team                 int32    `json:"team,omitempty"`
+	TeamTick             uint32   `json:"team_tick,omitempty"`
+	HasHealth            bool     `json:"has_health"`
+	HasShield            bool     `json:"has_shield"`
+	HasPosition          bool     `json:"has_position"`
+	HasHeroID            bool     `json:"has_hero_id"`
+	HasTeam              bool     `json:"has_team"`
+	InvalidFields        []string `json:"invalid_fields,omitempty"`
 }
 
 // ControllerSample is one periodic snapshot of a player controller entity:
@@ -237,36 +244,32 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		ClassID:      e.class.id,
 		ClassName:    e.class.name,
 	}
-	s.Health, s.HasHealth = firstFloat32(
-		e,
+	s.Health, s.HealthTick, s.HasHealth = firstFloat32AtAny(e,
 		"m_iHealth",
 		"m_iCurrentHealth",
 		"m_flHealth",
 		"m_CCitadelHealthComponent.m_iHealth",
 	)
-	s.MaxHealth, _ = firstFloat32(
-		e,
+	s.MaxHealth, s.MaxHealthTick, _ = firstFloat32AtAny(e,
 		"m_iMaxHealth",
 		"m_flMaxHealth",
 		"m_CCitadelHealthComponent.m_iMaxHealth",
 	)
-	s.Shield, s.HasShield = firstFloat32(
-		e,
+	s.Shield, s.ShieldTick, s.HasShield = firstFloat32AtAny(e,
 		"m_iShield",
 		"m_flShield",
 		"m_CCitadelHealthComponent.m_iShield",
 	)
-	s.MaxShield, _ = firstFloat32(
-		e,
+	s.MaxShield, s.MaxShieldTick, _ = firstFloat32AtAny(e,
 		"m_iMaxShield",
 		"m_flMaxShield",
 		"m_CCitadelHealthComponent.m_iMaxShield",
 	)
-	s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_spawnedHero.m_nHeroID")
-	if !s.HasHeroID {
-		s.HeroID, s.HasHeroID = e.UInt32("m_CCitadelHeroComponent.m_loadingHero.m_nHeroID")
-	}
-	s.Team, s.HasTeam = e.Int32("m_iTeamNum")
+	s.HeroID, s.HeroIDTick, s.HasHeroID = firstUInt32AtAny(e,
+		"m_CCitadelHeroComponent.m_spawnedHero.m_nHeroID",
+		"m_CCitadelHeroComponent.m_loadingHero.m_nHeroID",
+	)
+	s.Team, s.TeamTick, s.HasTeam = firstInt32AtAny(e, "m_iTeamNum")
 	if facing, ticks, fields, present := e.vector3([]string{"m_angEyeAngles"}, []string{
 		"m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z",
 	}); present[0] || present[1] || present[2] {
@@ -325,7 +328,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.PositionZSourceField = zField + "+" + vzField
 		s.HasPosition = true
 	}
-	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
+	return s, true
 }
 
 func (e *Entity) fieldValue(name string) (any, uint32, bool) {
@@ -391,13 +394,41 @@ func minTick(a, b uint32) uint32 {
 	return b
 }
 
-func firstFloat32(e *Entity, names ...string) (float32, bool) {
+func firstFloat32AtAny(e *Entity, names ...string) (float32, uint32, bool) {
 	for _, name := range names {
-		if v, ok := e.Float32(name); ok {
-			return v, true
+		if value, tick, _, ok := firstFloat32At(e, name); ok {
+			return value, tick, true
 		}
 	}
-	return 0, false
+	return 0, 0, false
+}
+
+func firstUInt32AtAny(e *Entity, names ...string) (uint32, uint32, bool) {
+	for _, name := range names {
+		_, tick, ok := e.fieldValue(name)
+		if !ok {
+			continue
+		}
+		converted, ok := e.UInt32(name)
+		if ok {
+			return converted, tick, true
+		}
+	}
+	return 0, 0, false
+}
+
+func firstInt32AtAny(e *Entity, names ...string) (int32, uint32, bool) {
+	for _, name := range names {
+		_, tick, ok := e.fieldValue(name)
+		if !ok {
+			continue
+		}
+		converted, ok := e.Int32(name)
+		if ok {
+			return converted, tick, true
+		}
+	}
+	return 0, 0, false
 }
 
 func deadlockCoordFromCell(cell, vec float32) float32 {
@@ -668,9 +699,6 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	}
 	if stringsContains(e.class.name, "Ability") {
 		p.appendAbilityChargeEvent(tick, e)
-		return
-	}
-	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
 	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {

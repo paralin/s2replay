@@ -46,3 +46,17 @@ func TestParserEventModeDoesNotRetainSampleQueue(t *testing.T) {
 		t.Fatal("sample mode not restored")
 	}
 }
+
+func TestSanitizeEntitySamplePreservesInvalidSourceEvidence(t *testing.T) {
+	sample := EntitySample{
+		Health: float32(math.NaN()), HasHealth: true,
+		PositionX: float32(math.Inf(1)), HasPosition: true,
+	}
+	sanitizeEntitySample(&sample)
+	if sample.HasHealth || sample.HasPosition {
+		t.Fatalf("invalid values must not remain usable: %+v", sample)
+	}
+	if len(sample.InvalidFields) != 2 || sample.InvalidFields[0] != "health" || sample.InvalidFields[1] != "position_x" {
+		t.Fatalf("invalid source evidence: %+v", sample.InvalidFields)
+	}
+}
