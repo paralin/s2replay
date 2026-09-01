@@ -79,3 +79,13 @@ test:
 format: $(GOFUMPT) $(GOIMPORTS)
 	$(GOIMPORTS) -w ./
 	$(GOFUMPT) -w ./
+
+# parser-digest-check verifies the generated parser source identity and clean source tree.
+.PHONY: parser-digest-check
+parser-digest-check:
+	go run ./scripts/parserdigest -check
+
+.PHONY: verify
+verify: parser-digest-check
+	go test ./...
+	go vet ./...

@@ -27,6 +27,9 @@ jobs:
           path: tools/bin
           key: ${{ runner.os }}-s2replay-tools-${{ hashFiles('tools/go.sum') }}
 
+      - name: Parser digest
+        run: make parser-digest-check
+
       - name: Build
         run: go build ./...
 

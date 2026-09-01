@@ -43,6 +43,7 @@ type Parser struct {
 	pendingEvents    []Event
 	chargeLastSeen   map[int32]int32
 	stopped          bool
+	eventOnly        bool
 
 	classIDBits          uint8
 	classesByID          map[int32]*entityClass
