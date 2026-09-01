@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"errors"
+	"io"
 	"math"
 	"reflect"
 	"testing"
@@ -185,5 +186,41 @@ func TestBuildWorldCensusRejectsMalformedInput(t *testing.T) {
 				t.Fatalf("error = %v, want %s", err, tc.kind)
 			}
 		})
+	}
+}
+
+type censusEventSource struct {
+	events    []s2replay.Event
+	index     int
+	eventMode bool
+	worldMode bool
+	released  bool
+}
+
+func (s *censusEventSource) NextEvent() (s2replay.Event, error) {
+	if s.index == len(s.events) {
+		return s2replay.Event{}, io.EOF
+	}
+	event := s.events[s.index]
+	s.index++
+	return event, nil
+}
+func (s *censusEventSource) SetEventMode(enabled bool)       { s.eventMode = enabled }
+func (s *censusEventSource) SetWorldEntityMode(enabled bool) { s.worldMode = enabled }
+func (s *censusEventSource) ReleasePendingQueues()           { s.released = true }
+
+func TestExtractWorldCensusStopsAtRequestedTick(t *testing.T) {
+	before := censusEvent(10, 7, 2, "npc_deadlock_tower", -1)
+	after := censusEvent(11, 8, 3, "npc_deadlock_walker", -1)
+	source := &censusEventSource{events: []s2replay.Event{before, after}}
+	got, err := ExtractWorldCensus(source, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Entities) != 1 || got.Entities[0].ClassName != "npc_deadlock_tower" {
+		t.Fatalf("bounded census: %+v", got.Entities)
+	}
+	if source.eventMode || source.worldMode || !source.released {
+		t.Fatalf("parser modes not restored: %+v", source)
 	}
 }
