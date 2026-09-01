@@ -374,10 +374,14 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 		participant.Epochs[len(participant.Epochs)-1].LastSampleTick = event.Tick
 	}
 	if event.EntitySample.HasHeroID {
-		if participant.HasHeroID && participant.HeroID != event.EntitySample.HeroID {
+		// The entity field is present before hero selection and carries the
+		// protocol zero placeholder. Preserve one selected nonzero hero rather
+		// than treating the placeholder transition as an identity conflict.
+		if !participant.HasHeroID || participant.HeroID == 0 {
+			participant.HeroID, participant.HasHeroID = event.EntitySample.HeroID, true
+		} else if event.EntitySample.HeroID != 0 && participant.HeroID != event.EntitySample.HeroID {
 			a.markAmbiguousParticipant(event.PlayerSlot)
 		}
-		participant.HeroID, participant.HasHeroID = event.EntitySample.HeroID, true
 	}
 	if event.EntitySample.HasTeam {
 		if participant.HasTeam && participant.Team != event.EntitySample.Team {
