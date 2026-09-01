@@ -305,39 +305,85 @@ func sanitizeDamageEvent(ev *DamageEvent) {
 }
 
 func sanitizeEntitySample(sample *EntitySample) {
-	sample.GameTime = finiteFloat64(sample.GameTime)
-	if !isFiniteFloat32(sample.Health) || !isFiniteFloat32(sample.MaxHealth) {
+	if !isFiniteFloat64(sample.GameTime) {
+		markInvalidField(&sample.InvalidFields, "game_time")
+		sample.GameTime = 0
+	}
+	if !isFiniteFloat32(sample.Health) {
+		markInvalidField(&sample.InvalidFields, "health")
 		sample.Health = 0
+		sample.HasHealth = false
+	}
+	if !isFiniteFloat32(sample.MaxHealth) {
+		markInvalidField(&sample.InvalidFields, "max_health")
 		sample.MaxHealth = 0
 		sample.HasHealth = false
 	}
-	if !isFiniteFloat32(sample.Shield) || !isFiniteFloat32(sample.MaxShield) {
+	if !isFiniteFloat32(sample.Shield) {
+		markInvalidField(&sample.InvalidFields, "shield")
 		sample.Shield = 0
+		sample.HasShield = false
+	}
+	if !isFiniteFloat32(sample.MaxShield) {
+		markInvalidField(&sample.InvalidFields, "max_shield")
 		sample.MaxShield = 0
 		sample.HasShield = false
 	}
-	if !isFiniteFloat32(sample.PositionX) ||
-		!isFiniteFloat32(sample.PositionY) ||
-		!isFiniteFloat32(sample.PositionZ) {
-		sample.PositionX = 0
-		sample.PositionY = 0
-		sample.PositionZ = 0
+	positionInvalid := false
+	facingInvalid := false
+	velocityInvalid := false
+	for _, field := range []struct {
+		name  string
+		value *float32
+	}{
+		{"position_x", &sample.PositionX},
+		{"position_y", &sample.PositionY},
+		{"position_z", &sample.PositionZ},
+		{"facing_x", &sample.FacingX},
+		{"facing_y", &sample.FacingY},
+		{"facing_z", &sample.FacingZ},
+		{"velocity_x", &sample.VelocityX},
+		{"velocity_y", &sample.VelocityY},
+		{"velocity_z", &sample.VelocityZ},
+	} {
+		name, value := field.name, field.value
+		if !isFiniteFloat32(*value) {
+			markInvalidField(&sample.InvalidFields, name)
+			*value = 0
+			switch name[0] {
+			case 'p':
+				positionInvalid = true
+			case 'f':
+				facingInvalid = true
+			case 'v':
+				velocityInvalid = true
+			}
+		}
+	}
+	if positionInvalid {
 		sample.HasPosition = false
 	}
-	if !isFiniteFloat32(sample.FacingX) ||
-		!isFiniteFloat32(sample.FacingY) ||
-		!isFiniteFloat32(sample.FacingZ) {
-		sample.FacingX, sample.FacingY, sample.FacingZ = 0, 0, 0
+	if facingInvalid {
 		sample.HasFacing = false
 		sample.HasFacingX, sample.HasFacingY, sample.HasFacingZ = false, false, false
 	}
-	if !isFiniteFloat32(sample.VelocityX) ||
-		!isFiniteFloat32(sample.VelocityY) ||
-		!isFiniteFloat32(sample.VelocityZ) {
-		sample.VelocityX, sample.VelocityY, sample.VelocityZ = 0, 0, 0
+	if velocityInvalid {
 		sample.HasVelocity = false
 		sample.HasVelocityX, sample.HasVelocityY, sample.HasVelocityZ = false, false, false
 	}
+}
+
+func markInvalidField(fields *[]string, name string) {
+	for _, field := range *fields {
+		if field == name {
+			return
+		}
+	}
+	*fields = append(*fields, name)
+}
+
+func isFiniteFloat64(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
 func finiteFloat32(v float32) float32 {

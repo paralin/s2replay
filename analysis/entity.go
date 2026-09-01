@@ -21,6 +21,10 @@ type EntitySample struct {
 	MaxHealth            float32  `json:"max_health"`
 	Shield               float32  `json:"shield"`
 	MaxShield            float32  `json:"max_shield"`
+	HealthTick           uint32   `json:"health_tick,omitempty"`
+	MaxHealthTick        uint32   `json:"max_health_tick,omitempty"`
+	ShieldTick           uint32   `json:"shield_tick,omitempty"`
+	MaxShieldTick        uint32   `json:"max_shield_tick,omitempty"`
 	PositionX            float32  `json:"position_x"`
 	PositionY            float32  `json:"position_y"`
 	PositionZ            float32  `json:"position_z"`
@@ -57,13 +61,16 @@ type EntitySample struct {
 	HasVelocityY         bool     `json:"has_velocity_y,omitempty"`
 	HasVelocityZ         bool     `json:"has_velocity_z,omitempty"`
 	HeroID               uint32   `json:"hero_id,omitempty"`
+	HeroIDTick           uint32   `json:"hero_id_tick,omitempty"`
 	Team                 int32    `json:"team,omitempty"`
+	TeamTick             uint32   `json:"team_tick,omitempty"`
 	HasHealth            bool     `json:"has_health"`
 	HasShield            bool     `json:"has_shield"`
 	HasPosition          bool     `json:"has_position"`
 	HasHeroID            bool     `json:"has_hero_id"`
 	HasTeam              bool     `json:"has_team"`
 	OwnedItems           []uint32 `json:"owned_items"`
+	InvalidFields        []string `json:"invalid_fields,omitempty"`
 }
 
 func (b *builder) acceptEntitySample(ev s2replay.Event) {
@@ -89,6 +96,10 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		MaxHealth:            ev.EntitySample.MaxHealth,
 		Shield:               ev.EntitySample.Shield,
 		MaxShield:            ev.EntitySample.MaxShield,
+		HealthTick:           ev.EntitySample.HealthTick,
+		MaxHealthTick:        ev.EntitySample.MaxHealthTick,
+		ShieldTick:           ev.EntitySample.ShieldTick,
+		MaxShieldTick:        ev.EntitySample.MaxShieldTick,
 		PositionX:            ev.EntitySample.PositionX,
 		PositionY:            ev.EntitySample.PositionY,
 		PositionZ:            ev.EntitySample.PositionZ,
@@ -125,13 +136,16 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		HasVelocityY:         ev.EntitySample.HasVelocityY,
 		HasVelocityZ:         ev.EntitySample.HasVelocityZ,
 		HeroID:               ev.EntitySample.HeroID,
+		HeroIDTick:           ev.EntitySample.HeroIDTick,
 		Team:                 ev.EntitySample.Team,
+		TeamTick:             ev.EntitySample.TeamTick,
 		HasHealth:            ev.EntitySample.HasHealth,
 		HasShield:            ev.EntitySample.HasShield,
 		HasPosition:          ev.EntitySample.HasPosition,
 		HasHeroID:            ev.EntitySample.HasHeroID,
 		HasTeam:              ev.EntitySample.HasTeam,
 		OwnedItems:           ownedItems,
+		InvalidFields:        append([]string(nil), ev.EntitySample.InvalidFields...),
 	}
 	if ev.PlayerSlot >= 0 {
 		b.result.Entities.Players[ev.PlayerSlot] = append(b.result.Entities.Players[ev.PlayerSlot], sample)
