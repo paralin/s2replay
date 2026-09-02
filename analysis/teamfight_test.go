@@ -179,6 +179,29 @@ func TestTeamfightEvidenceNormalizesUnselectedHeroPlaceholder(t *testing.T) {
 	}
 }
 
+func TestTeamfightEvidenceKeepsRealHeroConflictAmbiguous(t *testing.T) {
+	// A zero placeholder followed by two different nonzero heroes is a real
+	// identity conflict; the placeholder normalization must not absorb it.
+	slots := []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	events := teamfightEvents([]uint32{100, 105, 110}, slots)
+	events[0].EntitySample.HeroID = 0
+	// events[len(slots)] is tick 105 slot 1: the first selected hero.
+	events[2*len(slots)].EntitySample.HeroID = 999
+	out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.IdentityStatus != TeamfightIdentityAmbiguous || out.IdentityReason == "" {
+		t.Fatalf("real hero conflict must stay ambiguous: %+v", out)
+	}
+	if !slices.Equal(out.HeroPlaceholderSubstitutions, []int32{}) {
+		t.Fatalf("no substitution may be recorded for a real conflict: %+v", out.HeroPlaceholderSubstitutions)
+	}
+	if !slices.Equal(out.Evidence.Quality.AmbiguousParticipants, []int32{1}) {
+		t.Fatalf("wrapped ambiguity must stay visible: %+v", out.Evidence.Quality.AmbiguousParticipants)
+	}
+}
+
 func TestTeamfightEvidenceExposesNonzeroIdentityConflict(t *testing.T) {
 	for _, change := range []struct {
 		name  string
@@ -271,6 +294,16 @@ func TestOptInPinnedTeamfightCensusFixture(t *testing.T) {
 	}
 	if a.Participants[0].PlayerSlot != 1 || a.Participants[0].Status != TeamfightParticipantObserved {
 		t.Fatalf("pinned slot one row: %+v", a.Participants[0])
+	}
+	// Slots 3 and 9 are the only census members whose hero entity field
+	// carried the pre-selection zero placeholder before one selected hero.
+	// The projection normalizes them locally and records the substitution;
+	// the wrapped segment keeps its observed conflict.
+	if !slices.Equal(a.HeroPlaceholderSubstitutions, []int32{3, 9}) {
+		t.Fatalf("pinned hero placeholder substitutions: %+v", a.HeroPlaceholderSubstitutions)
+	}
+	if a.IdentityStatus != TeamfightIdentityResolved || a.IdentityReason != "" {
+		t.Fatalf("pinned identity after placeholder normalization: %+v %+v", a.IdentityStatus, a.IdentityReason)
 	}
 	for _, participant := range a.Participants[1:] {
 		if participant.Status != TeamfightParticipantMissing || participant.Reason == "" {

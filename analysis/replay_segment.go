@@ -195,6 +195,13 @@ type ReplaySegmentEvidence struct {
 	Quality            ReplaySegmentQuality         `json:"quality"`
 	Eligibility        ReplaySegmentEligibility     `json:"eligibility"`
 	EligibilityReasons []string                     `json:"eligibility_reasons,omitempty"`
+
+	// placeholderHeroes records, outside the serialized contract, the proven
+	// pre-selection placeholder transition per participant slot: the entity
+	// field carried hero_id=0 before exactly one nonzero hero was selected.
+	// The Teamfight projection uses it to normalize that transition locally;
+	// the serialized evidence keeps the observed zero and the ambiguity.
+	placeholderHeroes map[int32]uint32
 }
 
 // ExtractReplaySegmentEvidence parses immutable demo bytes and extracts a range.
@@ -330,6 +337,7 @@ type replaySegmentAccumulator struct {
 	coalescedRows         int
 	ambiguousRows         int
 	ambiguousParticipants map[int32]struct{}
+	placeholderHeroes     map[int32]uint32
 	err                   error
 }
 
@@ -374,14 +382,20 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 		participant.Epochs[len(participant.Epochs)-1].LastSampleTick = event.Tick
 	}
 	if event.EntitySample.HasHeroID {
-		// The entity field is present before hero selection and carries the
-		// protocol zero placeholder. Preserve one selected nonzero hero rather
-		// than treating the placeholder transition as an identity conflict.
-		if !participant.HasHeroID || participant.HeroID == 0 {
-			participant.HeroID, participant.HasHeroID = event.EntitySample.HeroID, true
-		} else if event.EntitySample.HeroID != 0 && participant.HeroID != event.EntitySample.HeroID {
+		if participant.HasHeroID && participant.HeroID != event.EntitySample.HeroID {
 			a.markAmbiguousParticipant(event.PlayerSlot)
+			if participant.HeroID == 0 && event.EntitySample.HeroID != 0 {
+				// Proven pre-selection placeholder: the entity field carried
+				// the protocol zero before exactly one nonzero hero. Recorded
+				// outside the serialized contract for the Teamfight
+				// projection; the serialized evidence keeps the conflict.
+				if a.placeholderHeroes == nil {
+					a.placeholderHeroes = make(map[int32]uint32)
+				}
+				a.placeholderHeroes[event.PlayerSlot] = event.EntitySample.HeroID
+			}
 		}
+		participant.HeroID, participant.HasHeroID = event.EntitySample.HeroID, true
 	}
 	if event.EntitySample.HasTeam {
 		if participant.HasTeam && participant.Team != event.EntitySample.Team {
@@ -417,7 +431,7 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 	if a.err != nil {
 		return ReplaySegmentEvidence{}, a.err
 	}
-	out := ReplaySegmentEvidence{SchemaVersion: ReplaySegmentEvidenceSchemaVersion, Source: source, Range: ReplaySegmentRange{RequestedStartTick: a.request.StartTick, RequestedEndTick: a.request.EndTick, LeadInStartTick: a.leadInStart, RequestedLeadInTicks: a.request.LeadInTicks, LeadInTicks: a.request.StartTick - a.leadInStart, ExactStartTick: a.request.StartTick, ExactEndTick: a.request.EndTick}, Participants: []ReplayParticipant{}, Rows: a.rows}
+	out := ReplaySegmentEvidence{placeholderHeroes: a.placeholderHeroes, SchemaVersion: ReplaySegmentEvidenceSchemaVersion, Source: source, Range: ReplaySegmentRange{RequestedStartTick: a.request.StartTick, RequestedEndTick: a.request.EndTick, LeadInStartTick: a.leadInStart, RequestedLeadInTicks: a.request.LeadInTicks, LeadInTicks: a.request.StartTick - a.leadInStart, ExactStartTick: a.request.StartTick, ExactEndTick: a.request.EndTick}, Participants: []ReplayParticipant{}, Rows: a.rows}
 	if a.request.ExpectedIdentity == nil {
 		out.Correspondence = ReplayIdentityCorrespondence{Status: ReplayCorrespondencePending, Reason: "no expected replay identity supplied"}
 	} else {

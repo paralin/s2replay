@@ -49,8 +49,8 @@ const (
 	// TeamfightIdentityResolved means every observed participant identity is
 	// consistent and complete.
 	TeamfightIdentityResolved TeamfightIdentityStatus = "resolved"
-	// TeamfightIdentityIncomplete means identity fields are absent or still a
-	// zero placeholder, but no conflicting nonzero values were observed.
+	// TeamfightIdentityIncomplete means identity fields are absent, but no
+	// conflicting nonzero values were observed.
 	TeamfightIdentityIncomplete TeamfightIdentityStatus = "incomplete"
 	// TeamfightIdentityAmbiguous means a participant has conflicting hero/team
 	// values and the evidence is launch-ineligible.
@@ -117,7 +117,12 @@ type TeamfightEvidence struct {
 	IdentityReason string                  `json:"identity_reason,omitempty"`
 	Participants   []TeamfightParticipant  `json:"participants"`
 	Boundary       TeamfightBoundary       `json:"boundary"`
-	Evidence       ReplaySegmentEvidence   `json:"evidence"`
+	// HeroPlaceholderSubstitutions records the census slots whose observed
+	// pre-selection hero placeholder (hero_id=0) was replaced by the selected
+	// nonzero hero in this projection. The wrapped segment evidence keeps the
+	// observed zero and its identity conflict.
+	HeroPlaceholderSubstitutions []int32               `json:"hero_placeholder_substitutions,omitempty"`
+	Evidence                     ReplaySegmentEvidence `json:"evidence"`
 }
 
 // ExtractTeamfightEvidence extracts the teamfight census projection for one
@@ -144,6 +149,13 @@ func ExtractTeamfightEvidenceWithBuild(demo []byte, request ReplaySegmentRequest
 // TeamfightEvidenceFromSegment projects an all-participant replay segment onto
 // the teamfight census contract. The segment must come from a request without
 // explicit participant slots so the wrapped census is the replay census.
+//
+// The replay entity sample carries hero_id=0 as the pre-selection placeholder.
+// A 0 -> one nonzero transition is normalized here, in the Teamfight
+// projection, with the substitution recorded on the top-level evidence. The
+// wrapped ReplaySegmentEvidence keeps the established contract: the placeholder
+// stays a participant identity conflict, and Quality.AmbiguousParticipants
+// keeps naming those slots.
 func TeamfightEvidenceFromSegment(segment ReplaySegmentEvidence) (TeamfightEvidence, error) {
 	if err := refuseTeamfightAmbiguity(segment); err != nil {
 		return TeamfightEvidence{}, err
@@ -154,6 +166,12 @@ func TeamfightEvidenceFromSegment(segment ReplaySegmentEvidence) (TeamfightEvide
 	if len(segment.Participants) != TeamfightCensusSize {
 		return TeamfightEvidence{}, &TeamfightCensusSizeError{Observed: len(segment.Participants)}
 	}
+	segment = normalizeTeamfightHeroPlaceholder(segment)
+	slots := make([]int32, 0, len(segment.placeholderHeroes))
+	for slot := range segment.placeholderHeroes {
+		slots = append(slots, slot)
+	}
+	slices.Sort(slots)
 	identityStatus, identityReason := teamfightIdentityStatus(segment)
 	if identityStatus == TeamfightIdentityAmbiguous {
 		// Identity conflicts are a valid evidence result, not a reason to drop
@@ -183,11 +201,12 @@ func TeamfightEvidenceFromSegment(segment ReplaySegmentEvidence) (TeamfightEvide
 	}
 
 	out := TeamfightEvidence{
-		SchemaVersion:  TeamfightEvidenceSchemaVersion,
-		IdentityStatus: identityStatus,
-		IdentityReason: identityReason,
-		Participants:   make([]TeamfightParticipant, 0, TeamfightCensusSize),
-		Evidence:       segment,
+		SchemaVersion:                TeamfightEvidenceSchemaVersion,
+		IdentityStatus:               identityStatus,
+		IdentityReason:               identityReason,
+		Participants:                 make([]TeamfightParticipant, 0, TeamfightCensusSize),
+		HeroPlaceholderSubstitutions: slots,
+		Evidence:                     segment,
 	}
 	for _, replay := range segment.Participants {
 		participant := TeamfightParticipant{
@@ -236,6 +255,39 @@ func refuseTeamfightAmbiguity(segment ReplaySegmentEvidence) error {
 		return ErrTeamfightAmbiguousEvidence
 	}
 	return nil
+}
+
+// normalizeTeamfightHeroPlaceholder resolves the pre-selection hero
+// placeholder for projection only. The replay contract uses hero_id=0 as the
+// placeholder before selection; a transition from 0 to exactly one nonzero
+// hero is not a real identity conflict. Each such participant keeps the
+// selected hero, the substitution is recorded in HeroPlaceholderSubstitutions,
+// and the wrapped segment keeps its observed zero. Any other hero conflict,
+// including 0 -> nonzero -> different nonzero, stays ambiguous.
+func normalizeTeamfightHeroPlaceholder(segment ReplaySegmentEvidence) ReplaySegmentEvidence {
+	if len(segment.placeholderHeroes) == 0 {
+		return segment
+	}
+	for i := range segment.Participants {
+		participant := &segment.Participants[i]
+		hero, ok := segment.placeholderHeroes[participant.PlayerSlot]
+		// The recorded substitution is only the proven final identity when the
+		// last observed hero is still the selected one; a later real conflict
+		// must keep its ambiguity.
+		if ok && participant.HasHeroID && participant.HeroID == hero {
+			participant.HeroID, participant.HasHeroID = hero, true
+		} else {
+			delete(segment.placeholderHeroes, participant.PlayerSlot)
+		}
+	}
+	remaining := make([]int32, 0, len(segment.Quality.AmbiguousParticipants))
+	for _, slot := range segment.Quality.AmbiguousParticipants {
+		if _, ok := segment.placeholderHeroes[slot]; !ok {
+			remaining = append(remaining, slot)
+		}
+	}
+	segment.Quality.AmbiguousParticipants = remaining
+	return segment
 }
 
 func teamfightIdentityStatus(segment ReplaySegmentEvidence) (TeamfightIdentityStatus, string) {
