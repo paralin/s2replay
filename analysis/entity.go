@@ -71,6 +71,40 @@ type EntitySample struct {
 	HasTeam              bool     `json:"has_team"`
 	OwnedItems           []uint32 `json:"owned_items"`
 	InvalidFields        []string `json:"invalid_fields,omitempty"`
+
+	Level                uint32  `json:"level,omitempty"`
+	LevelTick            uint32  `json:"level_tick,omitempty"`
+	HasLevel             bool    `json:"has_level,omitempty"`
+	OwnerEntity          int32   `json:"owner_entity,omitempty"`
+	OwnerEntityTick      uint32  `json:"owner_entity_tick,omitempty"`
+	HasOwnerEntity       bool    `json:"has_owner_entity,omitempty"`
+	PawnEntity           int32   `json:"pawn_entity,omitempty"`
+	PawnEntityTick       uint32  `json:"pawn_entity_tick,omitempty"`
+	HasPawnEntity        bool    `json:"has_pawn_entity,omitempty"`
+	NetWorth             int32   `json:"net_worth,omitempty"`
+	NetWorthTick         uint32  `json:"net_worth_tick,omitempty"`
+	HasNetWorth          bool    `json:"has_net_worth,omitempty"`
+	RemainingCharges     int32   `json:"remaining_charges,omitempty"`
+	RemainingChargesTick uint32  `json:"remaining_charges_tick,omitempty"`
+	HasRemainingCharges  bool    `json:"has_remaining_charges,omitempty"`
+	CooldownEnd          float32 `json:"cooldown_end,omitempty"`
+	CooldownEndTick      uint32  `json:"cooldown_end_tick,omitempty"`
+	HasCooldownEnd       bool    `json:"has_cooldown_end,omitempty"`
+	Deaths               int32   `json:"deaths,omitempty"`
+	DeathsTick           uint32  `json:"deaths_tick,omitempty"`
+	HasDeaths            bool    `json:"has_deaths,omitempty"`
+	LastHits             int32   `json:"last_hits,omitempty"`
+	LastHitsTick         uint32  `json:"last_hits_tick,omitempty"`
+	HasLastHits          bool    `json:"has_last_hits,omitempty"`
+	Denies               int32   `json:"denies,omitempty"`
+	DeniesTick           uint32  `json:"denies_tick,omitempty"`
+	HasDenies            bool    `json:"has_denies,omitempty"`
+	KillStreak           int32   `json:"kill_streak,omitempty"`
+	KillStreakTick       uint32  `json:"kill_streak_tick,omitempty"`
+	HasKillStreak        bool    `json:"has_kill_streak,omitempty"`
+	HeroDamage           int32   `json:"hero_damage,omitempty"`
+	HeroDamageTick       uint32  `json:"hero_damage_tick,omitempty"`
+	HasHeroDamage        bool    `json:"has_hero_damage,omitempty"`
 }
 
 func (b *builder) acceptEntitySample(ev s2replay.Event) {
@@ -146,6 +180,39 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		HasTeam:              ev.EntitySample.HasTeam,
 		OwnedItems:           ownedItems,
 		InvalidFields:        append([]string(nil), ev.EntitySample.InvalidFields...),
+		Level:                ev.EntitySample.Level,
+		LevelTick:            ev.EntitySample.LevelTick,
+		HasLevel:             ev.EntitySample.HasLevel,
+		OwnerEntity:          ev.EntitySample.OwnerEntity,
+		OwnerEntityTick:      ev.EntitySample.OwnerEntityTick,
+		HasOwnerEntity:       ev.EntitySample.HasOwnerEntity,
+		PawnEntity:           ev.EntitySample.PawnEntity,
+		PawnEntityTick:       ev.EntitySample.PawnEntityTick,
+		HasPawnEntity:        ev.EntitySample.HasPawnEntity,
+		NetWorth:             ev.EntitySample.NetWorth,
+		NetWorthTick:         ev.EntitySample.NetWorthTick,
+		HasNetWorth:          ev.EntitySample.HasNetWorth,
+		RemainingCharges:     ev.EntitySample.RemainingCharges,
+		RemainingChargesTick: ev.EntitySample.RemainingChargesTick,
+		HasRemainingCharges:  ev.EntitySample.HasRemainingCharges,
+		CooldownEnd:          ev.EntitySample.CooldownEnd,
+		CooldownEndTick:      ev.EntitySample.CooldownEndTick,
+		HasCooldownEnd:       ev.EntitySample.HasCooldownEnd,
+		Deaths:               ev.EntitySample.Deaths,
+		DeathsTick:           ev.EntitySample.DeathsTick,
+		HasDeaths:            ev.EntitySample.HasDeaths,
+		LastHits:             ev.EntitySample.LastHits,
+		LastHitsTick:         ev.EntitySample.LastHitsTick,
+		HasLastHits:          ev.EntitySample.HasLastHits,
+		Denies:               ev.EntitySample.Denies,
+		DeniesTick:           ev.EntitySample.DeniesTick,
+		HasDenies:            ev.EntitySample.HasDenies,
+		KillStreak:           ev.EntitySample.KillStreak,
+		KillStreakTick:       ev.EntitySample.KillStreakTick,
+		HasKillStreak:        ev.EntitySample.HasKillStreak,
+		HeroDamage:           ev.EntitySample.HeroDamage,
+		HeroDamageTick:       ev.EntitySample.HeroDamageTick,
+		HasHeroDamage:        ev.EntitySample.HasHeroDamage,
 	}
 	if ev.PlayerSlot >= 0 {
 		b.result.Entities.Players[ev.PlayerSlot] = append(b.result.Entities.Players[ev.PlayerSlot], sample)
