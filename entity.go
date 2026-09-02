@@ -692,10 +692,13 @@ func isPlayerControllerClass(name string) bool {
 }
 
 func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
-	if e == nil || e.class == nil || !e.active || p.worldSnapshotMode {
+	if e == nil || e.class == nil || !e.active {
 		return
 	}
 	p.updateEntityPlayerSlot(e)
+	if p.worldSnapshotMode {
+		return
+	}
 	if isPlayerControllerClass(e.class.name) {
 		p.appendControllerSample(tick, e)
 		return
@@ -870,7 +873,13 @@ func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 }
 
 func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
-	out := make([]EntitySample, 0, len(p.entities))
+	activeCount := 0
+	for _, entity := range p.entities {
+		if entity != nil && entity.active && entity.class != nil {
+			activeCount++
+		}
+	}
+	out := make([]EntitySample, 0, activeCount)
 	for _, entity := range p.entities {
 		if entity == nil || !entity.active || entity.class == nil {
 			continue

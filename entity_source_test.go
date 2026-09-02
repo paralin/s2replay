@@ -137,3 +137,50 @@ func TestWorldEntitySnapshotRejectsUnobservedTick(t *testing.T) {
 		t.Fatalf("error = %v, want unobserved typed boundary", err)
 	}
 }
+
+func TestWorldEntitySnapshotDoesNotAllocateForDormantEntities(t *testing.T) {
+	entities := make(map[int32]*Entity, 102)
+	entities[1] = newEntity(1, 7, &entityClass{id: 11, name: "npc_active"})
+	for index := int32(2); index < 102; index++ {
+		entity := newEntity(index, index, &entityClass{id: 12, name: "npc_dormant"})
+		entity.active = false
+		entities[index] = entity
+	}
+	parser := &Parser{clock: newClock(), entities: entities}
+	parser.clock.setTick(10)
+	samples, err := parser.WorldEntitySnapshot(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples) != 1 || cap(samples) != 1 {
+		t.Fatalf("snapshot allocation: len=%d cap=%d", len(samples), cap(samples))
+	}
+}
+
+func TestWorldSnapshotKeepsPlayerSlotAttribution(t *testing.T) {
+	ownerClass := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_iPlayerSlot"}}}}
+	owner := newEntity(1, 7, ownerClass)
+	var ownerPath fieldPath
+	ownerPath.path[0] = 0
+	ownerPath.last = 0
+	owner.state.set(ownerPath, int32(4))
+
+	abilityClass := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_iRemainingCharges"}, {varName: "m_hOwnerEntity"}}}}
+	ability := newEntity(2, 8, abilityClass)
+	var chargesPath, ownerPathInAbility fieldPath
+	chargesPath.path[0], chargesPath.last = 0, 0
+	ownerPathInAbility.path[0], ownerPathInAbility.last = 1, 0
+	ability.state.set(chargesPath, int32(2))
+	ability.state.set(ownerPathInAbility, int32(1))
+
+	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[int32]int32), worldSnapshotMode: true}
+	parser.appendEntitySample(10, owner)
+	if parser.entityPlayerSlots[1] != 4 || len(parser.pendingEvents) != 0 {
+		t.Fatalf("snapshot attribution update: slots=%v events=%d", parser.entityPlayerSlots, len(parser.pendingEvents))
+	}
+	parser.worldSnapshotMode = false
+	parser.appendAbilityChargeEvent(10, ability)
+	if len(parser.pendingEvents) != 1 || parser.pendingEvents[0].PlayerSlot != 4 {
+		t.Fatalf("ability attribution after snapshot: %+v", parser.pendingEvents)
+	}
+}
