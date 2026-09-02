@@ -77,3 +77,21 @@ func TestWorldEntityModeIsOptIn(t *testing.T) {
 		t.Fatalf("class evidence: %q", got)
 	}
 }
+
+func TestWorldEntityModeDoesNotInventHeroFields(t *testing.T) {
+	hero := newEntity(8, 4, &entityClass{id: 12, name: "CCitadelPlayerPawn"})
+	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32)}
+	parser.appendEntitySample(100, hero)
+	if len(parser.pendingEvents) != 0 {
+		t.Fatal("hero without recognized fields leaked into ordinary event mode")
+	}
+	parser.SetWorldEntityMode(true)
+	parser.appendEntitySample(100, hero)
+	if len(parser.pendingEvents) != 1 {
+		t.Fatalf("hero class-only evidence missing in world mode: %d", len(parser.pendingEvents))
+	}
+	sample := parser.pendingEvents[0].EntitySample
+	if sample == nil || sample.ClassName != "CCitadelPlayerPawn" || sample.HasHealth || sample.HasShield || sample.HasPosition || sample.HasHeroID || sample.HasTeam {
+		t.Fatalf("world mode invented typed fields: %+v", sample)
+	}
+}
