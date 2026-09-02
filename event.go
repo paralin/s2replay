@@ -329,6 +329,11 @@ func sanitizeEntitySample(sample *EntitySample) {
 		sample.MaxShield = 0
 		sample.HasShield = false
 	}
+	if sample.HasCooldownEnd && !isFiniteFloat32(sample.CooldownEnd) {
+		markInvalidField(&sample.InvalidFields, "cooldown_end")
+		sample.CooldownEnd = 0
+		sample.HasCooldownEnd = false
+	}
 	positionInvalid := false
 	facingInvalid := false
 	velocityInvalid := false

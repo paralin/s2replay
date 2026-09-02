@@ -87,6 +87,57 @@ type EntitySample struct {
 	HasHeroID            bool     `json:"has_hero_id"`
 	HasTeam              bool     `json:"has_team"`
 	InvalidFields        []string `json:"invalid_fields,omitempty"`
+
+	// PlayerSlot is the replay-local lobby slot attributed by the parser when
+	// known; negative means unattributed.
+	PlayerSlot int32 `json:"player_slot,omitempty"`
+
+	// Level is the observed hero level with its source tick.
+	Level     uint32 `json:"level,omitempty"`
+	LevelTick uint32 `json:"level_tick,omitempty"`
+	HasLevel  bool   `json:"has_level,omitempty"`
+
+	// OwnerEntity is the resolved entity index of m_hOwnerEntity.
+	OwnerEntity     int32  `json:"owner_entity,omitempty"`
+	OwnerEntityTick uint32 `json:"owner_entity_tick,omitempty"`
+	HasOwnerEntity  bool   `json:"has_owner_entity,omitempty"`
+
+	// PawnEntity is the resolved entity index of the controller hero pawn.
+	PawnEntity     int32  `json:"pawn_entity,omitempty"`
+	PawnEntityTick uint32 `json:"pawn_entity_tick,omitempty"`
+	HasPawnEntity  bool   `json:"has_pawn_entity,omitempty"`
+
+	// NetWorth is the controller scoreboard net worth.
+	NetWorth     int32  `json:"net_worth,omitempty"`
+	NetWorthTick uint32 `json:"net_worth_tick,omitempty"`
+	HasNetWorth  bool   `json:"has_net_worth,omitempty"`
+
+	// RemainingCharges is the ability charge count.
+	RemainingCharges     int32  `json:"remaining_charges,omitempty"`
+	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
+	HasRemainingCharges  bool   `json:"has_remaining_charges,omitempty"`
+
+	// CooldownEnd is the ability cooldown end time in game seconds.
+	CooldownEnd     float32 `json:"cooldown_end,omitempty"`
+	CooldownEndTick uint32  `json:"cooldown_end_tick,omitempty"`
+	HasCooldownEnd  bool    `json:"has_cooldown_end,omitempty"`
+
+	// Scoreboard components observed on the controller at sample time.
+	Deaths         int32  `json:"deaths,omitempty"`
+	DeathsTick     uint32 `json:"deaths_tick,omitempty"`
+	HasDeaths      bool   `json:"has_deaths,omitempty"`
+	LastHits       int32  `json:"last_hits,omitempty"`
+	LastHitsTick   uint32 `json:"last_hits_tick,omitempty"`
+	HasLastHits    bool   `json:"has_last_hits,omitempty"`
+	Denies         int32  `json:"denies,omitempty"`
+	DeniesTick     uint32 `json:"denies_tick,omitempty"`
+	HasDenies      bool   `json:"has_denies,omitempty"`
+	KillStreak     int32  `json:"kill_streak,omitempty"`
+	KillStreakTick uint32 `json:"kill_streak_tick,omitempty"`
+	HasKillStreak  bool   `json:"has_kill_streak,omitempty"`
+	HeroDamage     int32  `json:"hero_damage,omitempty"`
+	HeroDamageTick uint32 `json:"hero_damage_tick,omitempty"`
+	HasHeroDamage  bool   `json:"has_hero_damage,omitempty"`
 }
 
 // ControllerSample is one periodic snapshot of a player controller entity:
@@ -246,6 +297,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		EntitySerial: e.serial,
 		ClassID:      e.class.id,
 		ClassName:    e.class.name,
+		PlayerSlot:   -1,
 	}
 	s.Health, s.HealthTick, s.HasHealth = firstFloat32AtAny(e,
 		"m_iHealth",
@@ -330,6 +382,46 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.PositionYSourceField = yField + "+" + vyField
 		s.PositionZSourceField = zField + "+" + vzField
 		s.HasPosition = true
+	}
+	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, "m_nLevel", "m_PlayerDataGlobal.m_iLevel")
+	if handle, handleTick, ok := firstInt32AtAny(e, "m_hOwnerEntity"); ok && handle >= 0 {
+		s.OwnerEntity = int32(uint32(handle) & uint32(entityHandleMask))
+		s.OwnerEntityTick = handleTick
+		s.HasOwnerEntity = true
+	}
+	if handle, handleTick, ok := firstInt32AtAny(e, "m_hHeroPawn", "m_hPawn"); ok && handle >= 0 && uint32(handle) != invalidEntityHandle {
+		s.PawnEntity = int32(uint32(handle) & uint32(entityHandleMask))
+		s.PawnEntityTick = handleTick
+		s.HasPawnEntity = true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGoldNetWorth"); ok {
+		s.NetWorth, s.NetWorthTick, s.HasNetWorth = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
+		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownEnd"); ok {
+		s.CooldownEnd, s.CooldownEndTick, s.HasCooldownEnd = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iDeaths"); ok {
+		s.Deaths, s.DeathsTick, s.HasDeaths = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iLastHits"); ok {
+		s.LastHits, s.LastHitsTick, s.HasLastHits = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iDenies"); ok {
+		s.Denies, s.DeniesTick, s.HasDenies = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iKillStreak"); ok {
+		s.KillStreak, s.KillStreakTick, s.HasKillStreak = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iHeroDamage"); ok {
+		s.HeroDamage, s.HeroDamageTick, s.HasHeroDamage = value, valueTick, true
+	}
+	if slot, _, ok := firstInt32AtAny(e,
+		"m_iPlayerSlot", "m_nPlayerSlot", "m_iPlayerID", "m_nPlayerID", "m_iPlayerIndex", "m_nPlayerIndex", "m_unLobbyPlayerSlot",
+	); ok && slot >= 0 {
+		s.PlayerSlot = slot
 	}
 	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
 }
@@ -887,6 +979,9 @@ func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
 		sample, _ := entity.sample(tick, float64(tick)*p.clock.TickInterval())
 		if err := validateWorldEntitySample(sample); err != nil {
 			return nil, err
+		}
+		if slot, ok := p.entityPlayerSlots[sample.Entity]; ok {
+			sample.PlayerSlot = slot
 		}
 		out = append(out, sample)
 	}
