@@ -1,9 +1,12 @@
 package analysis
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"testing"
 
@@ -16,6 +19,8 @@ func censusEvent(tick uint32, entity, serial int32, class string, slot int32) s2
 		EntitySample: &s2replay.EntitySample{
 			Tick: tick, Entity: entity, EntitySerial: serial, ClassID: entity + 100,
 			ClassName: class, Health: 100, Shield: 25, PositionX: 1, PositionY: 2, PositionZ: 3,
+			HealthTick: tick, MaxHealthTick: tick, ShieldTick: tick, MaxShieldTick: tick,
+			PositionXTick: tick, PositionYTick: tick, PositionZTick: tick, HeroIDTick: tick, TeamTick: tick,
 			HeroID: 42, Team: 2, HasHealth: true, HasShield: true, HasPosition: true,
 			HasHeroID: true, HasTeam: true,
 		},
@@ -66,6 +71,19 @@ func TestBuildWorldCensusOrderingIsDeterministic(t *testing.T) {
 	}
 	if gotA.Entities[0].EntityID != 5 || gotA.Entities[1].EntityID != 20 {
 		t.Fatalf("entity order: %+v", gotA.Entities)
+	}
+}
+
+func TestBuildWorldCensusCoalescesSameGenerationAtTick(t *testing.T) {
+	first := censusEvent(100, 7, 2, "npc", -1)
+	second := censusEvent(100, 7, 2, "npc", -1)
+	second.EntitySample.Health = 75
+	got, err := BuildWorldCensus([]s2replay.Event{first, second}, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Entities) != 1 || got.Entities[0].Health.Value != 75 {
+		t.Fatalf("same-generation samples were not coalesced: %+v", got.Entities)
 	}
 }
 
@@ -123,6 +141,25 @@ func TestBuildWorldCensusRejectsNonFiniteData(t *testing.T) {
 	}
 }
 
+func TestBuildWorldCensusPreservesZeroSourceTick(t *testing.T) {
+	ev := censusEvent(100, 7, 2, "npc", -1)
+	ev.EntitySample.HealthTick = 0
+	ev.EntitySample.PositionXTick = 0
+	ev.EntitySample.PositionYTick = 0
+	ev.EntitySample.PositionZTick = 0
+	got, err := BuildWorldCensus([]s2replay.Event{ev}, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := got.Entities[0]
+	if row.Health.SourceTick != 0 || row.Health.FreshnessTicks != 100 {
+		t.Fatalf("health zero source tick: %+v", row.Health)
+	}
+	if row.PositionX.SourceTick != 0 || row.PositionX.FreshnessTicks != 100 {
+		t.Fatalf("position zero source tick: %+v", row.PositionX)
+	}
+}
+
 func TestBuildWorldCensusUsesFieldSourceTicks(t *testing.T) {
 	ev := censusEvent(100, 7, 2, "npc", -1)
 	ev.EntitySample.HealthTick = 88
@@ -145,6 +182,27 @@ func TestBuildWorldCensusUsesFieldSourceTicks(t *testing.T) {
 	}
 	if row.Team.SourceTick != 97 || row.Team.FreshnessTicks != 3 {
 		t.Fatalf("team freshness: %+v", row.Team)
+	}
+}
+
+func TestBuildWorldCensusRejectsNegativeEntityID(t *testing.T) {
+	ev := censusEvent(100, -7, 2, "npc", -1)
+	_, err := BuildWorldCensus([]s2replay.Event{ev}, 100)
+	var typed *WorldCensusError
+	if !errors.As(err, &typed) || typed.Kind != WorldCensusInvalidEntity {
+		t.Fatalf("error = %v, want invalid-entity typed error", err)
+	}
+}
+
+func TestBuildWorldCensusRejectsPreGameTick(t *testing.T) {
+	_, err := BuildWorldCensus(nil, s2replay.PreGameTick)
+	var typed *WorldCensusError
+	if !errors.As(err, &typed) || typed.Kind != WorldCensusInvalidRequestedTick {
+		t.Fatalf("error = %v, want invalid-requested-tick typed error", err)
+	}
+	_, err = ExtractWorldCensus(nil, s2replay.PreGameTick)
+	if !errors.As(err, &typed) || typed.Kind != WorldCensusInvalidRequestedTick {
+		t.Fatalf("extract error = %v, want invalid-requested-tick typed error", err)
 	}
 }
 
@@ -222,5 +280,42 @@ func TestExtractWorldCensusStopsAtRequestedTick(t *testing.T) {
 	}
 	if source.eventMode || source.worldMode || !source.released {
 		t.Fatalf("parser modes not restored: %+v", source)
+	}
+}
+
+func TestOptInPinnedWorldCensus(t *testing.T) {
+	path := os.Getenv("S2REPLAY_PINNED_DEMO")
+	if path == "" {
+		t.Skip("set S2REPLAY_PINNED_DEMO to run the pinned world census")
+	}
+	read := func() WorldCensus {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parser, err := s2replay.NewParser(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		census, err := ExtractWorldCensus(parser, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return census
+	}
+	a, b := read(), read()
+	if len(a.Entities) == 0 {
+		t.Fatal("pinned world census has no entities at tick 1")
+	}
+	aj, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bj, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(aj, bj) {
+		t.Fatal("pinned world census is not deterministic")
 	}
 }

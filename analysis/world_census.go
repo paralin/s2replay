@@ -62,11 +62,12 @@ type WorldCensusEntity struct {
 type WorldCensusErrorKind string
 
 const (
-	WorldCensusDuplicateGeneration WorldCensusErrorKind = "duplicate_entity_generation"
-	WorldCensusInvalidEntity       WorldCensusErrorKind = "invalid_entity"
-	WorldCensusNonFinite           WorldCensusErrorKind = "non_finite_data"
-	WorldCensusInvalidSourceTick   WorldCensusErrorKind = "invalid_source_tick"
-	WorldCensusInvalidSampleTick   WorldCensusErrorKind = "invalid_sample_tick"
+	WorldCensusDuplicateGeneration  WorldCensusErrorKind = "duplicate_entity_generation"
+	WorldCensusInvalidEntity        WorldCensusErrorKind = "invalid_entity"
+	WorldCensusNonFinite            WorldCensusErrorKind = "non_finite_data"
+	WorldCensusInvalidSourceTick    WorldCensusErrorKind = "invalid_source_tick"
+	WorldCensusInvalidSampleTick    WorldCensusErrorKind = "invalid_sample_tick"
+	WorldCensusInvalidRequestedTick WorldCensusErrorKind = "invalid_requested_tick"
 )
 
 // WorldCensusError reports why direct world evidence was refused.
@@ -94,6 +95,9 @@ type WorldCensusEventSource interface {
 // builds a census. The parser's generic-entity mode is opt-in and all pending
 // decoded queues are released before the call returns.
 func ExtractWorldCensus(parser WorldCensusEventSource, tick uint32) (WorldCensus, error) {
+	if tick == s2replay.PreGameTick {
+		return WorldCensus{}, &WorldCensusError{Kind: WorldCensusInvalidRequestedTick, Tick: tick, Field: "tick"}
+	}
 	parser.SetEventMode(true)
 	parser.SetWorldEntityMode(true)
 	defer func() {
@@ -120,9 +124,12 @@ func ExtractWorldCensus(parser WorldCensusEventSource, tick uint32) (WorldCensus
 }
 
 // BuildWorldCensus selects the latest typed entity sample at or before tick for
-// each entity index. Two samples for one index at the same source tick are
-// refused because they make its generation ambiguous.
+// each entity index. Same-generation samples at one source tick are coalesced
+// in parser order; differing generations at that tick are refused.
 func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error) {
+	if tick == s2replay.PreGameTick {
+		return WorldCensus{}, &WorldCensusError{Kind: WorldCensusInvalidRequestedTick, Tick: tick, Field: "tick"}
+	}
 	selected := make(map[int32]s2replay.Event)
 	for _, event := range events {
 		if event.Type != s2replay.EventEntitySample || event.Tick > tick {
@@ -135,10 +142,16 @@ func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error)
 			return WorldCensus{}, err
 		}
 		if prior, ok := selected[event.Entity]; ok && prior.Tick == event.Tick {
-			return WorldCensus{}, &WorldCensusError{
-				Kind: WorldCensusDuplicateGeneration, Tick: event.Tick,
-				EntityID: event.Entity, EntitySerial: event.EntitySample.EntitySerial,
+			if prior.EntitySample.EntitySerial != event.EntitySample.EntitySerial {
+				return WorldCensus{}, &WorldCensusError{
+					Kind: WorldCensusDuplicateGeneration, Tick: event.Tick,
+					EntityID: event.Entity, EntitySerial: event.EntitySample.EntitySerial,
+				}
 			}
+			// Entity samples are cumulative. The later same-tick sample carries
+			// the state observed after the earlier sample.
+			selected[event.Entity] = event
+			continue
 		}
 		if prior, ok := selected[event.Entity]; !ok || event.Tick > prior.Tick {
 			selected[event.Entity] = event
@@ -175,7 +188,7 @@ func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error)
 
 func validateWorldCensusEvent(event s2replay.Event, requestedTick uint32) error {
 	sample := event.EntitySample
-	if sample.Entity != event.Entity || sample.EntitySerial < 0 || event.EntitySerial < 0 || event.EntitySerial != sample.EntitySerial {
+	if event.Entity < 0 || sample.Entity < 0 || sample.Entity != event.Entity || sample.EntitySerial < 0 || event.EntitySerial < 0 || event.EntitySerial != sample.EntitySerial {
 		return &WorldCensusError{Kind: WorldCensusInvalidEntity, Tick: event.Tick, EntityID: event.Entity, EntitySerial: sample.EntitySerial}
 	}
 	if sample.Tick != event.Tick {
@@ -215,15 +228,15 @@ func validateWorldCensusEvent(event s2replay.Event, requestedTick uint32) error 
 		tick    uint32
 		present bool
 	}{
-		{"health", censusSourceTick(sample.HealthTick, event.Tick), sample.HasHealth},
-		{"max_health", censusSourceTick(sample.MaxHealthTick, event.Tick), sample.HasHealth},
-		{"shield", censusSourceTick(sample.ShieldTick, event.Tick), sample.HasShield},
-		{"max_shield", censusSourceTick(sample.MaxShieldTick, event.Tick), sample.HasShield},
-		{"hero_id", censusSourceTick(sample.HeroIDTick, event.Tick), sample.HasHeroID},
-		{"team", censusSourceTick(sample.TeamTick, event.Tick), sample.HasTeam},
-		{"position_x", censusPositionTick(sample.PositionXTick, event.Tick), sample.HasPosition},
-		{"position_y", censusPositionTick(sample.PositionYTick, event.Tick), sample.HasPosition},
-		{"position_z", censusPositionTick(sample.PositionZTick, event.Tick), sample.HasPosition},
+		{"health", sample.HealthTick, sample.HasHealth},
+		{"max_health", sample.MaxHealthTick, sample.HasHealth},
+		{"shield", sample.ShieldTick, sample.HasShield},
+		{"max_shield", sample.MaxShieldTick, sample.HasShield},
+		{"hero_id", sample.HeroIDTick, sample.HasHeroID},
+		{"team", sample.TeamTick, sample.HasTeam},
+		{"position_x", sample.PositionXTick, sample.HasPosition},
+		{"position_y", sample.PositionYTick, sample.HasPosition},
+		{"position_z", sample.PositionZTick, sample.HasPosition},
 	}
 	for _, field := range fields {
 		if field.present && field.tick > event.Tick {
@@ -244,41 +257,25 @@ func worldCensusEntity(event s2replay.Event, requestedTick uint32) WorldCensusEn
 		FreshnessTicks: requestedTick - event.Tick,
 	}
 	if sample.HasHealth {
-		row.Health = censusFloat(sample.Health, censusSourceTick(sample.HealthTick, event.Tick), requestedTick)
+		row.Health = censusFloat(sample.Health, sample.HealthTick, requestedTick)
 	}
 	if sample.HasShield {
-		row.Shield = censusFloat(sample.Shield, censusSourceTick(sample.ShieldTick, event.Tick), requestedTick)
+		row.Shield = censusFloat(sample.Shield, sample.ShieldTick, requestedTick)
 	}
 	if sample.HasPosition {
-		row.PositionX = censusFloat(sample.PositionX, censusPositionTick(sample.PositionXTick, event.Tick), requestedTick)
-		row.PositionY = censusFloat(sample.PositionY, censusPositionTick(sample.PositionYTick, event.Tick), requestedTick)
-		row.PositionZ = censusFloat(sample.PositionZ, censusPositionTick(sample.PositionZTick, event.Tick), requestedTick)
+		row.PositionX = censusFloat(sample.PositionX, sample.PositionXTick, requestedTick)
+		row.PositionY = censusFloat(sample.PositionY, sample.PositionYTick, requestedTick)
+		row.PositionZ = censusFloat(sample.PositionZ, sample.PositionZTick, requestedTick)
 	}
 	if sample.HasHeroID {
-		sourceTick := censusSourceTick(sample.HeroIDTick, event.Tick)
-		row.HeroID = WorldCensusUint{Value: sample.HeroID, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
+		row.HeroID = WorldCensusUint{Value: sample.HeroID, Present: true, SourceTick: sample.HeroIDTick, FreshnessTicks: requestedTick - sample.HeroIDTick}
 	}
 	if sample.HasTeam {
-		sourceTick := censusSourceTick(sample.TeamTick, event.Tick)
-		row.Team = WorldCensusInt{Value: sample.Team, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
+		row.Team = WorldCensusInt{Value: sample.Team, Present: true, SourceTick: sample.TeamTick, FreshnessTicks: requestedTick - sample.TeamTick}
 	}
 	return row
 }
 
 func censusFloat(value float32, sourceTick, requestedTick uint32) WorldCensusFloat {
 	return WorldCensusFloat{Value: value, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
-}
-
-func censusSourceTick(sourceTick, eventTick uint32) uint32 {
-	if sourceTick == 0 && eventTick != 0 {
-		return eventTick
-	}
-	return sourceTick
-}
-
-func censusPositionTick(sourceTick, eventTick uint32) uint32 {
-	if sourceTick == 0 && eventTick != 0 {
-		return eventTick
-	}
-	return sourceTick
 }
