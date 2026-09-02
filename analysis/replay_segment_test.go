@@ -338,6 +338,9 @@ func TestOptInPinnedVelocityFixture(t *testing.T) {
 	if a.Source.SHA256 != pinnedSHA || a.Source.MatchID != 101514223 || a.Source.Map != "start" || a.Source.GameBuild != 10854 {
 		t.Fatalf("fixture identity: %+v", a.Source)
 	}
+	if a.Source.ParserRevision != s2replay.ParserSourceDigest {
+		t.Fatalf("fixture parser revision: got %q want %q", a.Source.ParserRevision, s2replay.ParserSourceDigest)
+	}
 	if len(a.Rows) != 12 || a.Quality.ExactVelocityRows == 0 {
 		t.Fatalf("fixture quality: %+v", a.Quality)
 	}
@@ -352,7 +355,7 @@ func TestOptInPinnedVelocityFixture(t *testing.T) {
 		t.Fatalf("fixture exact velocity row: %+v", slotOne)
 	}
 	sum := sha256.Sum256(j)
-	if len(j) != 20876 || hex.EncodeToString(sum[:]) != "029e82e3002b1bd3a636ab2b98d6c2aba6ba0f7567faddb43a744f2c75f65566" {
+	if len(j) != 20876 || hex.EncodeToString(sum[:]) != "465b2a70e4bf22db6b28683a37763aa4414969edadfcc13e356aca88c0e552ef" {
 		t.Fatalf("fixture bytes=%d SHA256=%x", len(j), sum)
 	}
 }
