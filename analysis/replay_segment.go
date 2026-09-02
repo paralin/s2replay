@@ -432,7 +432,7 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 				a.placeholderHeroes = make(map[int32]uint32)
 			}
 			a.placeholderHeroes[event.PlayerSlot] = hero
-		} else if _, ok := a.placeholderHeroes[event.PlayerSlot]; ok {
+		} else {
 			// A later hero observation broke the proven placeholder shape, so
 			// the earlier substitution is no longer justified.
 			delete(a.placeholderHeroes, event.PlayerSlot)
