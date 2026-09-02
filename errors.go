@@ -34,3 +34,24 @@ var errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot t
 
 // errWorldSnapshotPastTick rejects a request older than the parser position.
 var errWorldSnapshotPastTick = errors.New("s2replay: world snapshot tick is behind parser position")
+
+// WorldSnapshotError reports that a requested snapshot tick was not observed.
+type WorldSnapshotError struct {
+	RequestedTick uint32
+	FinalTick     uint32
+}
+
+func (e *WorldSnapshotError) Error() string {
+	return "s2replay: world snapshot tick not observed"
+}
+
+// WorldEntitySampleError reports malformed direct entity evidence.
+type WorldEntitySampleError struct {
+	EntityID     int32
+	EntitySerial int32
+	Field        string
+}
+
+func (e *WorldEntitySampleError) Error() string {
+	return "s2replay: non-finite world entity sample field " + e.Field
+}

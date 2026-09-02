@@ -1,6 +1,8 @@
 package s2replay
 
 import (
+	"errors"
+	"io"
 	"math"
 	"testing"
 )
@@ -76,6 +78,7 @@ func TestWorldEntitySnapshotEnumeratesActiveGenerations(t *testing.T) {
 	}
 	// A serial replacement reuses the index but leaves only the new active generation.
 	p.entities[2] = newEntity(2, 10, &entityClass{id: 14, name: "npc_deadlock_walker"})
+	p.clock.setTick(10)
 	samples, err := p.WorldEntitySnapshot(10)
 	if err != nil {
 		t.Fatal(err)
@@ -93,5 +96,44 @@ func TestWorldEntitySnapshotRefusesPastTick(t *testing.T) {
 	p.clock.setTick(11)
 	if _, err := p.WorldEntitySnapshot(10); err != errWorldSnapshotPastTick {
 		t.Fatalf("error = %v, want past-tick error", err)
+	}
+}
+
+func TestWorldEntitySnapshotRejectsNonFiniteSource(t *testing.T) {
+	class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_iHealth"}}}}
+	entity := newEntity(7, 3, class)
+	var path fieldPath
+	path.path[0] = 0
+	path.last = 0
+	entity.state.set(path, float32(math.NaN()))
+	entity.fieldTicks[path] = 0
+	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
+	samples, err := parser.WorldEntitySnapshot(0)
+	if samples != nil {
+		t.Fatalf("malformed snapshot returned samples: %+v", samples)
+	}
+	var typed *WorldEntitySampleError
+	if !errors.As(err, &typed) || typed.Field != "health" {
+		t.Fatalf("error = %v, want typed health error", err)
+	}
+}
+
+func TestNextReturnsSnapshotLookaheadOnce(t *testing.T) {
+	parser := &Parser{clock: newClock(), lookahead: &Command{Tick: 7}}
+	command, err := parser.Next()
+	if err != nil || command == nil || command.Tick != 7 || parser.lookahead != nil {
+		t.Fatalf("lookahead: command=%+v err=%v remaining=%+v", command, err, parser.lookahead)
+	}
+	if _, err := parser.Next(); !errors.Is(err, io.EOF) {
+		t.Fatalf("second next error = %v, want EOF", err)
+	}
+}
+
+func TestWorldEntitySnapshotRejectsUnobservedTick(t *testing.T) {
+	parser := &Parser{clock: newClock()}
+	_, err := parser.WorldEntitySnapshot(1_000_000_000)
+	var typed *WorldSnapshotError
+	if !errors.As(err, &typed) || typed.RequestedTick != 1_000_000_000 || typed.FinalTick != 0 {
+		t.Fatalf("error = %v, want unobserved typed boundary", err)
 	}
 }

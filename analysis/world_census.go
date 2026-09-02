@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -95,6 +96,10 @@ func ExtractWorldCensus(parser WorldCensusSnapshotSource, tick uint32) (WorldCen
 	}
 	samples, err := parser.WorldEntitySnapshot(tick)
 	if err != nil {
+		var unavailable *s2replay.WorldSnapshotError
+		if errors.As(err, &unavailable) {
+			return WorldCensus{}, &WorldCensusError{Kind: WorldCensusInvalidRequestedTick, Tick: unavailable.RequestedTick, Field: "tick_not_observed"}
+		}
 		return WorldCensus{}, err
 	}
 	events := make([]s2replay.Event, 0, len(samples))

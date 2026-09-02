@@ -2,6 +2,7 @@ package s2replay
 
 import (
 	"io"
+	"math"
 	"slices"
 	"strconv"
 
@@ -819,13 +820,21 @@ func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 	if p.clock.Tick() > tick {
 		return nil, errWorldSnapshotPastTick
 	}
+	savedPending := p.pending
+	savedPendingSamples := p.pendingSamples
+	savedPendingEvents := p.pendingEvents
+	savedPendingModifiers := p.pendingModifiers
 	p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
 	p.worldSnapshotMode = true
 	defer func() {
 		p.worldSnapshotMode = false
-		p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
+		p.pending = savedPending
+		p.pendingSamples = savedPendingSamples
+		p.pendingEvents = savedPendingEvents
+		p.pendingModifiers = savedPendingModifiers
 	}()
 
+	reached := p.clock.Tick() == tick
 	for {
 		previousTick := p.clock.Tick()
 		command, err := p.Next()
@@ -836,8 +845,12 @@ func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 			return nil, err
 		}
 		if command.Tick != PreGameTick && command.Tick > tick {
+			p.lookahead = command
 			p.clock.setTick(previousTick)
 			break
+		}
+		if command.Tick == tick {
+			reached = true
 		}
 		if err := p.queueCommandMessages(command); err != nil {
 			return nil, err
@@ -850,16 +863,22 @@ func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 		p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
 	}
 
-	return p.activeWorldEntitySamples(tick), nil
+	if !reached {
+		return nil, &WorldSnapshotError{RequestedTick: tick, FinalTick: p.clock.Tick()}
+	}
+	return p.activeWorldEntitySamples(tick)
 }
 
-func (p *Parser) activeWorldEntitySamples(tick uint32) []EntitySample {
+func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
 	out := make([]EntitySample, 0, len(p.entities))
 	for _, entity := range p.entities {
 		if entity == nil || !entity.active || entity.class == nil {
 			continue
 		}
 		sample, _ := entity.sample(tick, float64(tick)*p.clock.TickInterval())
+		if err := validateWorldEntitySample(sample); err != nil {
+			return nil, err
+		}
 		out = append(out, sample)
 	}
 	slices.SortFunc(out, func(a, b EntitySample) int {
@@ -883,7 +902,35 @@ func (p *Parser) activeWorldEntitySamples(tick uint32) []EntitySample {
 		}
 		return 0
 	})
-	return out
+	return out, nil
+}
+
+func validateWorldEntitySample(sample EntitySample) error {
+	values := []struct {
+		name  string
+		value float64
+	}{
+		{"game_time", sample.GameTime},
+		{"health", float64(sample.Health)},
+		{"max_health", float64(sample.MaxHealth)},
+		{"shield", float64(sample.Shield)},
+		{"max_shield", float64(sample.MaxShield)},
+		{"position_x", float64(sample.PositionX)},
+		{"position_y", float64(sample.PositionY)},
+		{"position_z", float64(sample.PositionZ)},
+		{"facing_x", float64(sample.FacingX)},
+		{"facing_y", float64(sample.FacingY)},
+		{"facing_z", float64(sample.FacingZ)},
+		{"velocity_x", float64(sample.VelocityX)},
+		{"velocity_y", float64(sample.VelocityY)},
+		{"velocity_z", float64(sample.VelocityZ)},
+	}
+	for _, value := range values {
+		if math.IsNaN(value.value) || math.IsInf(value.value, 0) {
+			return &WorldEntitySampleError{EntityID: sample.Entity, EntitySerial: sample.EntitySerial, Field: value.name}
+		}
+	}
+	return nil
 }
 
 // SetEventMode configures unified event consumption without retaining duplicate samples.
