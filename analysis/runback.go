@@ -11,7 +11,7 @@ import (
 )
 
 // RunbackFactsSchemaVersion identifies the Runback facts contract.
-const RunbackFactsSchemaVersion = 1
+const RunbackFactsSchemaVersion = 2
 
 // RunbackMissingReason values name why an observed field is absent.
 const (
@@ -20,6 +20,32 @@ const (
 	RunbackMissingNoEntity     = "no_entity_sample_at_tick"
 	RunbackMissingUnattributed = "player_slot_unattributed"
 	RunbackMissingNotRecorded  = "not_recorded_at_tick"
+
+	// RunbackMissingNoRejuvStatus records that no rejuvenator status user
+	// message was observed at or before the requested tick.
+	RunbackMissingNoRejuvStatus = "rejuv_status_not_observed"
+	// RunbackMissingNoServerInfo records that the server tick interval was
+	// not decoded from CSVCMsg_ServerInfo before the requested tick.
+	RunbackMissingNoServerInfo = "server_info_not_observed"
+	// RunbackMissingHeaderField records that an optional demo file header
+	// field was absent.
+	RunbackMissingHeaderField = "header_field_absent"
+	// RunbackMissingOwnerUnattributed records that a transient entity's owner
+	// handle does not resolve to an attributed hero pawn at the tick.
+	RunbackMissingOwnerUnattributed = "owner_not_attributed"
+)
+
+// Runback objective role classes are observed network class names from the
+// replay send tables. Each role reads exactly one class; the row carries the
+// observed class name so a consumer can verify the mapping. No class is
+// inferred from raw memory or from names outside this declared mapping.
+const (
+	RunbackMidBossClass            = "CNPC_MidBoss"
+	RunbackTowerClass              = "CNPC_BaseDefenseSentry"
+	RunbackWalkerClass             = "CNPC_BarrackBoss"
+	RunbackRejuvenatorEventKind    = "rejuv_status"
+	RunbackRejuvenatorStatusAbsent = "no_rejuv_status_observed"
+	RunbackRejuvenatorStatusSeen   = "rejuv_status_observed"
 )
 
 // RunbackAliveBasis states why an alive verdict holds.
@@ -44,11 +70,70 @@ type RunbackFacts struct {
 	Source             ReplaySourceIdentity         `json:"source"`
 	Correspondence     ReplayIdentityCorrespondence `json:"correspondence"`
 	Tick               uint32                       `json:"tick"`
+	TickProvenance     RunbackTickProvenance        `json:"tick_provenance"`
 	Heroes             []RunbackHero                `json:"heroes"`
 	WorldEntities      []RunbackWorldEntity         `json:"world_entities"`
+	Objectives         RunbackObjectives            `json:"objectives"`
 	Quality            RunbackFactsQuality          `json:"quality"`
 	Eligibility        ReplaySegmentEligibility     `json:"eligibility"`
 	EligibilityReasons []string                     `json:"eligibility_reasons,omitempty"`
+}
+
+// RunbackTickProvenance records the demo tick interval and server start tick
+// with their provenance. Values are populated only from observed source data;
+// no default or assumed rate is ever reported as present.
+type RunbackTickProvenance struct {
+	// TickIntervalSeconds is the seconds-per-tick reported by
+	// CSVCMsg_ServerInfo. It is present only when the server message was
+	// decoded; the parser's internal placeholder is never reported.
+	TickIntervalSeconds RunbackFloat `json:"tick_interval_seconds"`
+	// ServerStartTick is the start tick declared in the demo file header.
+	ServerStartTick RunbackInt `json:"server_start_tick"`
+}
+
+// RunbackObjectives is the explicit objective state observed at the tick.
+type RunbackObjectives struct {
+	// MidBoss is the mid boss world entity observed at the tick.
+	MidBoss RunbackObjectiveEntity `json:"mid_boss"`
+	// Rejuvenator is the rejuvenator status derived from rejuv_status events.
+	Rejuvenator RunbackRejuvenator `json:"rejuvenator"`
+	// Towers are the base defense sentry entities observed at the tick.
+	Towers []RunbackObjectiveEntity `json:"towers"`
+	// Walkers are the barrack boss entities observed at the tick.
+	Walkers []RunbackObjectiveEntity `json:"walkers"`
+	// Transients are the active unattributed item-class entities observed at the tick.
+	Transients []RunbackTransient `json:"transients"`
+}
+
+// RunbackObjectiveEntity is one objective entity observed at the tick.
+type RunbackObjectiveEntity struct {
+	EntityID     int32  `json:"entity_id"`
+	EntitySerial int32  `json:"entity_serial"`
+	ClassID      int32  `json:"class_id"`
+	ClassName    string `json:"class_name"`
+
+	Team     RunbackInt      `json:"team"`
+	Position [3]RunbackFloat `json:"position"`
+
+	Health    RunbackFloat `json:"health"`
+	MaxHealth RunbackFloat `json:"max_health"`
+	Alive     RunbackAlive `json:"alive"`
+}
+
+// RunbackRejuvenator is the rejuvenator state observed at the tick. The
+// rejuvenator has no directly networked world entity in the current evidence
+// set, so its state is derived only from rejuv_status events.
+type RunbackRejuvenator struct {
+	Status string                   `json:"status"`
+	Last   *RunbackRejuvenatorEvent `json:"last,omitempty"`
+}
+
+// RunbackRejuvenatorEvent is one rejuv_status event observation.
+type RunbackRejuvenatorEvent struct {
+	Tick        uint32 `json:"tick"`
+	KillingTeam int32  `json:"killing_team"`
+	EventType   int32  `json:"event_type"`
+	UserTeam    int32  `json:"user_team"`
 }
 
 // RunbackFactsQuality summarizes attribution coverage.
@@ -119,6 +204,26 @@ type RunbackItem struct {
 	EntitySerial int32  `json:"entity_serial"`
 	ClassName    string `json:"class_name"`
 	SourceTick   uint32 `json:"source_tick"`
+}
+
+// RunbackTransient is one active item-class entity at the tick whose owner
+// does not resolve to an attributed hero pawn. Owned item entities remain on
+// their hero row only.
+type RunbackTransient struct {
+	EntityID     int32  `json:"entity_id"`
+	EntitySerial int32  `json:"entity_serial"`
+	ClassName    string `json:"class_name"`
+
+	// OwnerEntity is the observed owner handle; it is present only when the
+	// sample carried one.
+	OwnerEntity RunbackInt `json:"owner_entity"`
+	// Team is the observed team when the sample carried one.
+	Team RunbackInt `json:"team"`
+	// Position is the observed position when the sample carried one.
+	Position [3]RunbackFloat `json:"position"`
+
+	// MissingReason states why the transient is not attributed to a hero row.
+	MissingReason string `json:"missing_reason"`
 }
 
 // RunbackAbility is one owned ability entity with charge and cooldown state.
@@ -258,6 +363,20 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 		}
 		return RunbackFacts{}, err
 	}
+	clock := snapshotParser.Clock()
+	provenance := RunbackTickProvenance{}
+	if clock.TickIntervalKnown() {
+		provenance.TickIntervalSeconds = runbackFloat(float32(clock.TickInterval()), 0, true, request.Tick, RunbackMissingNotInSample)
+		provenance.TickIntervalSeconds.SourceTick = request.Tick
+		provenance.TickIntervalSeconds.FreshnessTicks = 0
+	} else {
+		provenance.TickIntervalSeconds = RunbackFloat{MissingReason: RunbackMissingNoServerInfo}
+	}
+	if startTick := header.GetServerStartTick(); startTick != 0 {
+		provenance.ServerStartTick = RunbackInt{Value: startTick, Present: true, SourceTick: 0, FreshnessTicks: request.Tick}
+	} else {
+		provenance.ServerStartTick = RunbackInt{MissingReason: RunbackMissingHeaderField}
+	}
 	return buildRunbackFacts(samples, timelines, ReplaySourceIdentity{
 		SHA256:         sha256Hex(demo),
 		Game:           header.GetGame(),
@@ -266,18 +385,19 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 		Parser:         "s2replay",
 		ParserRevision: s2replay.ParserSourceDigest,
 		VCSRevision:    revision,
-	}, request)
+	}, request, provenance, events)
 }
 
 // buildRunbackFacts assembles deterministic facts from the snapshot and timelines.
-func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source ReplaySourceIdentity, request RunbackRequest) (RunbackFacts, error) {
+func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source ReplaySourceIdentity, request RunbackRequest, provenance RunbackTickProvenance, events []s2replay.Event) (RunbackFacts, error) {
 	tick := request.Tick
 	out := RunbackFacts{
-		SchemaVersion: RunbackFactsSchemaVersion,
-		Source:        source,
-		Tick:          tick,
-		Heroes:        []RunbackHero{},
-		WorldEntities: []RunbackWorldEntity{},
+		SchemaVersion:  RunbackFactsSchemaVersion,
+		Source:         source,
+		Tick:           tick,
+		TickProvenance: normalizeRunbackTickProvenance(provenance),
+		Heroes:         []RunbackHero{},
+		WorldEntities:  []RunbackWorldEntity{},
 	}
 	if request.ExpectedIdentity == nil {
 		out.Correspondence = ReplayIdentityCorrespondence{Status: ReplayCorrespondencePending, Reason: "no expected replay identity supplied"}
@@ -407,6 +527,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		return int(a.EntitySerial - b.EntitySerial)
 	})
 
+	out.Objectives = runbackObjectives(samples, byEntity, events, pawnSlots, tick)
 	out.Quality = RunbackFactsQuality{
 		Heroes: len(out.Heroes), WorldEntities: len(out.WorldEntities), SnapshotEntities: len(samples),
 		UnattributedPawns: unattributedPawns,
@@ -588,4 +709,140 @@ func runbackEligibility(facts RunbackFacts, request RunbackRequest) (ReplaySegme
 		}
 	}
 	return ReplayEligibilityEligible, nil
+}
+
+func missingRunbackPosition() [3]RunbackFloat {
+	return [3]RunbackFloat{
+		{MissingReason: RunbackMissingNotInSample},
+		{MissingReason: RunbackMissingNotInSample},
+		{MissingReason: RunbackMissingNotInSample},
+	}
+}
+
+// normalizeRunbackTickProvenance fills typed missing reasons for absent
+// provenance fields so downstream consumers never see silently empty values.
+func normalizeRunbackTickProvenance(p RunbackTickProvenance) RunbackTickProvenance {
+	if p.TickIntervalSeconds.MissingReason == "" && !p.TickIntervalSeconds.Present {
+		p.TickIntervalSeconds.MissingReason = RunbackMissingNoServerInfo
+	}
+	if p.ServerStartTick.MissingReason == "" && !p.ServerStartTick.Present {
+		p.ServerStartTick.MissingReason = RunbackMissingHeaderField
+	}
+	return p
+}
+
+// runbackObjectives assembles the explicit objective facts for the tick from
+// the world snapshot and the objective event stream.
+func runbackObjectives(samples []s2replay.EntitySample, byEntity map[int32]*s2replay.EntitySample, events []s2replay.Event, pawnSlots map[int32]int32, tick uint32) RunbackObjectives {
+	out := RunbackObjectives{
+		Towers:  []RunbackObjectiveEntity{},
+		Walkers: []RunbackObjectiveEntity{},
+	}
+
+	// Rejuvenator state comes exclusively from rejuv_status user messages.
+	// No networked rejuvenator entity class is known, so none is claimed.
+	out.Rejuvenator = RunbackRejuvenator{Status: RunbackRejuvenatorStatusAbsent, Last: nil}
+	var rejuvEvents []s2replay.Event
+	for i := range events {
+		event := &events[i]
+		if event.Tick > tick {
+			continue
+		}
+		if event.Type != s2replay.EventObjective || event.Objective == nil {
+			continue
+		}
+		if event.Objective.Kind == RunbackRejuvenatorEventKind {
+			rejuvEvents = append(rejuvEvents, *event)
+		}
+	}
+	if len(rejuvEvents) > 0 {
+		last := rejuvEvents[len(rejuvEvents)-1]
+		// packet.go maps the RejuvStatus user message into ObjectiveEvent as
+		// ObjectiveTeam=killing_team, ObjectiveID=event_type, EntityType=user_team.
+		out.Rejuvenator = RunbackRejuvenator{
+			Status: RunbackRejuvenatorStatusSeen,
+			Last: &RunbackRejuvenatorEvent{
+				Tick:        last.Tick,
+				KillingTeam: last.Objective.ObjectiveTeam,
+				EventType:   last.Objective.ObjectiveID,
+				UserTeam:    last.Objective.EntityType,
+			},
+		}
+	}
+
+	// Objective entities come from the world snapshot by exact class match.
+	for i := range samples {
+		sample := &samples[i]
+		if sample.ClassName != RunbackMidBossClass && sample.ClassName != RunbackTowerClass && sample.ClassName != RunbackWalkerClass {
+			continue
+		}
+		row := runbackObjectiveEntity(sample, tick)
+		switch sample.ClassName {
+		case RunbackMidBossClass:
+			out.MidBoss = row
+		case RunbackTowerClass:
+			out.Towers = append(out.Towers, row)
+		case RunbackWalkerClass:
+			out.Walkers = append(out.Walkers, row)
+		}
+	}
+	slices.SortFunc(out.Towers, func(a, b RunbackObjectiveEntity) int { return int(a.EntityID - b.EntityID) })
+	slices.SortFunc(out.Walkers, func(a, b RunbackObjectiveEntity) int { return int(a.EntityID - b.EntityID) })
+
+	// An absent role entity is typed missing, never an inferred zero.
+	if out.MidBoss.ClassName != RunbackMidBossClass {
+		out.MidBoss = RunbackObjectiveEntity{
+			Team:      RunbackInt{MissingReason: RunbackMissingNotInSample},
+			Position:  missingRunbackPosition(),
+			Health:    RunbackFloat{MissingReason: RunbackMissingNotInSample},
+			MaxHealth: RunbackFloat{MissingReason: RunbackMissingNotInSample},
+		}
+	}
+
+	// Active transients: item-class entities whose owner does not resolve to
+	// an attributed pawn at the tick.
+	out.Transients = runbackTransients(samples, byEntity, pawnSlots, tick)
+	return out
+}
+
+func runbackObjectiveEntity(sample *s2replay.EntitySample, tick uint32) RunbackObjectiveEntity {
+	return RunbackObjectiveEntity{
+		EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassID: sample.ClassID, ClassName: sample.ClassName,
+		Team:      runbackInt(sample.Team, sample.TeamTick, sample.HasTeam, tick, RunbackMissingNotInSample),
+		Position:  runbackPosition(sample, tick),
+		Health:    runbackFloat(sample.Health, sample.HealthTick, sample.HasHealth, tick, RunbackMissingNotInSample),
+		MaxHealth: runbackFloat(sample.MaxHealth, sample.MaxHealthTick, sample.HasHealth, tick, RunbackMissingNotInSample),
+		Alive:     runbackAlive(sample, tick),
+	}
+}
+
+// runbackTransients collects item-class entities whose owner handle is absent
+// or does not resolve to an attributed pawn at the tick.
+func runbackTransients(samples []s2replay.EntitySample, byEntity map[int32]*s2replay.EntitySample, pawnSlots map[int32]int32, tick uint32) []RunbackTransient {
+	transients := []RunbackTransient{}
+	for i := range samples {
+		sample := &samples[i]
+		if !isRunbackItemClass(sample.ClassName) {
+			continue
+		}
+		if sample.HasOwnerEntity {
+			owner := byEntity[sample.OwnerEntity]
+			if owner != nil && owner.ClassName == "CCitadelPlayerPawn" {
+				if _, ok := pawnSlots[sample.OwnerEntity]; ok {
+					// Attributed to a hero: recorded on the hero row instead.
+					continue
+				}
+			}
+		}
+		row := RunbackTransient{
+			EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
+			OwnerEntity:   runbackInt(sample.OwnerEntity, sample.OwnerEntityTick, sample.HasOwnerEntity, tick, RunbackMissingNotRecorded),
+			Team:          runbackInt(sample.Team, sample.TeamTick, sample.HasTeam, tick, RunbackMissingNotInSample),
+			Position:      runbackPosition(sample, tick),
+			MissingReason: RunbackMissingOwnerUnattributed,
+		}
+		transients = append(transients, row)
+	}
+	slices.SortFunc(transients, func(a, b RunbackTransient) int { return int(a.EntityID - b.EntityID) })
+	return transients
 }
