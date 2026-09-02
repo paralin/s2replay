@@ -87,3 +87,11 @@ func TestWorldEntitySnapshotEnumeratesActiveGenerations(t *testing.T) {
 		t.Fatalf("ability class evidence: %+v", samples[1])
 	}
 }
+
+func TestWorldEntitySnapshotRefusesPastTick(t *testing.T) {
+	p := &Parser{clock: newClock()}
+	p.clock.setTick(11)
+	if _, err := p.WorldEntitySnapshot(10); err != errWorldSnapshotPastTick {
+		t.Fatalf("error = %v, want past-tick error", err)
+	}
+}

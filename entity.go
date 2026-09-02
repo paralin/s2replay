@@ -808,12 +808,16 @@ func stringsContains(s, sub string) bool {
 }
 
 // WorldEntitySnapshot advances the parser through tick and samples every
-// active entity once. It includes ability, projectile, and other ephemeral
+// active entity once. A request older than the parser position is refused. It
+// includes ability, projectile, and other ephemeral
 // entities still active at the boundary; entities deleted before the boundary
 // are absent. It consumes the parser and does not retain event records.
 func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 	if tick == PreGameTick {
 		return nil, errInvalidWorldSnapshotTick
+	}
+	if p.clock.Tick() > tick {
+		return nil, errWorldSnapshotPastTick
 	}
 	p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
 	p.worldSnapshotMode = true

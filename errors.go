@@ -31,3 +31,6 @@ var errUnknownStringTable = errors.New("s2replay: string-table update referenced
 
 // errInvalidWorldSnapshotTick rejects the pre-game sentinel as a timecode.
 var errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot tick")
+
+// errWorldSnapshotPastTick rejects a request older than the parser position.
+var errWorldSnapshotPastTick = errors.New("s2replay: world snapshot tick is behind parser position")
