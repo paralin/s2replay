@@ -355,7 +355,7 @@ func TestOptInPinnedVelocityFixture(t *testing.T) {
 		t.Fatalf("fixture exact velocity row: %+v", slotOne)
 	}
 	sum := sha256.Sum256(j)
-	if len(j) != 20876 || hex.EncodeToString(sum[:]) != "def090e40433d1ac3bfd55b22c123dd120955d9777aee9cda9346ce53d3f3e03" {
+	if len(j) != 20876 || hex.EncodeToString(sum[:]) != "7af74711d2a122a973f4cc60a650c96d52454260855450aed0947c3e7b47eb83" {
 		t.Fatalf("fixture bytes=%d SHA256=%x", len(j), sum)
 	}
 }

@@ -318,3 +318,72 @@ func TestOptInPinnedWorldCensus(t *testing.T) {
 		}
 	}
 }
+
+type unavailableSnapshotSource struct{}
+
+func (*unavailableSnapshotSource) WorldEntitySnapshot(tick uint32) ([]s2replay.EntitySample, error) {
+	return nil, &s2replay.WorldSnapshotError{RequestedTick: tick, FinalTick: tick - 1}
+}
+
+func TestExtractWorldCensusRejectsUnobservedTick(t *testing.T) {
+	_, err := ExtractWorldCensus(&unavailableSnapshotSource{}, 1_000_000_000)
+	var typed *WorldCensusError
+	if !errors.As(err, &typed) || typed.Kind != WorldCensusInvalidRequestedTick || typed.Field != "tick_not_observed" {
+		t.Fatalf("error = %v, want typed unobserved boundary", err)
+	}
+}
+
+func TestOptInPinnedWorldCensusLookahead(t *testing.T) {
+	path := os.Getenv("S2REPLAY_PINNED_DEMO")
+	if path == "" {
+		t.Skip("set S2REPLAY_PINNED_DEMO to run the pinned world census")
+	}
+	read := func() *s2replay.Parser {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parser, err := s2replay.NewParser(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parser
+	}
+	sequential := read()
+	if _, err := ExtractWorldCensus(sequential, 1); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ExtractWorldCensus(sequential, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := ExtractWorldCensus(read(), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotJSON, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshJSON, err := json.Marshal(fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(gotJSON, freshJSON) {
+		t.Fatal("sequential snapshot differs from fresh snapshot")
+	}
+	command, err := sequential.Next()
+	if err != nil || command.Tick <= 2 {
+		t.Fatalf("forward command after snapshots: command=%+v err=%v", command, err)
+	}
+	interleaved := read()
+	if _, err := interleaved.NextEvent(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExtractWorldCensus(interleaved, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := interleaved.NextEvent(); err != nil {
+		t.Fatalf("event after interleaved snapshot: %v", err)
+	}
+}

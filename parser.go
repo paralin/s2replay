@@ -37,6 +37,7 @@ type Command struct {
 type Parser struct {
 	r                 reader
 	clock             *Clock
+	lookahead         *Command
 	pending           []*Message
 	pendingSamples    []EntitySample
 	pendingModifiers  []ModifierEvent
@@ -103,7 +104,18 @@ func (p *Parser) Stop() { p.stopped = true }
 // compression bit is set, and advances the clock. It returns io.EOF once the
 // stream is exhausted or after Stop.
 func (p *Parser) Next() (*Command, error) {
-	if p.stopped || p.r.remaining() == 0 {
+	if p.stopped {
+		return nil, io.EOF
+	}
+	if p.lookahead != nil {
+		command := p.lookahead
+		p.lookahead = nil
+		if command.Tick != PreGameTick {
+			p.clock.setTick(command.Tick)
+		}
+		return command, nil
+	}
+	if p.r.remaining() == 0 {
 		return nil, io.EOF
 	}
 
