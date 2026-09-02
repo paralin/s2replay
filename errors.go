@@ -28,3 +28,6 @@ var errUnknownFieldPath = errors.New("s2replay: packet entity referenced unknown
 
 // errUnknownStringTable indicates a string-table update referenced a missing table.
 var errUnknownStringTable = errors.New("s2replay: string-table update referenced unknown table")
+
+// errInvalidWorldSnapshotTick rejects the pre-game sentinel as a timecode.
+var errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot tick")

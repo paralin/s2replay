@@ -118,6 +118,9 @@ func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 		})
 		return
 	}
+	if p.worldSnapshotMode {
+		return
+	}
 	p.pending = append(p.pending, &Message{
 		Kind:     decoded.kind,
 		Name:     decoded.name,

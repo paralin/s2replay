@@ -1,6 +1,8 @@
 package s2replay
 
 import (
+	"io"
+	"slices"
 	"strconv"
 
 	"github.com/paralin/s2replay/protocol"
@@ -689,7 +691,7 @@ func isPlayerControllerClass(name string) bool {
 }
 
 func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
-	if e == nil || e.class == nil || !e.active {
+	if e == nil || e.class == nil || !e.active || p.worldSnapshotMode {
 		return
 	}
 	p.updateEntityPlayerSlot(e)
@@ -701,10 +703,10 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 		p.appendAbilityChargeEvent(tick, e)
 		return
 	}
-	if !p.worldEntityMode && !isLikelyHeroClass(e.class.name) {
+	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
-	if sample, ok := e.sample(tick, p.clock.GameTime()); ok || p.worldEntityMode {
+	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {
 		if !p.eventOnly {
 			p.pendingSamples = append(p.pendingSamples, sample)
 		}
@@ -805,12 +807,83 @@ func stringsContains(s, sub string) bool {
 	return false
 }
 
+// WorldEntitySnapshot advances the parser through tick and samples every
+// active entity once. It includes ability, projectile, and other ephemeral
+// entities still active at the boundary; entities deleted before the boundary
+// are absent. It consumes the parser and does not retain event records.
+func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
+	if tick == PreGameTick {
+		return nil, errInvalidWorldSnapshotTick
+	}
+	p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
+	p.worldSnapshotMode = true
+	defer func() {
+		p.worldSnapshotMode = false
+		p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
+	}()
+
+	for {
+		previousTick := p.clock.Tick()
+		command, err := p.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if command.Tick != PreGameTick && command.Tick > tick {
+			p.clock.setTick(previousTick)
+			break
+		}
+		if err := p.queueCommandMessages(command); err != nil {
+			return nil, err
+		}
+		for _, message := range p.pending {
+			if message.err != nil {
+				return nil, message.err
+			}
+		}
+		p.pending, p.pendingSamples, p.pendingEvents, p.pendingModifiers = nil, nil, nil, nil
+	}
+
+	return p.activeWorldEntitySamples(tick), nil
+}
+
+func (p *Parser) activeWorldEntitySamples(tick uint32) []EntitySample {
+	out := make([]EntitySample, 0, len(p.entities))
+	for _, entity := range p.entities {
+		if entity == nil || !entity.active || entity.class == nil {
+			continue
+		}
+		sample, _ := entity.sample(tick, float64(tick)*p.clock.TickInterval())
+		out = append(out, sample)
+	}
+	slices.SortFunc(out, func(a, b EntitySample) int {
+		if a.Entity != b.Entity {
+			if a.Entity < b.Entity {
+				return -1
+			}
+			return 1
+		}
+		if a.EntitySerial != b.EntitySerial {
+			if a.EntitySerial < b.EntitySerial {
+				return -1
+			}
+			return 1
+		}
+		if a.ClassID < b.ClassID {
+			return -1
+		}
+		if a.ClassID > b.ClassID {
+			return 1
+		}
+		return 0
+	})
+	return out
+}
+
 // SetEventMode configures unified event consumption without retaining duplicate samples.
 func (p *Parser) SetEventMode(enabled bool) { p.eventOnly = enabled }
-
-// SetWorldEntityMode includes generic entities in the event stream for bounded
-// Runback census extraction. The default keeps the established hero-only stream.
-func (p *Parser) SetWorldEntityMode(enabled bool) { p.worldEntityMode = enabled }
 
 // ReleasePendingQueues releases decoded queues while preserving entity delta state.
 func (p *Parser) ReleasePendingQueues() {
