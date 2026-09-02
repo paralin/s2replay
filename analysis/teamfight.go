@@ -268,21 +268,31 @@ func normalizeTeamfightHeroPlaceholder(segment ReplaySegmentEvidence) ReplaySegm
 	if len(segment.placeholderHeroes) == 0 {
 		return segment
 	}
+	// Work on a clone: the caller owns the original map and must not observe
+	// this projection's normalization.
+	substitutions := make(map[int32]uint32, len(segment.placeholderHeroes))
+	for slot, hero := range segment.placeholderHeroes {
+		substitutions[slot] = hero
+	}
+	segment.placeholderHeroes = substitutions
+	participants := make([]ReplayParticipant, len(segment.Participants))
+	copy(participants, segment.Participants)
+	segment.Participants = participants
 	for i := range segment.Participants {
 		participant := &segment.Participants[i]
-		hero, ok := segment.placeholderHeroes[participant.PlayerSlot]
+		hero, ok := substitutions[participant.PlayerSlot]
 		// The recorded substitution is only the proven final identity when the
 		// last observed hero is still the selected one; a later real conflict
 		// must keep its ambiguity.
 		if ok && participant.HasHeroID && participant.HeroID == hero {
 			participant.HeroID, participant.HasHeroID = hero, true
 		} else {
-			delete(segment.placeholderHeroes, participant.PlayerSlot)
+			delete(substitutions, participant.PlayerSlot)
 		}
 	}
 	remaining := make([]int32, 0, len(segment.Quality.AmbiguousParticipants))
 	for _, slot := range segment.Quality.AmbiguousParticipants {
-		if _, ok := segment.placeholderHeroes[slot]; !ok {
+		if _, ok := substitutions[slot]; !ok {
 			remaining = append(remaining, slot)
 		}
 	}
