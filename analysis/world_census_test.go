@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"math"
 	"os"
 	"reflect"
@@ -247,39 +246,25 @@ func TestBuildWorldCensusRejectsMalformedInput(t *testing.T) {
 	}
 }
 
-type censusEventSource struct {
-	events    []s2replay.Event
-	index     int
-	eventMode bool
-	worldMode bool
-	released  bool
+type censusSnapshotSource struct {
+	samples []s2replay.EntitySample
+	tick    uint32
 }
 
-func (s *censusEventSource) NextEvent() (s2replay.Event, error) {
-	if s.index == len(s.events) {
-		return s2replay.Event{}, io.EOF
-	}
-	event := s.events[s.index]
-	s.index++
-	return event, nil
+func (s *censusSnapshotSource) WorldEntitySnapshot(tick uint32) ([]s2replay.EntitySample, error) {
+	s.tick = tick
+	return s.samples, nil
 }
-func (s *censusEventSource) SetEventMode(enabled bool)       { s.eventMode = enabled }
-func (s *censusEventSource) SetWorldEntityMode(enabled bool) { s.worldMode = enabled }
-func (s *censusEventSource) ReleasePendingQueues()           { s.released = true }
 
-func TestExtractWorldCensusStopsAtRequestedTick(t *testing.T) {
-	before := censusEvent(10, 7, 2, "npc_deadlock_tower", -1)
-	after := censusEvent(11, 8, 3, "npc_deadlock_walker", -1)
-	source := &censusEventSource{events: []s2replay.Event{before, after}}
+func TestExtractWorldCensusUsesBoundedParserSnapshot(t *testing.T) {
+	event := censusEvent(10, 7, 2, "npc_deadlock_tower", -1)
+	source := &censusSnapshotSource{samples: []s2replay.EntitySample{*event.EntitySample}}
 	got, err := ExtractWorldCensus(source, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Entities) != 1 || got.Entities[0].ClassName != "npc_deadlock_tower" {
-		t.Fatalf("bounded census: %+v", got.Entities)
-	}
-	if source.eventMode || source.worldMode || !source.released {
-		t.Fatalf("parser modes not restored: %+v", source)
+	if source.tick != 10 || len(got.Entities) != 1 || got.Entities[0].ClassName != "npc_deadlock_tower" {
+		t.Fatalf("bounded census: tick=%d entities=%+v", source.tick, got.Entities)
 	}
 }
 
@@ -288,7 +273,7 @@ func TestOptInPinnedWorldCensus(t *testing.T) {
 	if path == "" {
 		t.Skip("set S2REPLAY_PINNED_DEMO to run the pinned world census")
 	}
-	read := func() WorldCensus {
+	read := func(tick uint32) WorldCensus {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
@@ -297,25 +282,39 @@ func TestOptInPinnedWorldCensus(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		census, err := ExtractWorldCensus(parser, 1)
+		census, err := ExtractWorldCensus(parser, tick)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return census
 	}
-	a, b := read(), read()
-	if len(a.Entities) == 0 {
-		t.Fatal("pinned world census has no entities at tick 1")
+	countPlayers := func(census WorldCensus) int {
+		count := 0
+		for _, entity := range census.Entities {
+			if entity.ClassName == "CCitadelPlayerPawn" {
+				count++
+			}
+		}
+		return count
 	}
-	aj, err := json.Marshal(a)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bj, err := json.Marshal(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(aj, bj) {
-		t.Fatal("pinned world census is not deterministic")
+	for _, tick := range []uint32{1, 63280} {
+		a, b := read(tick), read(tick)
+		if len(a.Entities) == 0 {
+			t.Fatalf("pinned world census has no entities at tick %d", tick)
+		}
+		if countPlayers(a) != 12 {
+			t.Fatalf("pinned world census player count at tick %d: got %d", tick, countPlayers(a))
+		}
+		aj, err := json.Marshal(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bj, err := json.Marshal(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(aj, bj) {
+			t.Fatalf("pinned world census is not deterministic at tick %d", tick)
+		}
 	}
 }

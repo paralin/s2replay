@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"slices"
 
@@ -83,42 +82,28 @@ func (e *WorldCensusError) Error() string {
 	return fmt.Sprintf("world census: %s tick=%d entity=%d serial=%d field=%s", e.Kind, e.Tick, e.EntityID, e.EntitySerial, e.Field)
 }
 
-// WorldCensusEventSource is the parser seam used by bounded census extraction.
-type WorldCensusEventSource interface {
-	NextEvent() (s2replay.Event, error)
-	SetEventMode(bool)
-	SetWorldEntityMode(bool)
-	ReleasePendingQueues()
+// WorldCensusSnapshotSource is the parser seam used by bounded census extraction.
+type WorldCensusSnapshotSource interface {
+	WorldEntitySnapshot(uint32) ([]s2replay.EntitySample, error)
 }
 
-// ExtractWorldCensus reads entity events through the requested tick and then
-// builds a census. The parser's generic-entity mode is opt-in and all pending
-// decoded queues are released before the call returns.
-func ExtractWorldCensus(parser WorldCensusEventSource, tick uint32) (WorldCensus, error) {
+// ExtractWorldCensus samples the parser-owned active entity state at tick.
+// The parser advances only through commands at or before the requested tick.
+func ExtractWorldCensus(parser WorldCensusSnapshotSource, tick uint32) (WorldCensus, error) {
 	if tick == s2replay.PreGameTick {
 		return WorldCensus{}, &WorldCensusError{Kind: WorldCensusInvalidRequestedTick, Tick: tick, Field: "tick"}
 	}
-	parser.SetEventMode(true)
-	parser.SetWorldEntityMode(true)
-	defer func() {
-		parser.SetWorldEntityMode(false)
-		parser.SetEventMode(false)
-		parser.ReleasePendingQueues()
-	}()
-
-	events := make([]s2replay.Event, 0)
-	for {
-		event, err := parser.NextEvent()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return WorldCensus{}, err
-		}
-		if event.Tick != s2replay.PreGameTick && event.Tick > tick {
-			break
-		}
-		events = append(events, event)
+	samples, err := parser.WorldEntitySnapshot(tick)
+	if err != nil {
+		return WorldCensus{}, err
+	}
+	events := make([]s2replay.Event, 0, len(samples))
+	for i := range samples {
+		sample := &samples[i]
+		events = append(events, s2replay.Event{
+			Type: s2replay.EventEntitySample, Tick: tick, Entity: sample.Entity,
+			EntitySerial: sample.EntitySerial, EntitySample: sample,
+		})
 	}
 	return BuildWorldCensus(events, tick)
 }

@@ -61,37 +61,29 @@ func TestSanitizeEntitySamplePreservesInvalidSourceEvidence(t *testing.T) {
 	}
 }
 
-func TestWorldEntityModeIsOptIn(t *testing.T) {
-	entity := newEntity(7, 3, &entityClass{id: 11, name: "npc_deadlock_tower"})
-	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32)}
-	parser.appendEntitySample(100, entity)
-	if len(parser.pendingEvents) != 0 {
-		t.Fatal("generic entity leaked into ordinary event mode")
+func TestWorldEntitySnapshotEnumeratesActiveGenerations(t *testing.T) {
+	p := &Parser{
+		clock: newClock(),
+		entities: map[int32]*Entity{
+			1: newEntity(1, 7, &entityClass{id: 11, name: "npc_deadlock_tower"}),
+			2: func() *Entity {
+				e := newEntity(2, 8, &entityClass{id: 12, name: "npc_deadlock_old"})
+				e.active = false
+				return e
+			}(),
+			3: newEntity(3, 9, &entityClass{id: 13, name: "CCitadel_Ability_Dash"}),
+		},
 	}
-	parser.SetWorldEntityMode(true)
-	parser.appendEntitySample(100, entity)
-	if len(parser.pendingEvents) != 1 {
-		t.Fatalf("generic entity missing in world mode: %d", len(parser.pendingEvents))
+	// A serial replacement reuses the index but leaves only the new active generation.
+	p.entities[2] = newEntity(2, 10, &entityClass{id: 14, name: "npc_deadlock_walker"})
+	samples, err := p.WorldEntitySnapshot(10)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := parser.pendingEvents[0].EntitySample.ClassName; got != "npc_deadlock_tower" {
-		t.Fatalf("class evidence: %q", got)
+	if len(samples) != 3 || samples[0].Entity != 1 || samples[0].EntitySerial != 7 || samples[1].Entity != 2 || samples[1].EntitySerial != 10 || samples[2].Entity != 3 || samples[2].EntitySerial != 9 {
+		t.Fatalf("active snapshot: %+v", samples)
 	}
-}
-
-func TestWorldEntityModeDoesNotInventHeroFields(t *testing.T) {
-	hero := newEntity(8, 4, &entityClass{id: 12, name: "CCitadelPlayerPawn"})
-	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32)}
-	parser.appendEntitySample(100, hero)
-	if len(parser.pendingEvents) != 0 {
-		t.Fatal("hero without recognized fields leaked into ordinary event mode")
-	}
-	parser.SetWorldEntityMode(true)
-	parser.appendEntitySample(100, hero)
-	if len(parser.pendingEvents) != 1 {
-		t.Fatalf("hero class-only evidence missing in world mode: %d", len(parser.pendingEvents))
-	}
-	sample := parser.pendingEvents[0].EntitySample
-	if sample == nil || sample.ClassName != "CCitadelPlayerPawn" || sample.HasHealth || sample.HasShield || sample.HasPosition || sample.HasHeroID || sample.HasTeam {
-		t.Fatalf("world mode invented typed fields: %+v", sample)
+	if samples[2].ClassName != "CCitadel_Ability_Dash" {
+		t.Fatalf("ability class evidence: %+v", samples[1])
 	}
 }

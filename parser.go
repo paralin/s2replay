@@ -35,16 +35,16 @@ type Command struct {
 // Packet unpacking, message dispatch, and entity decoding layer on top of this
 // container in later phases.
 type Parser struct {
-	r                reader
-	clock            *Clock
-	pending          []*Message
-	pendingSamples   []EntitySample
-	pendingModifiers []ModifierEvent
-	pendingEvents    []Event
-	chargeLastSeen   map[int32]int32
-	stopped          bool
-	eventOnly        bool
-	worldEntityMode  bool
+	r                 reader
+	clock             *Clock
+	pending           []*Message
+	pendingSamples    []EntitySample
+	pendingModifiers  []ModifierEvent
+	pendingEvents     []Event
+	chargeLastSeen    map[int32]int32
+	stopped           bool
+	eventOnly         bool
+	worldSnapshotMode bool
 
 	classIDBits          uint8
 	classesByID          map[int32]*entityClass
