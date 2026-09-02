@@ -338,6 +338,7 @@ type replaySegmentAccumulator struct {
 	ambiguousRows         int
 	ambiguousParticipants map[int32]struct{}
 	placeholderHeroes     map[int32]uint32
+	heroObservations      map[int32][]uint32
 	err                   error
 }
 
@@ -355,6 +356,41 @@ func newReplaySegmentAccumulator(request ReplaySegmentRequest) *replaySegmentAcc
 
 func (a *replaySegmentAccumulator) markAmbiguousParticipant(slot int32) {
 	a.ambiguousParticipants[slot] = struct{}{}
+}
+
+// observeHero records the ordered hero observations per slot, outside the
+// serialized contract, so a proven placeholder transition can be distinguished
+// from any other hero conflict.
+func (a *replaySegmentAccumulator) observeHero(slot int32, hero uint32) {
+	if a.heroObservations == nil {
+		a.heroObservations = make(map[int32][]uint32)
+	}
+	a.heroObservations[slot] = append(a.heroObservations[slot], hero)
+}
+
+// provenPlaceholderTransition reports whether the slot's hero observation
+// history is exactly zero or more placeholder zeros followed only by the
+// nonzero selected hero. Any other shape, including a repeated zero after
+// selection, a second distinct hero, or a nonzero first observation, is a real
+// conflict.
+func (a *replaySegmentAccumulator) provenPlaceholderTransition(slot int32, hero uint32) bool {
+	if hero == 0 {
+		return false
+	}
+	observations := a.heroObservations[slot]
+	i := 0
+	for i < len(observations) && observations[i] == 0 {
+		i++
+	}
+	if i == 0 || i == len(observations) {
+		return false
+	}
+	for ; i < len(observations); i++ {
+		if observations[i] != hero {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
@@ -384,16 +420,22 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 	if event.EntitySample.HasHeroID {
 		if participant.HasHeroID && participant.HeroID != event.EntitySample.HeroID {
 			a.markAmbiguousParticipant(event.PlayerSlot)
-			if participant.HeroID == 0 && event.EntitySample.HeroID != 0 {
-				// Proven pre-selection placeholder: the entity field carried
-				// the protocol zero before exactly one nonzero hero. Recorded
-				// outside the serialized contract for the Teamfight
-				// projection; the serialized evidence keeps the conflict.
-				if a.placeholderHeroes == nil {
-					a.placeholderHeroes = make(map[int32]uint32)
-				}
-				a.placeholderHeroes[event.PlayerSlot] = event.EntitySample.HeroID
+		}
+		hero := event.EntitySample.HeroID
+		a.observeHero(event.PlayerSlot, hero)
+		if a.provenPlaceholderTransition(event.PlayerSlot, hero) {
+			// Proven pre-selection placeholder: hero_id=0 was the slot's only
+			// earlier hero value and the selected hero is the only nonzero
+			// value observed. Recorded outside the serialized contract for the
+			// Teamfight projection; the serialized evidence keeps the conflict.
+			if a.placeholderHeroes == nil {
+				a.placeholderHeroes = make(map[int32]uint32)
 			}
+			a.placeholderHeroes[event.PlayerSlot] = hero
+		} else if _, ok := a.placeholderHeroes[event.PlayerSlot]; ok {
+			// A later hero observation broke the proven placeholder shape, so
+			// the earlier substitution is no longer justified.
+			delete(a.placeholderHeroes, event.PlayerSlot)
 		}
 		participant.HeroID, participant.HasHeroID = event.EntitySample.HeroID, true
 	}

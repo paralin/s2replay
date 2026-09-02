@@ -179,6 +179,62 @@ func TestTeamfightEvidenceNormalizesUnselectedHeroPlaceholder(t *testing.T) {
 	}
 }
 
+func TestTeamfightEvidencePlaceholderOnlyAfterFirstZero(t *testing.T) {
+	// Normalization applies only when hero_id=0 was the slot's first observed
+	// hero value followed by exactly one nonzero selected hero. A->0->A and
+	// any nonzero-vs-nonzero conflict stay ambiguous with no substitution.
+	slots := []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	t.Run("zero placeholder with repeated selected hero resolves", func(t *testing.T) {
+		// 0 -> A -> A is still the proven placeholder transition; a repeated
+		// identical hero is not a conflict.
+		events := teamfightEvents([]uint32{100, 105, 110}, slots)
+		events[0].EntitySample.HeroID = 0
+		out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.IdentityStatus != TeamfightIdentityResolved || out.IdentityReason != "" {
+			t.Fatalf("0->A->A must resolve: %+v", out)
+		}
+		if !slices.Equal(out.HeroPlaceholderSubstitutions, []int32{1}) {
+			t.Fatalf("0->A->A must record the substitution: %+v", out.HeroPlaceholderSubstitutions)
+		}
+	})
+	t.Run("nonzero then zero then same nonzero stays ambiguous", func(t *testing.T) {
+		// A -> 0 -> A is a real identity conflict: the zero is not a
+		// pre-selection placeholder when a nonzero hero was observed first.
+		events := teamfightEvents([]uint32{100, 105, 110}, slots)
+		events[len(slots)].EntitySample.HeroID = 0
+		out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.IdentityStatus != TeamfightIdentityAmbiguous || out.IdentityReason == "" {
+			t.Fatalf("A->0->A must stay ambiguous: %+v", out)
+		}
+		if !slices.Equal(out.HeroPlaceholderSubstitutions, []int32{}) {
+			t.Fatalf("A->0->A must not record a substitution: %+v", out.HeroPlaceholderSubstitutions)
+		}
+		if !slices.Equal(out.Evidence.Quality.AmbiguousParticipants, []int32{1}) {
+			t.Fatalf("A->0->A wrapped ambiguity must stay visible: %+v", out.Evidence.Quality.AmbiguousParticipants)
+		}
+	})
+	t.Run("two distinct nonzero heroes stay ambiguous", func(t *testing.T) {
+		events := teamfightEvents([]uint32{100, 105, 110}, slots)
+		events[len(slots)].EntitySample.HeroID = 999
+		out, err := TeamfightEvidenceFromSegment(mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.IdentityStatus != TeamfightIdentityAmbiguous || out.IdentityReason == "" {
+			t.Fatalf("nonzero conflict must stay ambiguous: %+v", out)
+		}
+		if !slices.Equal(out.HeroPlaceholderSubstitutions, []int32{}) {
+			t.Fatalf("nonzero conflict must not record a substitution: %+v", out.HeroPlaceholderSubstitutions)
+		}
+	})
+}
+
 func TestTeamfightEvidenceKeepsRealHeroConflictAmbiguous(t *testing.T) {
 	// A zero placeholder followed by two different nonzero heroes is a real
 	// identity conflict; the placeholder normalization must not absorb it.
@@ -252,6 +308,32 @@ func TestExtractTeamfightEvidenceRequiresFileHeader(t *testing.T) {
 	_, err := ExtractTeamfightEvidenceWithBuild(demo, ReplaySegmentRequest{}, "fixture", true)
 	if err != ErrMissingReplayHeader {
 		t.Fatalf("missing header error: want %v, got %v", ErrMissingReplayHeader, err)
+	}
+}
+
+func TestTeamfightEvidenceFromSegmentDoesNotMutateCallerPlaceholderHeroes(t *testing.T) {
+	// The caller owns the segment value, including the unexported placeholder
+	// map; the projection must not mutate it through the value copy.
+	slots := []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	events := teamfightEvents([]uint32{100, 110}, slots)
+	events[0].EntitySample.HeroID = 0
+	segment := mustBuildReplaySegmentEvidence(events, ReplaySourceIdentity{}, ReplaySegmentRequest{StartTick: 100, EndTick: 110})
+	if len(segment.placeholderHeroes) != 1 || segment.placeholderHeroes[1] != 101 {
+		t.Fatalf("fixture must carry one placeholder transition: %+v", segment.placeholderHeroes)
+	}
+	ambiguous := make([]int32, len(segment.Quality.AmbiguousParticipants))
+	copy(ambiguous, segment.Quality.AmbiguousParticipants)
+	if _, err := TeamfightEvidenceFromSegment(segment); err != nil {
+		t.Fatal(err)
+	}
+	if len(segment.placeholderHeroes) != 1 || segment.placeholderHeroes[1] != 101 {
+		t.Fatalf("caller placeholderHeroes map must stay unchanged: %+v", segment.placeholderHeroes)
+	}
+	if !slices.Equal(segment.Quality.AmbiguousParticipants, ambiguous) {
+		t.Fatalf("caller ambiguous participants must stay unchanged: %+v", segment.Quality.AmbiguousParticipants)
+	}
+	if segment.Participants[0].HeroID != 101 || !segment.Participants[0].HasHeroID {
+		t.Fatalf("caller participant hero must stay the last observed hero: %+v", segment.Participants[0])
 	}
 }
 
