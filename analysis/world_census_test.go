@@ -377,13 +377,27 @@ func TestOptInPinnedWorldCensusLookahead(t *testing.T) {
 		t.Fatalf("forward command after snapshots: command=%+v err=%v", command, err)
 	}
 	interleaved := read()
-	if _, err := interleaved.NextEvent(); err != nil {
+	before, err := interleaved.NextEvent()
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ExtractWorldCensus(interleaved, 1); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := interleaved.NextEvent(); err != nil {
+	after, err := interleaved.NextEvent()
+	if err != nil {
 		t.Fatalf("event after interleaved snapshot: %v", err)
+	}
+	freshInterleaved := read()
+	freshBefore, err := freshInterleaved.NextEvent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshAfter, err := freshInterleaved.NextEvent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.PlayerSlot != freshBefore.PlayerSlot || after.PlayerSlot != freshAfter.PlayerSlot {
+		t.Fatalf("interleaved attribution drift: before=%d/%d after=%d/%d", before.PlayerSlot, freshBefore.PlayerSlot, after.PlayerSlot, freshAfter.PlayerSlot)
 	}
 }
