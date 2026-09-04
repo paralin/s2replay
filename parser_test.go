@@ -108,3 +108,57 @@ func TestServerWorldTracksDecodedServerInfo(t *testing.T) {
 		t.Fatalf("must not retain a previous world's identity: %q %q", game, mapName)
 	}
 }
+
+func TestRecoveryWorldIdentityAndUnload(t *testing.T) {
+	p, err := NewParser(buildDemo(t, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.applyServerInfo(&protocol.CSVCMsg_ServerInfo{MapName: proto("start")})
+	two, three := uint32(2), uint32(3)
+	load := &protocol.CNETMsg_SpawnGroup_Load{Worldname: proto("dl_midtown"), Spawngrouphandle: &two}
+	payload, err := load.MarshalVT()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Packet framing: a six-bit short UBitVar message ID and byte varint size,
+	// followed by the protobuf at the current bit offset.
+	var bits []bool
+	put := func(value uint64, count int) {
+		for i := 0; i < count; i++ {
+			bits = append(bits, value&(1<<i) != 0)
+		}
+	}
+	put(uint64(protocol.NET_Messages_net_SpawnGroup_Load), 6)
+	for _, b := range binary.AppendUvarint(nil, uint64(len(payload))) {
+		put(uint64(b), 8)
+	}
+	for _, b := range payload {
+		put(uint64(b), 8)
+	}
+	packet := make([]byte, (len(bits)+7)/8)
+	for i, b := range bits {
+		if b {
+			packet[i/8] |= 1 << (i % 8)
+		}
+	}
+	recovery := &protocol.CDemoRecovery{SpawnGroupMessage: packet}
+	data, err := recovery.MarshalVT()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.queueCommandMessages(&Command{Kind: protocol.EDemoCommands_DEM_Recovery, Tick: PreGameTick, Payload: data}); err != nil {
+		t.Fatal(err)
+	}
+	if _, world := p.ServerWorld(); world != "dl_midtown" {
+		t.Fatalf("loaded world = %q", world)
+	}
+	p.applyDecodedMessage(1, &protocol.CNETMsg_SpawnGroup_Load{Worldname: proto("another"), Spawngrouphandle: &three})
+	if _, world := p.ServerWorld(); world != "" {
+		t.Fatalf("ambiguous world = %q", world)
+	}
+	p.applyDecodedMessage(2, &protocol.CNETMsg_SpawnGroup_Unload{Spawngrouphandle: &three})
+	if _, world := p.ServerWorld(); world != "dl_midtown" {
+		t.Fatalf("remaining world = %q", world)
+	}
+}

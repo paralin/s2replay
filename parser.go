@@ -39,6 +39,7 @@ type Parser struct {
 	clock             *Clock
 	serverMap         string
 	serverGame        string
+	rootWorlds        map[uint32]string
 	lookahead         *Command
 	pending           []*Message
 	pendingSamples    []EntitySample
@@ -155,8 +156,19 @@ func (p *Parser) Next() (*Command, error) {
 	return &Command{Kind: protocol.EDemoCommands(kind), Tick: t, Payload: payload}, nil
 }
 
-// ServerWorld identifies the world advertised by the last decoded server-info
-// message. Empty values mean the server has not supplied that field.
+// ServerWorld identifies the active root world at the current parser tick.
+// A loaded root world supersedes the server's bootstrap map. Multiple distinct
+// non-bootstrap roots are ambiguous and return an empty map name.
 func (p *Parser) ServerWorld() (game, mapName string) {
-	return p.serverGame, p.serverMap
+	mapName = p.serverMap
+	for _, world := range p.rootWorlds {
+		if world == p.serverMap {
+			continue
+		}
+		if mapName != p.serverMap && mapName != world {
+			return p.serverGame, ""
+		}
+		mapName = world
+	}
+	return p.serverGame, mapName
 }

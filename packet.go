@@ -47,6 +47,14 @@ func (p *Parser) queueCommandMessages(cmd *Command) error {
 	}
 
 	switch msg := decoded.msg.(type) {
+	case *protocol.CDemoRecovery:
+		return p.queuePacketMessages(cmd.Tick, msg.GetSpawnGroupMessage())
+	case *protocol.CDemoSpawnGroups:
+		for _, data := range msg.GetMsgs() {
+			if err := p.queuePacketMessages(cmd.Tick, data); err != nil {
+				return err
+			}
+		}
 	case *protocol.CDemoPacket:
 		return p.queuePacketMessages(cmd.Tick, msg.GetData())
 	case *protocol.CDemoFullPacket:
@@ -132,6 +140,15 @@ func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 
 func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 	switch m := msg.(type) {
+	case *protocol.CNETMsg_SpawnGroup_Load:
+		if m.GetWorldname() != "" && m.GetSpawngroupownerhandle() == 0 {
+			if p.rootWorlds == nil {
+				p.rootWorlds = make(map[uint32]string)
+			}
+			p.rootWorlds[m.GetSpawngrouphandle()] = m.GetWorldname()
+		}
+	case *protocol.CNETMsg_SpawnGroup_Unload:
+		delete(p.rootWorlds, m.GetSpawngrouphandle())
 	case *protocol.CSVCMsg_ServerInfo:
 		p.applyServerInfo(m)
 	case *protocol.CDemoSendTables:
