@@ -341,6 +341,10 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	if err := consumeReplayEvents(modifierParser, func(event s2replay.Event) {
 		if event.Tick <= request.Tick {
 			events = append(events, event)
+		} else if event.Tick != s2replay.PreGameTick {
+			// Later commands cannot contribute state at the selected moment.
+			// Stop consumes queued events before ending the parser stream.
+			modifierParser.Stop()
 		}
 	}); err != nil {
 		return RunbackFacts{}, err
