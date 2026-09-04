@@ -377,10 +377,14 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	} else {
 		provenance.ServerStartTick = RunbackInt{MissingReason: RunbackMissingHeaderField}
 	}
+	// The file header can name the bootstrap map "start". The snapshot
+	// parser owns the server world at the requested tick. Do not invent a
+	// world identity when that message is absent.
+	game, mapName := snapshotParser.ServerWorld()
 	return buildRunbackFacts(samples, timelines, ReplaySourceIdentity{
 		SHA256:         sha256Hex(demo),
-		Game:           header.GetGame(),
-		Map:            header.GetMapName(),
+		Game:           game,
+		Map:            mapName,
 		GameBuild:      header.GetBuildNum(),
 		Parser:         "s2replay",
 		ParserRevision: s2replay.ParserSourceDigest,

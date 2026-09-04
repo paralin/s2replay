@@ -90,3 +90,21 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 }
 
 func proto(s string) *string { return &s }
+
+func TestServerWorldTracksDecodedServerInfo(t *testing.T) {
+	p, err := NewParser(buildDemo(t, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game, mapName := p.ServerWorld(); game != "" || mapName != "" {
+		t.Fatal("unobserved world must stay unknown")
+	}
+	p.applyServerInfo(&protocol.CSVCMsg_ServerInfo{GameDir: proto("citadel"), MapName: proto("dl_midtown")})
+	if game, mapName := p.ServerWorld(); game != "citadel" || mapName != "dl_midtown" {
+		t.Fatalf("server world: %q %q", game, mapName)
+	}
+	p.applyServerInfo(&protocol.CSVCMsg_ServerInfo{MapName: proto("training")})
+	if game, mapName := p.ServerWorld(); game != "" || mapName != "training" {
+		t.Fatalf("must not retain a previous world's identity: %q %q", game, mapName)
+	}
+}

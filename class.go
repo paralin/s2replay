@@ -52,6 +52,8 @@ func (c *entityClass) decoder(fp fieldPath) fieldDecoder {
 
 func (p *Parser) applyServerInfo(msg *protocol.CSVCMsg_ServerInfo) {
 	p.clock.SetInterval(float64(msg.GetTickInterval()))
+	p.serverGame = msg.GetGameDir()
+	p.serverMap = msg.GetMapName()
 	if maxClasses := msg.GetMaxClasses(); maxClasses > 0 {
 		p.classIDBits = bitsForClassLimit(maxClasses)
 	}

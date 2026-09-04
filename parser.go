@@ -37,6 +37,8 @@ type Command struct {
 type Parser struct {
 	r                 reader
 	clock             *Clock
+	serverMap         string
+	serverGame        string
 	lookahead         *Command
 	pending           []*Message
 	pendingSamples    []EntitySample
@@ -151,4 +153,10 @@ func (p *Parser) Next() (*Command, error) {
 		p.clock.setTick(t)
 	}
 	return &Command{Kind: protocol.EDemoCommands(kind), Tick: t, Payload: payload}, nil
+}
+
+// ServerWorld identifies the world advertised by the last decoded server-info
+// message. Empty values mean the server has not supplied that field.
+func (p *Parser) ServerWorld() (game, mapName string) {
+	return p.serverGame, p.serverMap
 }
