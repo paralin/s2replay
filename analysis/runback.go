@@ -200,11 +200,15 @@ type RunbackAlive struct {
 
 // RunbackItem is one owned item entity at the tick.
 type RunbackItem struct {
-	SubclassID   RunbackUint `json:"subclass_id"`
-	EntityID     int32       `json:"entity_id"`
-	EntitySerial int32       `json:"entity_serial"`
-	ClassName    string      `json:"class_name"`
-	SourceTick   uint32      `json:"source_tick"`
+	SubclassID   RunbackUint  `json:"subclass_id"`
+	Slot         RunbackUint  `json:"slot"`
+	UpgradeInfo  RunbackUint  `json:"upgrade_info"`
+	EntityID     int32        `json:"entity_id"`
+	EntitySerial int32        `json:"entity_serial"`
+	ClassName    string       `json:"class_name"`
+	SourceTick   uint32       `json:"source_tick"`
+	Charges      RunbackInt   `json:"charges"`
+	CooldownEnd  RunbackFloat `json:"cooldown_end"`
 }
 
 // RunbackTransient is one active item-class entity at the tick whose owner
@@ -230,6 +234,8 @@ type RunbackTransient struct {
 // RunbackAbility is one owned ability entity with charge and cooldown state.
 type RunbackAbility struct {
 	SubclassID   RunbackUint `json:"subclass_id"`
+	Slot         RunbackUint `json:"slot"`
+	UpgradeInfo  RunbackUint `json:"upgrade_info"`
 	EntityID     int32       `json:"entity_id"`
 	EntitySerial int32       `json:"entity_serial"`
 	ClassName    string      `json:"class_name"`
@@ -631,8 +637,12 @@ func runbackItems(samples []s2replay.EntitySample, pawnEntity int32, tick uint32
 			continue
 		}
 		items = append(items, RunbackItem{
-			EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick,
-			SubclassID: runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
+			Charges:     runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
+			CooldownEnd: runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
+			EntityID:    sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick,
+			SubclassID:  runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
+			Slot:        runbackUint(sample.AbilitySlot, sample.AbilitySlotTick, sample.HasAbilitySlot, tick, "m_eAbilitySlot_not_present"),
+			UpgradeInfo: runbackUint(sample.UpgradeInfo, sample.UpgradeInfoTick, sample.HasUpgradeInfo, tick, "m_nUpgradeInfo_not_present"),
 		})
 	}
 	slices.SortFunc(items, func(a, b RunbackItem) int { return int(a.EntityID - b.EntityID) })
@@ -647,8 +657,10 @@ func runbackAbilities(samples []s2replay.EntitySample, pawnEntity int32, tick ui
 			continue
 		}
 		abilities = append(abilities, RunbackAbility{
-			SubclassID: runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
-			EntityID:   sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
+			SubclassID:  runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
+			Slot:        runbackUint(sample.AbilitySlot, sample.AbilitySlotTick, sample.HasAbilitySlot, tick, "m_eAbilitySlot_not_present"),
+			UpgradeInfo: runbackUint(sample.UpgradeInfo, sample.UpgradeInfoTick, sample.HasUpgradeInfo, tick, "m_nUpgradeInfo_not_present"),
+			EntityID:    sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
 			Charges:     runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
 			CooldownEnd: runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
 		})

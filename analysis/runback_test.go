@@ -609,6 +609,10 @@ func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
 	item := runbackSample(100, 300, 21, "CCitadel_Item_Empty", -1)
 	item.HasOwnerEntity, item.OwnerEntity = true, 92
 	item.HasSubclassID, item.SubclassID, item.SubclassIDTick = true, 0xf1234567, 80
+	item.HasAbilitySlot, item.AbilitySlot, item.AbilitySlotTick = true, 12, 81
+	item.HasUpgradeInfo, item.UpgradeInfo, item.UpgradeInfoTick = true, 0, 82
+	item.HasRemainingCharges, item.RemainingCharges, item.RemainingChargesTick = true, 2, 90
+	item.HasCooldownEnd, item.CooldownEnd, item.CooldownEndTick = true, 14.5, 91
 	ability := runbackSample(100, 301, 22, "CCitadel_Ability_PrimaryWeapon_Empty", -1)
 	ability.HasOwnerEntity, ability.OwnerEntity = true, 92
 	got, err := buildRunbackFacts([]s2replay.EntitySample{runbackPawn(100, 92, 1), item, ability}, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
@@ -622,6 +626,16 @@ func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
 	id := hero.Items[0].SubclassID
 	if !id.Present || id.Value != 0xf1234567 || id.SourceTick != 80 || id.FreshnessTicks != 20 {
 		t.Fatalf("item identity lost: %+v", id)
+	}
+	itemState := hero.Items[0]
+	if !itemState.Slot.Present || itemState.Slot.Value != 12 || itemState.Slot.SourceTick != 81 || itemState.Slot.FreshnessTicks != 19 || !itemState.UpgradeInfo.Present || itemState.UpgradeInfo.Value != 0 || itemState.UpgradeInfo.SourceTick != 82 {
+		t.Fatalf("item slot or observed zero upgrades lost: %+v", itemState)
+	}
+	if !itemState.Charges.Present || itemState.Charges.Value != 2 || itemState.Charges.SourceTick != 90 || !itemState.CooldownEnd.Present || itemState.CooldownEnd.Value != 14.5 || itemState.CooldownEnd.SourceTick != 91 {
+		t.Fatalf("active item state lost: %+v", itemState)
+	}
+	if hero.Abilities[0].Slot.Present || hero.Abilities[0].Slot.MissingReason != "m_eAbilitySlot_not_present" || hero.Abilities[0].UpgradeInfo.Present || hero.Abilities[0].UpgradeInfo.MissingReason != "m_nUpgradeInfo_not_present" {
+		t.Fatalf("missing ability state fabricated: %+v", hero.Abilities[0])
 	}
 	missing := hero.Abilities[0].SubclassID
 	if missing.Present || missing.MissingReason != "m_nSubclassID_not_present" {

@@ -201,3 +201,27 @@ func TestWorldEntitySnapshotPreservesUnsignedSubclassIdentity(t *testing.T) {
 		t.Fatalf("subclass identity lost: %+v", samples)
 	}
 }
+
+func TestWorldEntitySnapshotPreservesEquipmentSlotAndUpgradeInfo(t *testing.T) {
+	class := &entityClass{name: "CCitadel_Item_Empty", serializer: &serializer{fields: []*field{{varName: "m_eAbilitySlot"}, {varName: "m_nUpgradeInfo"}}}}
+	entity := newEntity(7, 3, class)
+	for i, value := range []uint32{12, 0xf1234567} {
+		path := fieldPath{last: 0}
+		path.path[0] = i
+		entity.state.set(path, value)
+		entity.fieldTicks[path] = 9
+	}
+	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
+	parser.clock.setTick(10)
+	samples, err := parser.WorldEntitySnapshot(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples) != 1 {
+		t.Fatalf("samples: %+v", samples)
+	}
+	sample := samples[0]
+	if !sample.HasAbilitySlot || sample.AbilitySlot != 12 || sample.AbilitySlotTick != 9 || !sample.HasUpgradeInfo || sample.UpgradeInfo != 0xf1234567 || sample.UpgradeInfoTick != 9 {
+		t.Fatalf("equipment state lost: %+v", sample)
+	}
+}

@@ -102,6 +102,14 @@ type EntitySample struct {
 	SubclassIDTick uint32 `json:"subclass_id_tick,omitempty"`
 	HasSubclassID  bool   `json:"has_subclass_id,omitempty"`
 
+	// AbilitySlot and UpgradeInfo retain equipment placement and the packed engine upgrade state.
+	AbilitySlot     uint32 `json:"ability_slot,omitempty"`
+	AbilitySlotTick uint32 `json:"ability_slot_tick,omitempty"`
+	HasAbilitySlot  bool   `json:"has_ability_slot,omitempty"`
+	UpgradeInfo     uint32 `json:"upgrade_info,omitempty"`
+	UpgradeInfoTick uint32 `json:"upgrade_info_tick,omitempty"`
+	HasUpgradeInfo  bool   `json:"has_upgrade_info,omitempty"`
+
 	// OwnerEntity is the resolved entity index of m_hOwnerEntity.
 	OwnerEntity     int32  `json:"owner_entity,omitempty"`
 	OwnerEntityTick uint32 `json:"owner_entity_tick,omitempty"`
@@ -389,6 +397,8 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.HasPosition = true
 	}
 	s.SubclassID, s.SubclassIDTick, s.HasSubclassID = firstUInt32AtAny(e, "m_nSubclassID")
+	s.AbilitySlot, s.AbilitySlotTick, s.HasAbilitySlot = firstUInt32AtAny(e, "m_eAbilitySlot")
+	s.UpgradeInfo, s.UpgradeInfoTick, s.HasUpgradeInfo = firstUInt32AtAny(e, "m_nUpgradeInfo")
 	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, "m_nLevel", "m_PlayerDataGlobal.m_iLevel")
 	if handle, handleTick, ok := firstInt32AtAny(e, "m_hOwnerEntity"); ok && handle >= 0 {
 		s.OwnerEntity = int32(uint32(handle) & uint32(entityHandleMask))
