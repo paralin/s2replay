@@ -94,6 +94,13 @@ include damage victims when an earlier entity sample established the victim
 entity's slot. The default `emit --format jsonl` event stream is unchanged by
 analysis output.
 
+Entity samples retain both the index and serial from owner and controller pawn
+handles (`owner_entity_serial` and `pawn_entity_serial`). Runback equipment and
+controller attribution require both to match the current pawn. Regenerate saved
+entity samples from the replay if they predate these fields; an index alone
+cannot establish ownership after an entity is replaced. Runback facts keep
+their existing schema and record the parser revision used for extraction.
+
 ## Protocol generation
 
 The Deadlock protocol Go package under `protocol/` is generated, never
@@ -120,10 +127,3 @@ make test
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-Entity samples retain both the index and serial from owner and controller pawn
-handles (`owner_entity_serial` and `pawn_entity_serial`). Runback equipment and
-controller attribution require both to match the current pawn. Regenerate saved
-entity samples from the replay if they predate these fields; an index alone
-cannot establish ownership after an entity is replaced. Runback facts keep
-their existing schema and record the parser revision used for extraction.
