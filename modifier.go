@@ -37,7 +37,8 @@ type ModifierEvent struct {
 }
 
 type modifierState struct {
-	entry ModifierEvent
+	entry     ModifierEvent
+	hasSerial bool
 }
 
 func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) error {
@@ -60,18 +61,36 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 		ev.Transition = ModifierRemove
 		ev.MatchedPrior = true
 		ev = mergeModifierRemove(ev, prev.entry)
+		if entry.SerialNumber != nil {
+			ev.SerialNumber = *entry.SerialNumber
+		}
 		delete(p.modifiers, item.index)
 		p.pendingModifiers = append(p.pendingModifiers, ev)
 		p.appendModifierEvent(ev)
 		return nil
 	}
+	// A present serial change authoritatively replaces the table occupant.
+	// Missing serials are partial updates, not a replacement with serial zero.
+	hasSerial := entry.SerialNumber != nil
+	if hadPrev && hasSerial && prev.hasSerial && ev.SerialNumber != prev.entry.SerialNumber {
+		removed := prev.entry
+		removed.Tick, removed.GameTime = ev.Tick, ev.GameTime
+		removed.Transition, removed.MatchedPrior = ModifierRemove, true
+		p.pendingModifiers = append(p.pendingModifiers, removed)
+		p.appendModifierEvent(removed)
+		hadPrev = false
+	}
 	if hadPrev {
+		if !hasSerial {
+			ev.SerialNumber = prev.entry.SerialNumber
+			hasSerial = prev.hasSerial
+		}
 		ev.Transition = ModifierRefresh
 		ev.MatchedPrior = true
 	} else {
 		ev.Transition = ModifierAdd
 	}
-	p.modifiers[item.index] = modifierState{entry: ev}
+	p.modifiers[item.index] = modifierState{entry: ev, hasSerial: hasSerial}
 	p.pendingModifiers = append(p.pendingModifiers, ev)
 	p.appendModifierEvent(ev)
 	return nil
