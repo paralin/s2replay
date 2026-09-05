@@ -28,6 +28,15 @@ type Entity struct {
 
 // EntitySample is the typed Phase 4 projection used by downstream event code.
 type EntitySample struct {
+	// CameraAngles is the client camera orientation, distinct from aim-facing angles.
+	CameraAngles [3]float32 `json:"camera_angles"`
+	// CameraAnglesTicks identifies the last update of each camera component.
+	CameraAnglesTicks [3]uint32 `json:"camera_angles_ticks"`
+	// CameraAnglesSourceFields names the recorded fields for each component.
+	CameraAnglesSourceFields [3]string `json:"camera_angles_source_fields"`
+	// HasCameraAngles distinguishes observed zero components from missing evidence.
+	HasCameraAngles [3]bool `json:"has_camera_angles"`
+
 	Tick                 uint32   `json:"tick"`
 	GameTime             float64  `json:"game_time"`
 	Entity               int32    `json:"entity"`
@@ -374,6 +383,10 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		"m_CCitadelHeroComponent.m_loadingHero.m_nHeroID",
 	)
 	s.Team, s.TeamTick, s.HasTeam = firstInt32AtAny(e, "m_iTeamNum")
+	s.CameraAngles, s.CameraAnglesTicks, s.CameraAnglesSourceFields, s.HasCameraAngles = e.vector3(
+		[]string{"m_angClientCamera"},
+		[]string{"m_angClientCamera.m_x", "m_angClientCamera.m_y", "m_angClientCamera.m_z"},
+	)
 	if facing, ticks, fields, present := e.vector3([]string{"m_angEyeAngles"}, []string{
 		"m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z",
 	}); present[0] || present[1] || present[2] {
@@ -492,7 +505,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	); ok && slot >= 0 {
 		s.PlayerSlot = slot
 	}
-	return s, s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
+	return s, s.HasCameraAngles[0] || s.HasCameraAngles[1] || s.HasCameraAngles[2] || s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
 }
 
 func (e *Entity) fieldValue(name string) (any, uint32, bool) {
@@ -1102,6 +1115,9 @@ func validateWorldEntitySample(sample EntitySample) error {
 		{"position_x", float64(sample.PositionX)},
 		{"position_y", float64(sample.PositionY)},
 		{"position_z", float64(sample.PositionZ)},
+		{"camera_pitch", float64(sample.CameraAngles[0])},
+		{"camera_yaw", float64(sample.CameraAngles[1])},
+		{"camera_roll", float64(sample.CameraAngles[2])},
 		{"facing_x", float64(sample.FacingX)},
 		{"facing_y", float64(sample.FacingY)},
 		{"facing_z", float64(sample.FacingZ)},

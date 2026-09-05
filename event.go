@@ -305,6 +305,14 @@ func sanitizeDamageEvent(ev *DamageEvent) {
 }
 
 func sanitizeEntitySample(sample *EntitySample) {
+	for axis, name := range []string{"camera_pitch", "camera_yaw", "camera_roll"} {
+		if !isFiniteFloat32(sample.CameraAngles[axis]) {
+			markInvalidField(&sample.InvalidFields, name)
+			sample.CameraAngles[axis] = 0
+			sample.HasCameraAngles[axis] = false
+		}
+	}
+
 	if !isFiniteFloat64(sample.GameTime) {
 		markInvalidField(&sample.InvalidFields, "game_time")
 		sample.GameTime = 0

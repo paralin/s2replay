@@ -150,6 +150,8 @@ type RunbackFactsQuality struct {
 
 // RunbackHero is one replay hero slot observed at the tick.
 type RunbackHero struct {
+	// CameraAngles preserves client view orientation independently of aim facing.
+	CameraAngles [3]RunbackFloat `json:"camera_angles"`
 	// StaminaLatchTime is the recorded resource anchor in server seconds.
 	StaminaLatchTime RunbackFloat `json:"stamina_latch_time"`
 	// StaminaLatchValue is stamina at the anchor; current stamina requires regeneration state.
@@ -507,6 +509,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			continue
 		}
 		hero := RunbackHero{
+			CameraAngles:      runbackVector3(sample.CameraAngles[0], sample.CameraAngles[1], sample.CameraAngles[2], sample.CameraAnglesTicks[0], sample.CameraAnglesTicks[1], sample.CameraAnglesTicks[2], sample.HasCameraAngles[0], sample.HasCameraAngles[1], sample.HasCameraAngles[2], tick, "m_angClientCamera_not_present"),
 			StaminaLatchTime:  runbackFloat(sample.StaminaLatchTime, sample.StaminaLatchTimeTick, sample.HasStaminaLatchTime, request.Tick, RunbackMissingNotInSample),
 			StaminaLatchValue: runbackFloat(sample.StaminaLatchValue, sample.StaminaLatchValueTick, sample.HasStaminaLatchValue, request.Tick, RunbackMissingNotInSample),
 
