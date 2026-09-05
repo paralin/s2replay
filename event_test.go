@@ -19,9 +19,11 @@ func TestSanitizeEventRemovesNonFiniteFloats(t *testing.T) {
 			DamageDirectionZ: float32(math.Inf(1)),
 		},
 		Modifier: &ModifierEvent{
-			GameTime:        math.NaN(),
-			LastAppliedTime: float32(math.Inf(1)),
-			Duration:        float32(math.NaN()),
+			HasLastAppliedTime: true,
+			HasDuration:        true,
+			GameTime:           math.NaN(),
+			LastAppliedTime:    float32(math.Inf(1)),
+			Duration:           float32(math.NaN()),
 		},
 		Purchase: &PurchaseEvent{GameTime: math.Inf(-1)},
 		EntitySample: &EntitySample{
@@ -47,7 +49,7 @@ func TestSanitizeEventRemovesNonFiniteFloats(t *testing.T) {
 	if ev.Damage.PreDamage != 0 || ev.Damage.DamageAbsorbed != 0 || ev.Damage.Effectiveness != 0 || ev.Damage.CritDamage != 0 {
 		t.Fatalf("non-finite damage floats were not sanitized: %+v", ev.Damage)
 	}
-	if ev.Modifier.LastAppliedTime != 0 || ev.Modifier.Duration != 0 {
+	if ev.Modifier.LastAppliedTime != 0 || ev.Modifier.Duration != 0 || ev.Modifier.HasLastAppliedTime || ev.Modifier.HasDuration {
 		t.Fatalf("non-finite modifier floats were not sanitized: %+v", ev.Modifier)
 	}
 	if ev.EntitySample.HasHealth || ev.EntitySample.HasShield || ev.EntitySample.HasPosition {

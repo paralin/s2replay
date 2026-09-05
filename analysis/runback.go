@@ -267,11 +267,27 @@ type RunbackAbility struct {
 
 // RunbackModifier is one modifier active at the tick.
 type RunbackModifier struct {
-	Subclass   uint32 `json:"subclass"`
-	Ability    uint32 `json:"ability"`
-	StackCount int32  `json:"stack_count"`
-	StartTick  uint32 `json:"start_tick"`
-	SourceTick uint32 `json:"source_tick"`
+	// TableIndex and serial identify the parser instance; absent serial evidence
+	// must not be treated as a restorable instance in older facts.
+	TableIndex      int32  `json:"table_index"`
+	SerialNumber    uint32 `json:"serial_number"`
+	HasSerialNumber bool   `json:"has_serial_number"`
+	Parent          uint32 `json:"parent"`
+	Caster          uint32 `json:"caster"`
+	AbilitySubclass uint32 `json:"ability_subclass"`
+	// Duration and LastAppliedTime use the replay server's seconds. Their
+	// presence flags distinguish unknown timing from observed indefinite (-1).
+	Duration           float32 `json:"duration"`
+	HasDuration        bool    `json:"has_duration"`
+	LastAppliedTime    float32 `json:"last_applied_time"`
+	HasLastAppliedTime bool    `json:"has_last_applied_time"`
+	// LastObservedTick is the last modifier observation, unlike SourceTick (the snapshot tick).
+	LastObservedTick uint32 `json:"last_observed_tick"`
+	Subclass         uint32 `json:"subclass"`
+	Ability          uint32 `json:"ability"`
+	StackCount       int32  `json:"stack_count"`
+	StartTick        uint32 `json:"start_tick"`
+	SourceTick       uint32 `json:"source_tick"`
 }
 
 // RunbackScores carries the observed scoreboard components at the tick.
@@ -545,7 +561,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		}
 		hero.Items = runbackItems(samples, sample, tick)
 		hero.Abilities = runbackAbilities(samples, sample, tick)
-		hero.Modifiers = runbackModifiers(timelines, slot, tick)
+		hero.Modifiers = runbackModifiers(timelines, sample, tick)
 		out.Heroes = append(out.Heroes, hero)
 	}
 	slices.SortFunc(out.Heroes, func(a, b RunbackHero) int { return int(a.PlayerSlot) - int(b.PlayerSlot) })
@@ -718,12 +734,12 @@ func runbackAbilities(samples []s2replay.EntitySample, pawn *s2replay.EntitySamp
 	return abilities
 }
 
-// runbackModifiers collects the modifier intervals open for a slot at the
+// runbackModifiers collects the modifier intervals open for the exact snapshot pawn at the
 // tick.
-func runbackModifiers(timelines Result, slot int32, tick uint32) []RunbackModifier {
+func runbackModifiers(timelines Result, pawn *s2replay.EntitySample, tick uint32) []RunbackModifier {
 	modifiers := []RunbackModifier{}
 	for _, interval := range timelines.Modifiers.Modifiers {
-		if interval.PlayerSlot != slot {
+		if !pawn.MatchesHandle(interval.Parent) {
 			continue
 		}
 		if interval.StartTick > tick {
@@ -733,7 +749,12 @@ func runbackModifiers(timelines Result, slot int32, tick uint32) []RunbackModifi
 			continue
 		}
 		modifiers = append(modifiers, RunbackModifier{
-			Subclass: interval.ModifierSubclass, Ability: interval.Ability,
+			TableIndex: interval.TableIndex, SerialNumber: interval.SerialNumber, HasSerialNumber: interval.HasSerialNumber,
+			Parent: interval.Parent, Caster: interval.Caster, AbilitySubclass: interval.SourceID,
+			Duration: interval.Duration, HasDuration: interval.HasDuration,
+			LastAppliedTime: interval.LastAppliedTime, HasLastAppliedTime: interval.HasLastAppliedTime,
+			LastObservedTick: interval.LastObservedTick,
+			Subclass:         interval.ModifierSubclass, Ability: interval.Ability,
 			StackCount: interval.StackCount, StartTick: interval.StartTick, SourceTick: tick,
 		})
 	}

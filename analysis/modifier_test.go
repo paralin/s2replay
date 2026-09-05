@@ -21,7 +21,7 @@ func TestModifierReplacementStartsNewInterval(t *testing.T) {
 	if intervals[0].StartTick != 1 || intervals[0].EndTick != 3 || intervals[0].Open || intervals[1].StartTick != 3 || intervals[1].EndTick != 5 || intervals[1].Open || intervals[1].Refreshes != 1 {
 		t.Fatalf("replacement lifetimes: %+v", intervals)
 	}
-	active := runbackModifiers(Build(events[:4]), 2, 4)
+	active := runbackModifiers(Build(events[:4]), &s2replay.EntitySample{Entity: 99, EntitySerial: 0}, 4)
 	if len(active) != 1 || active[0].StartTick != 3 || active[0].StackCount != 2 {
 		t.Fatalf("active replacement: %+v", active)
 	}

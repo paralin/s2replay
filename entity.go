@@ -621,6 +621,13 @@ func validEntityHandle(handle uint32) bool {
 	return handle != invalidEntityHandle && handle != ^uint32(0)
 }
 
+// MatchesHandle reports whether a valid full handle names this exact snapshot
+// entity incarnation, including its serial rather than only its index.
+func (s EntitySample) MatchesHandle(handle uint32) bool {
+	return validEntityHandle(handle) && s.Entity >= 0 && s.EntitySerial >= 0 &&
+		int32(handle&uint32(entityHandleMask)) == s.Entity && int32(handle>>14) == s.EntitySerial
+}
+
 // FindEntityByHandle returns the current entity for a Source 2 entity handle.
 func (p *Parser) FindEntityByHandle(handle uint64) *Entity {
 	if handle > uint64(^uint32(0)) || !validEntityHandle(uint32(handle)) {

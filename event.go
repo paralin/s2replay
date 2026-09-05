@@ -279,6 +279,12 @@ func sanitizeEvent(ev *Event) {
 	}
 	if ev.Modifier != nil {
 		ev.Modifier.GameTime = finiteFloat64(ev.Modifier.GameTime)
+		if math.IsNaN(float64(ev.Modifier.LastAppliedTime)) || math.IsInf(float64(ev.Modifier.LastAppliedTime), 0) {
+			ev.Modifier.HasLastAppliedTime = false
+		}
+		if math.IsNaN(float64(ev.Modifier.Duration)) || math.IsInf(float64(ev.Modifier.Duration), 0) {
+			ev.Modifier.HasDuration = false
+		}
 		ev.Modifier.LastAppliedTime = finiteFloat32(ev.Modifier.LastAppliedTime)
 		ev.Modifier.Duration = finiteFloat32(ev.Modifier.Duration)
 	}

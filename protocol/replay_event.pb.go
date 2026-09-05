@@ -468,6 +468,12 @@ type ReplayModifier struct {
 	AbilitySubclass          uint32  `protobuf:"varint,16,opt,name=ability_subclass,json=abilitySubclass,proto3" json:"abilitySubclass,omitempty"`
 	InAuraRange              bool    `protobuf:"varint,17,opt,name=in_aura_range,json=inAuraRange,proto3" json:"inAuraRange,omitempty"`
 	MatchedPrior             bool    `protobuf:"varint,18,opt,name=matched_prior,json=matchedPrior,proto3" json:"matchedPrior,omitempty"`
+	// HasSerialNumber distinguishes an observed serial (including zero) from unknown identity.
+	HasSerialNumber bool `protobuf:"varint,19,opt,name=has_serial_number,json=hasSerialNumber,proto3" json:"hasSerialNumber,omitempty"`
+	// HasLastAppliedTime records whether the replay supplied the application time.
+	HasLastAppliedTime bool `protobuf:"varint,20,opt,name=has_last_applied_time,json=hasLastAppliedTime,proto3" json:"hasLastAppliedTime,omitempty"`
+	// HasDuration distinguishes unknown timing from an observed indefinite duration.
+	HasDuration bool `protobuf:"varint,21,opt,name=has_duration,json=hasDuration,proto3" json:"hasDuration,omitempty"`
 }
 
 func (x *ReplayModifier) Reset() {
@@ -598,6 +604,27 @@ func (x *ReplayModifier) GetInAuraRange() bool {
 func (x *ReplayModifier) GetMatchedPrior() bool {
 	if x != nil {
 		return x.MatchedPrior
+	}
+	return false
+}
+
+func (x *ReplayModifier) GetHasSerialNumber() bool {
+	if x != nil {
+		return x.HasSerialNumber
+	}
+	return false
+}
+
+func (x *ReplayModifier) GetHasLastAppliedTime() bool {
+	if x != nil {
+		return x.HasLastAppliedTime
+	}
+	return false
+}
+
+func (x *ReplayModifier) GetHasDuration() bool {
+	if x != nil {
+		return x.HasDuration
 	}
 	return false
 }
@@ -1990,6 +2017,9 @@ func (m *ReplayModifier) CloneVT() *ReplayModifier {
 	r.AbilitySubclass = m.AbilitySubclass
 	r.InAuraRange = m.InAuraRange
 	r.MatchedPrior = m.MatchedPrior
+	r.HasSerialNumber = m.HasSerialNumber
+	r.HasLastAppliedTime = m.HasLastAppliedTime
+	r.HasDuration = m.HasDuration
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -2620,6 +2650,15 @@ func (this *ReplayModifier) EqualVT(that *ReplayModifier) bool {
 		return false
 	}
 	if this.MatchedPrior != that.MatchedPrior {
+		return false
+	}
+	if this.HasSerialNumber != that.HasSerialNumber {
+		return false
+	}
+	if this.HasLastAppliedTime != that.HasLastAppliedTime {
+		return false
+	}
+	if this.HasDuration != that.HasDuration {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -3984,6 +4023,21 @@ func (x *ReplayModifier) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("matchedPrior")
 		s.WriteBool(x.MatchedPrior)
 	}
+	if x.HasSerialNumber || s.HasField("hasSerialNumber") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasSerialNumber")
+		s.WriteBool(x.HasSerialNumber)
+	}
+	if x.HasLastAppliedTime || s.HasField("hasLastAppliedTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasLastAppliedTime")
+		s.WriteBool(x.HasLastAppliedTime)
+	}
+	if x.HasDuration || s.HasField("hasDuration") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasDuration")
+		s.WriteBool(x.HasDuration)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -4055,6 +4109,15 @@ func (x *ReplayModifier) UnmarshalProtoJSON(s *json.UnmarshalState) {
 		case "matched_prior", "matchedPrior":
 			s.AddField("matched_prior")
 			x.MatchedPrior = s.ReadBool()
+		case "has_serial_number", "hasSerialNumber":
+			s.AddField("has_serial_number")
+			x.HasSerialNumber = s.ReadBool()
+		case "has_last_applied_time", "hasLastAppliedTime":
+			s.AddField("has_last_applied_time")
+			x.HasLastAppliedTime = s.ReadBool()
+		case "has_duration", "hasDuration":
+			s.AddField("has_duration")
+			x.HasDuration = s.ReadBool()
 		}
 	})
 }
@@ -6256,6 +6319,42 @@ func (m *ReplayModifier) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.HasDuration {
+		i--
+		if m.HasDuration {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa8
+	}
+	if m.HasLastAppliedTime {
+		i--
+		if m.HasLastAppliedTime {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa0
+	}
+	if m.HasSerialNumber {
+		i--
+		if m.HasSerialNumber {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
 	if m.MatchedPrior {
 		i--
 		if m.MatchedPrior {
@@ -7919,6 +8018,15 @@ func (m *ReplayModifier) SizeVT() (n int) {
 	if m.MatchedPrior {
 		n += 3
 	}
+	if m.HasSerialNumber {
+		n += 3
+	}
+	if m.HasLastAppliedTime {
+		n += 3
+	}
+	if m.HasDuration {
+		n += 3
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -9022,6 +9130,27 @@ func (x *ReplayModifier) MarshalProtoText() string {
 		}
 		sb.WriteString("matched_prior: ")
 		sb.WriteString(strconv.FormatBool(x.MatchedPrior))
+	}
+	if x.HasSerialNumber != false {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_serial_number: ")
+		sb.WriteString(strconv.FormatBool(x.HasSerialNumber))
+	}
+	if x.HasLastAppliedTime != false {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_last_applied_time: ")
+		sb.WriteString(strconv.FormatBool(x.HasLastAppliedTime))
+	}
+	if x.HasDuration != false {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_duration: ")
+		sb.WriteString(strconv.FormatBool(x.HasDuration))
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -11265,6 +11394,42 @@ func (m *ReplayModifier) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			m.MatchedPrior = bool(v != 0)
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasSerialNumber", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasSerialNumber = bool(v != 0)
+		case 20:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasLastAppliedTime", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasLastAppliedTime = bool(v != 0)
+		case 21:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasDuration", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasDuration = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
