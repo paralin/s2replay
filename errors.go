@@ -55,3 +55,6 @@ type WorldEntitySampleError struct {
 func (e *WorldEntitySampleError) Error() string {
 	return "s2replay: non-finite world entity sample field " + e.Field
 }
+
+// errInvalidAbilitySlot rejects values outside the engine's uint16 enum domain.
+var errInvalidAbilitySlot = errors.New("s2replay: invalid ability slot enum")

@@ -299,6 +299,8 @@ func findFieldDecoder(f *field) fieldDecoder {
 			return fixed64Decoder
 		}
 		return uint64Decoder
+	case "EAbilitySlots_t":
+		return abilitySlotDecoder
 	case "bool":
 		return boolDecoder
 	case "char", "CUtlString", "CUtlSymbolLarge":
@@ -468,6 +470,19 @@ func boolDecoder(r *packetReader) (any, error) {
 
 func stringDecoder(r *packetReader) (any, error) {
 	return r.readString()
+}
+
+// abilitySlotDecoder reads the signed-varint wire encoding of EAbilitySlots_t.
+// Its engine storage is uint16; the signed invalid sentinel maps to 0xffff.
+func abilitySlotDecoder(r *packetReader) (any, error) {
+	value, err := r.readVarint32()
+	if err != nil {
+		return nil, err
+	}
+	if value < -1 || value > 0xffff {
+		return nil, errInvalidAbilitySlot
+	}
+	return uint32(uint16(value)), nil
 }
 
 func uintDecoder(r *packetReader) (any, error) {
