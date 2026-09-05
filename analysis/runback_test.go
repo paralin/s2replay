@@ -604,3 +604,27 @@ func TestOptInPinnedRunbackObjectives(t *testing.T) {
 		t.Fatalf("pinned server start tick: %+v", a.TickProvenance.ServerStartTick)
 	}
 }
+
+func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
+	item := runbackSample(100, 300, 21, "CCitadel_Item_Empty", -1)
+	item.HasOwnerEntity, item.OwnerEntity = true, 92
+	item.HasSubclassID, item.SubclassID, item.SubclassIDTick = true, 0xf1234567, 80
+	ability := runbackSample(100, 301, 22, "CCitadel_Ability_PrimaryWeapon_Empty", -1)
+	ability.HasOwnerEntity, ability.OwnerEntity = true, 92
+	got, err := buildRunbackFacts([]s2replay.EntitySample{runbackPawn(100, 92, 1), item, ability}, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hero := got.Heroes[0]
+	if len(hero.Items) != 1 || len(hero.Abilities) != 1 {
+		t.Fatalf("equipment missing: %+v", hero)
+	}
+	id := hero.Items[0].SubclassID
+	if !id.Present || id.Value != 0xf1234567 || id.SourceTick != 80 || id.FreshnessTicks != 20 {
+		t.Fatalf("item identity lost: %+v", id)
+	}
+	missing := hero.Abilities[0].SubclassID
+	if missing.Present || missing.MissingReason != "m_nSubclassID_not_present" {
+		t.Fatalf("missing identity fabricated: %+v", missing)
+	}
+}

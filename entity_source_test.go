@@ -184,3 +184,20 @@ func TestWorldSnapshotKeepsPlayerSlotAttribution(t *testing.T) {
 		t.Fatalf("ability attribution after snapshot: %+v", parser.pendingEvents)
 	}
 }
+
+func TestWorldEntitySnapshotPreservesUnsignedSubclassIdentity(t *testing.T) {
+	class := &entityClass{name: "CCitadel_Item_Empty", serializer: &serializer{fields: []*field{{varName: "m_nSubclassID"}}}}
+	entity := newEntity(7, 3, class)
+	path := fieldPath{last: 0}
+	entity.state.set(path, uint32(0xf1234567))
+	entity.fieldTicks[path] = 9
+	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
+	parser.clock.setTick(10)
+	samples, err := parser.WorldEntitySnapshot(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples) != 1 || !samples[0].HasSubclassID || samples[0].SubclassID != 0xf1234567 || samples[0].SubclassIDTick != 9 {
+		t.Fatalf("subclass identity lost: %+v", samples)
+	}
+}

@@ -97,6 +97,11 @@ type EntitySample struct {
 	LevelTick uint32 `json:"level_tick,omitempty"`
 	HasLevel  bool   `json:"has_level,omitempty"`
 
+	// SubclassID identifies the concrete VData definition behind generic classes.
+	SubclassID     uint32 `json:"subclass_id,omitempty"`
+	SubclassIDTick uint32 `json:"subclass_id_tick,omitempty"`
+	HasSubclassID  bool   `json:"has_subclass_id,omitempty"`
+
 	// OwnerEntity is the resolved entity index of m_hOwnerEntity.
 	OwnerEntity     int32  `json:"owner_entity,omitempty"`
 	OwnerEntityTick uint32 `json:"owner_entity_tick,omitempty"`
@@ -383,6 +388,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.PositionZSourceField = zField + "+" + vzField
 		s.HasPosition = true
 	}
+	s.SubclassID, s.SubclassIDTick, s.HasSubclassID = firstUInt32AtAny(e, "m_nSubclassID")
 	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, "m_nLevel", "m_PlayerDataGlobal.m_iLevel")
 	if handle, handleTick, ok := firstInt32AtAny(e, "m_hOwnerEntity"); ok && handle >= 0 {
 		s.OwnerEntity = int32(uint32(handle) & uint32(entityHandleMask))

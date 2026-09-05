@@ -200,10 +200,11 @@ type RunbackAlive struct {
 
 // RunbackItem is one owned item entity at the tick.
 type RunbackItem struct {
-	EntityID     int32  `json:"entity_id"`
-	EntitySerial int32  `json:"entity_serial"`
-	ClassName    string `json:"class_name"`
-	SourceTick   uint32 `json:"source_tick"`
+	SubclassID   RunbackUint `json:"subclass_id"`
+	EntityID     int32       `json:"entity_id"`
+	EntitySerial int32       `json:"entity_serial"`
+	ClassName    string      `json:"class_name"`
+	SourceTick   uint32      `json:"source_tick"`
 }
 
 // RunbackTransient is one active item-class entity at the tick whose owner
@@ -228,9 +229,10 @@ type RunbackTransient struct {
 
 // RunbackAbility is one owned ability entity with charge and cooldown state.
 type RunbackAbility struct {
-	EntityID     int32  `json:"entity_id"`
-	EntitySerial int32  `json:"entity_serial"`
-	ClassName    string `json:"class_name"`
+	SubclassID   RunbackUint `json:"subclass_id"`
+	EntityID     int32       `json:"entity_id"`
+	EntitySerial int32       `json:"entity_serial"`
+	ClassName    string      `json:"class_name"`
 
 	Charges     RunbackInt   `json:"charges"`
 	CooldownEnd RunbackFloat `json:"cooldown_end"`
@@ -628,7 +630,10 @@ func runbackItems(samples []s2replay.EntitySample, pawnEntity int32, tick uint32
 		if !isRunbackItemClass(sample.ClassName) || !sample.HasOwnerEntity || sample.OwnerEntity != pawnEntity {
 			continue
 		}
-		items = append(items, RunbackItem{EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick})
+		items = append(items, RunbackItem{
+			EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick,
+			SubclassID: runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
+		})
 	}
 	slices.SortFunc(items, func(a, b RunbackItem) int { return int(a.EntityID - b.EntityID) })
 	return items
@@ -642,7 +647,8 @@ func runbackAbilities(samples []s2replay.EntitySample, pawnEntity int32, tick ui
 			continue
 		}
 		abilities = append(abilities, RunbackAbility{
-			EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
+			SubclassID: runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
+			EntityID:   sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
 			Charges:     runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
 			CooldownEnd: runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
 		})
