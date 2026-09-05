@@ -329,10 +329,22 @@ func sanitizeEntitySample(sample *EntitySample) {
 		sample.MaxShield = 0
 		sample.HasShield = false
 	}
-	if sample.HasCooldownEnd && !isFiniteFloat32(sample.CooldownEnd) {
-		markInvalidField(&sample.InvalidFields, "cooldown_end")
-		sample.CooldownEnd = 0
-		sample.HasCooldownEnd = false
+	// Keep invalid timer evidence while making every exported float JSON-safe.
+	for _, timer := range []struct {
+		name    string
+		value   *float32
+		present *bool
+	}{
+		{"cooldown_start", &sample.CooldownStart, &sample.HasCooldownStart},
+		{"cooldown_end", &sample.CooldownEnd, &sample.HasCooldownEnd},
+		{"charge_recharge_start", &sample.ChargeRechargeStart, &sample.HasChargeRechargeStart},
+		{"charge_recharge_end", &sample.ChargeRechargeEnd, &sample.HasChargeRechargeEnd},
+	} {
+		if !isFiniteFloat32(*timer.value) {
+			markInvalidField(&sample.InvalidFields, timer.name)
+			*timer.value = 0
+			*timer.present = false
+		}
 	}
 	positionInvalid := false
 	facingInvalid := false
@@ -379,10 +391,8 @@ func sanitizeEntitySample(sample *EntitySample) {
 }
 
 func markInvalidField(fields *[]string, name string) {
-	for _, field := range *fields {
-		if field == name {
-			return
-		}
+	if slices.Contains(*fields, name) {
+		return
 	}
 	*fields = append(*fields, name)
 }

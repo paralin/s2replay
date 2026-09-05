@@ -235,7 +235,7 @@ func TestWorldEntitySnapshotPreservesHandleGenerations(t *testing.T) {
 	} {
 		class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_hOwnerEntity"}, {varName: "m_hHeroPawn"}}}}
 		entity := newEntity(7, 3, class)
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			path := fieldPath{last: 0}
 			path.path[0] = i
 			entity.state.set(path, tc.handle)

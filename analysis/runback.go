@@ -202,15 +202,21 @@ type RunbackAlive struct {
 
 // RunbackItem is one owned item entity at the tick.
 type RunbackItem struct {
-	SubclassID   RunbackUint  `json:"subclass_id"`
-	Slot         RunbackUint  `json:"slot"`
-	UpgradeInfo  RunbackUint  `json:"upgrade_info"`
-	EntityID     int32        `json:"entity_id"`
-	EntitySerial int32        `json:"entity_serial"`
-	ClassName    string       `json:"class_name"`
-	SourceTick   uint32       `json:"source_tick"`
-	Charges      RunbackInt   `json:"charges"`
-	CooldownEnd  RunbackFloat `json:"cooldown_end"`
+	SubclassID   RunbackUint `json:"subclass_id"`
+	Slot         RunbackUint `json:"slot"`
+	UpgradeInfo  RunbackUint `json:"upgrade_info"`
+	EntityID     int32       `json:"entity_id"`
+	EntitySerial int32       `json:"entity_serial"`
+	ClassName    string      `json:"class_name"`
+	SourceTick   uint32      `json:"source_tick"`
+	Charges      RunbackInt  `json:"charges"`
+	// CooldownStart records the start of the active cooldown interval in server seconds.
+	CooldownStart RunbackFloat `json:"cooldown_start"`
+	// ChargeRechargeStart records the start of the charge recovery interval in server seconds.
+	ChargeRechargeStart RunbackFloat `json:"charge_recharge_start"`
+	// ChargeRechargeEnd records the end of the charge recovery interval in server seconds.
+	ChargeRechargeEnd RunbackFloat `json:"charge_recharge_end"`
+	CooldownEnd       RunbackFloat `json:"cooldown_end"`
 }
 
 // RunbackTransient is one active item-class entity at the tick whose owner
@@ -242,8 +248,14 @@ type RunbackAbility struct {
 	EntitySerial int32       `json:"entity_serial"`
 	ClassName    string      `json:"class_name"`
 
-	Charges     RunbackInt   `json:"charges"`
-	CooldownEnd RunbackFloat `json:"cooldown_end"`
+	Charges RunbackInt `json:"charges"`
+	// CooldownStart records the start of the active cooldown interval in server seconds.
+	CooldownStart RunbackFloat `json:"cooldown_start"`
+	// ChargeRechargeStart records the start of the charge recovery interval in server seconds.
+	ChargeRechargeStart RunbackFloat `json:"charge_recharge_start"`
+	// ChargeRechargeEnd records the end of the charge recovery interval in server seconds.
+	ChargeRechargeEnd RunbackFloat `json:"charge_recharge_end"`
+	CooldownEnd       RunbackFloat `json:"cooldown_end"`
 }
 
 // RunbackModifier is one modifier active at the tick.
@@ -656,9 +668,12 @@ func runbackItems(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, 
 			continue
 		}
 		items = append(items, RunbackItem{
-			Charges:     runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
-			CooldownEnd: runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
-			EntityID:    sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick,
+			Charges:             runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
+			CooldownStart:       runbackFloat(sample.CooldownStart, sample.CooldownStartTick, sample.HasCooldownStart, tick, RunbackMissingNotInSample),
+			ChargeRechargeStart: runbackFloat(sample.ChargeRechargeStart, sample.ChargeRechargeStartTick, sample.HasChargeRechargeStart, tick, RunbackMissingNotInSample),
+			ChargeRechargeEnd:   runbackFloat(sample.ChargeRechargeEnd, sample.ChargeRechargeEndTick, sample.HasChargeRechargeEnd, tick, RunbackMissingNotInSample),
+			CooldownEnd:         runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
+			EntityID:            sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName, SourceTick: sample.Tick,
 			SubclassID:  runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, "m_nSubclassID_not_present"),
 			Slot:        runbackUint(sample.AbilitySlot, sample.AbilitySlotTick, sample.HasAbilitySlot, tick, "m_eAbilitySlot_not_present"),
 			UpgradeInfo: runbackUint(sample.UpgradeInfo, sample.UpgradeInfoTick, sample.HasUpgradeInfo, tick, "m_nUpgradeInfo_not_present"),
@@ -681,8 +696,11 @@ func runbackAbilities(samples []s2replay.EntitySample, pawn *s2replay.EntitySamp
 			Slot:        runbackUint(sample.AbilitySlot, sample.AbilitySlotTick, sample.HasAbilitySlot, tick, "m_eAbilitySlot_not_present"),
 			UpgradeInfo: runbackUint(sample.UpgradeInfo, sample.UpgradeInfoTick, sample.HasUpgradeInfo, tick, "m_nUpgradeInfo_not_present"),
 			EntityID:    sample.Entity, EntitySerial: sample.EntitySerial, ClassName: sample.ClassName,
-			Charges:     runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
-			CooldownEnd: runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
+			Charges:             runbackInt(sample.RemainingCharges, sample.RemainingChargesTick, sample.HasRemainingCharges, tick, RunbackMissingNotInSample),
+			CooldownStart:       runbackFloat(sample.CooldownStart, sample.CooldownStartTick, sample.HasCooldownStart, tick, RunbackMissingNotInSample),
+			ChargeRechargeStart: runbackFloat(sample.ChargeRechargeStart, sample.ChargeRechargeStartTick, sample.HasChargeRechargeStart, tick, RunbackMissingNotInSample),
+			ChargeRechargeEnd:   runbackFloat(sample.ChargeRechargeEnd, sample.ChargeRechargeEndTick, sample.HasChargeRechargeEnd, tick, RunbackMissingNotInSample),
+			CooldownEnd:         runbackFloat(sample.CooldownEnd, sample.CooldownEndTick, sample.HasCooldownEnd, tick, RunbackMissingNotInSample),
 		})
 	}
 	slices.SortFunc(abilities, func(a, b RunbackAbility) int { return int(a.EntityID - b.EntityID) })

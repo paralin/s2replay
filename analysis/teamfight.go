@@ -3,8 +3,10 @@ package analysis
 import (
 	"cmp"
 	"errors"
+	"maps"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/paralin/s2replay"
 )
@@ -271,9 +273,7 @@ func normalizeTeamfightHeroPlaceholder(segment ReplaySegmentEvidence) ReplaySegm
 	// Work on a clone: the caller owns the original map and must not observe
 	// this projection's normalization.
 	substitutions := make(map[int32]uint32, len(segment.placeholderHeroes))
-	for slot, hero := range segment.placeholderHeroes {
-		substitutions[slot] = hero
-	}
+	maps.Copy(substitutions, segment.placeholderHeroes)
 	segment.placeholderHeroes = substitutions
 	participants := make([]ReplayParticipant, len(segment.Participants))
 	copy(participants, segment.Participants)
@@ -321,14 +321,15 @@ func teamfightIdentityStatus(segment ReplaySegmentEvidence) (TeamfightIdentitySt
 // formatTeamfightSlots renders the slots as a bracketed comma-separated
 // list.
 func formatTeamfightSlots(slots []int32) string {
-	text := "["
+	var text strings.Builder
+	text.WriteString("[")
 	for i, slot := range slots {
 		if i != 0 {
-			text += ","
+			text.WriteString(",")
 		}
-		text += strconv.FormatInt(int64(slot), 10)
+		text.WriteString(strconv.FormatInt(int64(slot), 10))
 	}
-	return text + "]"
+	return text.String() + "]"
 }
 
 // refuseTeamfightNonFiniteRows refuses exact source rows that carried

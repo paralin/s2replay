@@ -125,7 +125,7 @@ func TestRecoveryWorldIdentityAndUnload(t *testing.T) {
 	// followed by the protobuf at the current bit offset.
 	var bits []bool
 	put := func(value uint64, count int) {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			bits = append(bits, value&(1<<i) != 0)
 		}
 	}

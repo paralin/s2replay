@@ -132,6 +132,27 @@ type EntitySample struct {
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
 	HasRemainingCharges  bool   `json:"has_remaining_charges,omitempty"`
 
+	// CooldownStart records the start of the active cooldown interval in server seconds.
+	CooldownStart float32 `json:"cooldown_start,omitempty"`
+	// CooldownStartTick identifies the last replay update for CooldownStart.
+	CooldownStartTick uint32 `json:"cooldown_start_tick,omitempty"`
+	// HasCooldownStart distinguishes an observed zero from an absent timer.
+	HasCooldownStart bool `json:"has_cooldown_start,omitempty"`
+
+	// ChargeRechargeStart records the start of the charge recovery interval in server seconds.
+	ChargeRechargeStart float32 `json:"charge_recharge_start,omitempty"`
+	// ChargeRechargeStartTick identifies the last replay update for ChargeRechargeStart.
+	ChargeRechargeStartTick uint32 `json:"charge_recharge_start_tick,omitempty"`
+	// HasChargeRechargeStart distinguishes an observed zero from an absent timer.
+	HasChargeRechargeStart bool `json:"has_charge_recharge_start,omitempty"`
+
+	// ChargeRechargeEnd records the end of the charge recovery interval in server seconds.
+	ChargeRechargeEnd float32 `json:"charge_recharge_end,omitempty"`
+	// ChargeRechargeEndTick identifies the last replay update for ChargeRechargeEnd.
+	ChargeRechargeEndTick uint32 `json:"charge_recharge_end_tick,omitempty"`
+	// HasChargeRechargeEnd distinguishes an observed zero from an absent timer.
+	HasChargeRechargeEnd bool `json:"has_charge_recharge_end,omitempty"`
+
 	// CooldownEnd is the ability cooldown end time in game seconds.
 	CooldownEnd     float32 `json:"cooldown_end,omitempty"`
 	CooldownEndTick uint32  `json:"cooldown_end_tick,omitempty"`
@@ -419,6 +440,15 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
 		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownStart"); ok {
+		s.CooldownStart, s.CooldownStartTick, s.HasCooldownStart = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_flChargeRechargeStart"); ok {
+		s.ChargeRechargeStart, s.ChargeRechargeStartTick, s.HasChargeRechargeStart = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_flChargeRechargeEnd"); ok {
+		s.ChargeRechargeEnd, s.ChargeRechargeEndTick, s.HasChargeRechargeEnd = value, valueTick, true
 	}
 	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownEnd"); ok {
 		s.CooldownEnd, s.CooldownEndTick, s.HasCooldownEnd = value, valueTick, true
