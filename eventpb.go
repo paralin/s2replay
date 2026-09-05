@@ -76,6 +76,9 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 			AbilitySubclass:          m.AbilitySubclass,
 			InAuraRange:              m.InAuraRange,
 			MatchedPrior:             m.MatchedPrior,
+			HasSerialNumber:          m.HasSerialNumber,
+			HasLastAppliedTime:       m.HasLastAppliedTime,
+			HasDuration:              m.HasDuration,
 		}
 	}
 	if e.Purchase != nil {

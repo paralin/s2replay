@@ -79,6 +79,12 @@ message ReplayModifier {
   uint32 ability_subclass = 16;
   bool in_aura_range = 17;
   bool matched_prior = 18;
+  // HasSerialNumber distinguishes an observed serial (including zero) from unknown identity.
+  bool has_serial_number = 19;
+  // HasLastAppliedTime records whether the replay supplied the application time.
+  bool has_last_applied_time = 20;
+  // HasDuration distinguishes unknown timing from an observed indefinite duration.
+  bool has_duration = 21;
 }
 
 message ReplayPurchase {

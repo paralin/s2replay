@@ -13,20 +13,28 @@ type ModifierTimeline struct {
 
 // ModifierInterval is a closed or replay-end-open modifier lifecycle interval.
 type ModifierInterval struct {
-	StartTick        uint32  `json:"start_tick"`
-	EndTick          uint32  `json:"end_tick"`
-	StartTime        float64 `json:"start_time"`
-	EndTime          float64 `json:"end_time"`
-	TableIndex       int32   `json:"table_index"`
-	EntityID         int32   `json:"entity_id"`
-	PlayerSlot       int32   `json:"player_slot"`
-	Parent           uint32  `json:"parent"`
-	ModifierSubclass uint32  `json:"modifier_subclass"`
-	SourceID         uint32  `json:"source_id"`
-	Ability          uint32  `json:"ability"`
-	StackCount       int32   `json:"stack_count"`
-	Refreshes        int     `json:"refreshes"`
-	Open             bool    `json:"open"`
+	StartTick          uint32  `json:"start_tick"`
+	EndTick            uint32  `json:"end_tick"`
+	StartTime          float64 `json:"start_time"`
+	EndTime            float64 `json:"end_time"`
+	LastObservedTick   uint32  `json:"last_observed_tick"`
+	SerialNumber       uint32  `json:"serial_number"`
+	HasSerialNumber    bool    `json:"has_serial_number"`
+	Caster             uint32  `json:"caster"`
+	Duration           float32 `json:"duration"`
+	HasDuration        bool    `json:"has_duration"`
+	LastAppliedTime    float32 `json:"last_applied_time"`
+	HasLastAppliedTime bool    `json:"has_last_applied_time"`
+	TableIndex         int32   `json:"table_index"`
+	EntityID           int32   `json:"entity_id"`
+	PlayerSlot         int32   `json:"player_slot"`
+	Parent             uint32  `json:"parent"`
+	ModifierSubclass   uint32  `json:"modifier_subclass"`
+	SourceID           uint32  `json:"source_id"`
+	Ability            uint32  `json:"ability"`
+	StackCount         int32   `json:"stack_count"`
+	Refreshes          int     `json:"refreshes"`
+	Open               bool    `json:"open"`
 }
 
 func (b *builder) acceptModifier(ev s2replay.Event) {
@@ -64,6 +72,11 @@ func (b *builder) refreshModifierInterval(ev s2replay.Event) {
 		b.activeModifiers[ev.Modifier.TableIndex] = modifierIntervalFromEvent(ev)
 		return
 	}
+	active.LastObservedTick = ev.Tick
+	active.SerialNumber, active.HasSerialNumber = ev.Modifier.SerialNumber, ev.Modifier.HasSerialNumber
+	active.Caster = ev.Modifier.Caster
+	active.Duration, active.HasDuration = ev.Modifier.Duration, ev.Modifier.HasDuration
+	active.LastAppliedTime, active.HasLastAppliedTime = ev.Modifier.LastAppliedTime, ev.Modifier.HasLastAppliedTime
 	active.Parent = ev.Modifier.Parent
 	active.EntityID = ev.Entity
 	active.PlayerSlot = ev.PlayerSlot
@@ -83,6 +96,11 @@ func (b *builder) removeModifierInterval(ev s2replay.Event) {
 	}
 	active.EndTick = ev.Tick
 	active.EndTime = ev.GameTime
+	active.LastObservedTick = ev.Tick
+	active.SerialNumber, active.HasSerialNumber = ev.Modifier.SerialNumber, ev.Modifier.HasSerialNumber
+	active.Caster = ev.Modifier.Caster
+	active.Duration, active.HasDuration = ev.Modifier.Duration, ev.Modifier.HasDuration
+	active.LastAppliedTime, active.HasLastAppliedTime = ev.Modifier.LastAppliedTime, ev.Modifier.HasLastAppliedTime
 	active.Parent = ev.Modifier.Parent
 	active.EntityID = ev.Entity
 	active.PlayerSlot = ev.PlayerSlot
@@ -97,6 +115,11 @@ func (b *builder) removeModifierInterval(ev s2replay.Event) {
 func modifierIntervalFromEvent(ev s2replay.Event) ModifierInterval {
 	return ModifierInterval{
 		StartTick:        ev.Tick,
+		LastObservedTick: ev.Tick,
+		SerialNumber:     ev.Modifier.SerialNumber, HasSerialNumber: ev.Modifier.HasSerialNumber,
+		Caster:   ev.Modifier.Caster,
+		Duration: ev.Modifier.Duration, HasDuration: ev.Modifier.HasDuration,
+		LastAppliedTime: ev.Modifier.LastAppliedTime, HasLastAppliedTime: ev.Modifier.HasLastAppliedTime,
 		EndTick:          ev.Tick,
 		StartTime:        ev.GameTime,
 		EndTime:          ev.GameTime,

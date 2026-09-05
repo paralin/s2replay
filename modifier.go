@@ -15,17 +15,22 @@ const (
 	ModifierRefresh ModifierTransition = "refresh"
 )
 
+// ModifierEvent records an instance transition and the last observed payload.
+// Presence distinguishes unknown serial/timing from explicit zero or indefinite duration.
 type ModifierEvent struct {
 	Tick                     uint32             `json:"tick"`
 	GameTime                 float64            `json:"game_time"`
 	Transition               ModifierTransition `json:"transition"`
 	TableIndex               int32              `json:"table_index"`
 	Parent                   uint32             `json:"parent"`
+	HasSerialNumber          bool               `json:"has_serial_number"`
 	SerialNumber             uint32             `json:"serial_number"`
 	ModifierSubclass         uint32             `json:"modifier_subclass"`
 	StackCount               int32              `json:"stack_count"`
 	MaxStackCount            int32              `json:"max_stack_count"`
+	HasLastAppliedTime       bool               `json:"has_last_applied_time"`
 	LastAppliedTime          float32            `json:"last_applied_time"`
+	HasDuration              bool               `json:"has_duration"`
 	Duration                 float32            `json:"duration"`
 	Caster                   uint32             `json:"caster"`
 	Ability                  uint32             `json:"ability"`
@@ -37,8 +42,7 @@ type ModifierEvent struct {
 }
 
 type modifierState struct {
-	entry     ModifierEvent
-	hasSerial bool
+	entry ModifierEvent
 }
 
 func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) error {
@@ -60,10 +64,7 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 		}
 		ev.Transition = ModifierRemove
 		ev.MatchedPrior = true
-		ev = mergeModifierRemove(ev, prev.entry)
-		if entry.SerialNumber != nil {
-			ev.SerialNumber = *entry.SerialNumber
-		}
+		ev = mergeModifierUpdate(ev, prev.entry, entry)
 		delete(p.modifiers, item.index)
 		p.pendingModifiers = append(p.pendingModifiers, ev)
 		p.appendModifierEvent(ev)
@@ -72,7 +73,7 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 	// A present serial change authoritatively replaces the table occupant.
 	// Missing serials are partial updates, not a replacement with serial zero.
 	hasSerial := entry.SerialNumber != nil
-	if hadPrev && hasSerial && prev.hasSerial && ev.SerialNumber != prev.entry.SerialNumber {
+	if hadPrev && hasSerial && prev.entry.HasSerialNumber && ev.SerialNumber != prev.entry.SerialNumber {
 		removed := prev.entry
 		removed.Tick, removed.GameTime = ev.Tick, ev.GameTime
 		removed.Transition, removed.MatchedPrior = ModifierRemove, true
@@ -81,16 +82,13 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 		hadPrev = false
 	}
 	if hadPrev {
-		if !hasSerial {
-			ev.SerialNumber = prev.entry.SerialNumber
-			hasSerial = prev.hasSerial
-		}
+		ev = mergeModifierUpdate(ev, prev.entry, entry)
 		ev.Transition = ModifierRefresh
 		ev.MatchedPrior = true
 	} else {
 		ev.Transition = ModifierAdd
 	}
-	p.modifiers[item.index] = modifierState{entry: ev, hasSerial: hasSerial}
+	p.modifiers[item.index] = modifierState{entry: ev}
 	p.pendingModifiers = append(p.pendingModifiers, ev)
 	p.appendModifierEvent(ev)
 	return nil
@@ -119,11 +117,14 @@ func modifierEventFromEntry(tick uint32, gameTime float64, tableIndex int32, ent
 		TableIndex:               tableIndex,
 		Parent:                   entry.GetParent(),
 		SerialNumber:             entry.GetSerialNumber(),
+		HasSerialNumber:          entry.SerialNumber != nil,
 		ModifierSubclass:         entry.GetModifierSubclass(),
 		StackCount:               entry.GetStackCount(),
 		MaxStackCount:            entry.GetMaxStackCount(),
 		LastAppliedTime:          entry.GetLastAppliedTime(),
+		HasLastAppliedTime:       entry.LastAppliedTime != nil,
 		Duration:                 entry.GetDuration(),
+		HasDuration:              entry.Duration != nil,
 		Caster:                   entry.GetCaster(),
 		Ability:                  entry.GetAbility(),
 		AuraProviderSerialNumber: entry.GetAuraProviderSerialNumber(),
@@ -133,44 +134,52 @@ func modifierEventFromEntry(tick uint32, gameTime float64, tableIndex int32, ent
 	}
 }
 
-func mergeModifierRemove(remove, prior ModifierEvent) ModifierEvent {
-	if remove.Parent == protocol.Default_CModifierTableEntry_Parent {
-		remove.Parent = prior.Parent
+// mergeModifierUpdate retains omitted fields only within the same instance.
+// Explicit zero and explicit indefinite duration (-1) remain observed values.
+func mergeModifierUpdate(update, prior ModifierEvent, entry *protocol.CModifierTableEntry) ModifierEvent {
+	if entry.Parent == nil {
+		update.Parent = prior.Parent
 	}
-	if remove.SerialNumber == 0 {
-		remove.SerialNumber = prior.SerialNumber
+	if entry.SerialNumber == nil {
+		update.SerialNumber = prior.SerialNumber
+		update.HasSerialNumber = prior.HasSerialNumber
 	}
-	if remove.ModifierSubclass == 0 {
-		remove.ModifierSubclass = prior.ModifierSubclass
+	if entry.ModifierSubclass == nil {
+		update.ModifierSubclass = prior.ModifierSubclass
 	}
-	if remove.StackCount == 0 {
-		remove.StackCount = prior.StackCount
+	if entry.StackCount == nil {
+		update.StackCount = prior.StackCount
 	}
-	if remove.MaxStackCount == 0 {
-		remove.MaxStackCount = prior.MaxStackCount
+	if entry.MaxStackCount == nil {
+		update.MaxStackCount = prior.MaxStackCount
 	}
-	if remove.LastAppliedTime == 0 {
-		remove.LastAppliedTime = prior.LastAppliedTime
+	if entry.LastAppliedTime == nil {
+		update.LastAppliedTime = prior.LastAppliedTime
+		update.HasLastAppliedTime = prior.HasLastAppliedTime
 	}
-	if remove.Duration == protocol.Default_CModifierTableEntry_Duration {
-		remove.Duration = prior.Duration
+	if entry.Duration == nil {
+		update.Duration = prior.Duration
+		update.HasDuration = prior.HasDuration
 	}
-	if remove.Caster == protocol.Default_CModifierTableEntry_Caster {
-		remove.Caster = prior.Caster
+	if entry.Caster == nil {
+		update.Caster = prior.Caster
 	}
-	if remove.Ability == protocol.Default_CModifierTableEntry_Ability {
-		remove.Ability = prior.Ability
+	if entry.Ability == nil {
+		update.Ability = prior.Ability
 	}
-	if remove.AuraProviderSerialNumber == 0 {
-		remove.AuraProviderSerialNumber = prior.AuraProviderSerialNumber
+	if entry.AuraProviderSerialNumber == nil {
+		update.AuraProviderSerialNumber = prior.AuraProviderSerialNumber
 	}
-	if remove.AuraProviderEHandle == protocol.Default_CModifierTableEntry_AuraProviderEhandle {
-		remove.AuraProviderEHandle = prior.AuraProviderEHandle
+	if entry.AuraProviderEhandle == nil {
+		update.AuraProviderEHandle = prior.AuraProviderEHandle
 	}
-	if remove.AbilitySubclass == 0 {
-		remove.AbilitySubclass = prior.AbilitySubclass
+	if entry.AbilitySubclass == nil {
+		update.AbilitySubclass = prior.AbilitySubclass
 	}
-	return remove
+	if entry.InAuraRange == nil {
+		update.InAuraRange = prior.InAuraRange
+	}
+	return update
 }
 
 func (p *Parser) NextModifierEvent() (ModifierEvent, error) {
