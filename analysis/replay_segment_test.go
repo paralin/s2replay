@@ -75,6 +75,7 @@ func TestBuildReplaySegmentEvidenceLabelsMissingVelocity(t *testing.T) {
 	}
 }
 
+// replaySample builds a pawn entity sample event with the given values.
 func replaySample(tick uint32, slot, entity int32, exact bool, hero uint32, team int32, fx, fy, fz, vx, vy, vz float32) s2replay.Event {
 	return s2replay.Event{
 		Type: s2replay.EventEntitySample, Tick: tick, GameTime: float64(tick) / 64,
@@ -148,6 +149,7 @@ func TestBuildReplaySegmentEvidenceRetainsEntityReplacements(t *testing.T) {
 	}
 }
 
+// uint32Ptr returns a pointer to the value.
 func uint32Ptr(value uint32) *uint32 { return &value }
 
 func TestBuildReplaySegmentEvidenceRequiresEveryRequestedParticipant(t *testing.T) {
@@ -271,6 +273,7 @@ func TestValidateReplaySegmentRowsRejectsOverflow(t *testing.T) {
 	}
 }
 
+// mustBuildReplaySegmentEvidence builds segment evidence and panics on error.
 func mustBuildReplaySegmentEvidence(events []s2replay.Event, source ReplaySourceIdentity, request ReplaySegmentRequest) ReplaySegmentEvidence {
 	e, err := buildReplaySegmentEvidence(events, source, request)
 	if err != nil {
@@ -288,6 +291,7 @@ func TestExtractReplaySegmentEvidenceBuildIdentityPolicy(t *testing.T) {
 	}
 }
 
+// failingReplayParser is a replayEventParser whose NextEvent always fails.
 type failingReplayParser struct{ released, mode int }
 
 func (p *failingReplayParser) SetEventMode(bool)     { p.mode++ }

@@ -214,12 +214,16 @@ func ExtractReplaySegmentEvidence(demo []byte, request ReplaySegmentRequest) (Re
 	return extractReplaySegmentEvidenceWithBuild(demo, request, revision, clean)
 }
 
+// replayEventParser is the subset of the parser surface needed to consume a
+// replay as an event stream.
 type replayEventParser interface {
 	NextEvent() (s2replay.Event, error)
 	SetEventMode(bool)
 	ReleasePendingQueues()
 }
 
+// consumeReplayEvents drains the parser's event stream into accept and
+// releases the parser's pending queues before returning.
 func consumeReplayEvents(parser replayEventParser, accept func(s2replay.Event)) error {
 	parser.SetEventMode(true)
 	defer parser.ReleasePendingQueues()
@@ -285,7 +289,8 @@ func extractReplaySegmentEvidenceWithBuild(demo []byte, request ReplaySegmentReq
 	return acc.finish(source)
 }
 
-// buildReplaySegmentEvidence extracts deterministic evidence from typed events.
+// validateReplaySegmentRows refuses requests whose tick range or participant
+// list would materialize more rows than the evidence limit allows.
 func validateReplaySegmentRows(request ReplaySegmentRequest, participants int) error {
 	if request.EndTick < request.StartTick {
 		return errors.New("replay segment range overflows")
@@ -314,6 +319,7 @@ func validateReplaySegmentRows(request ReplaySegmentRequest, participants int) e
 	return nil
 }
 
+// buildReplaySegmentEvidence extracts deterministic evidence from typed events.
 func buildReplaySegmentEvidence(events []s2replay.Event, source ReplaySourceIdentity, request ReplaySegmentRequest) (ReplaySegmentEvidence, error) {
 	if err := validateReplaySegmentRows(request, len(request.ParticipantSlots)); err != nil {
 		return ReplaySegmentEvidence{}, err
@@ -325,6 +331,8 @@ func buildReplaySegmentEvidence(events []s2replay.Event, source ReplaySourceIden
 	return acc.finish(source)
 }
 
+// replaySegmentAccumulator folds a stream of typed events into segment
+// evidence for one request.
 type replaySegmentAccumulator struct {
 	request               ReplaySegmentRequest
 	leadInStart           uint32
@@ -342,6 +350,7 @@ type replaySegmentAccumulator struct {
 	err                   error
 }
 
+// newReplaySegmentAccumulator constructs an accumulator for the request.
 func newReplaySegmentAccumulator(request ReplaySegmentRequest) *replaySegmentAccumulator {
 	leadInStart := uint32(0)
 	if request.LeadInTicks <= request.StartTick {
@@ -354,6 +363,8 @@ func newReplaySegmentAccumulator(request ReplaySegmentRequest) *replaySegmentAcc
 	return &replaySegmentAccumulator{request: request, leadInStart: leadInStart, allSlots: len(selected) == 0, selected: selected, participants: make(map[int32]ReplayParticipant), census: make(map[int32]struct{}), rowIndexes: make(map[ReplaySegmentRowKey]int), ambiguousParticipants: make(map[int32]struct{})}
 }
 
+// markAmbiguousParticipant records that a slot observed conflicting identity
+// values.
 func (a *replaySegmentAccumulator) markAmbiguousParticipant(slot int32) {
 	a.ambiguousParticipants[slot] = struct{}{}
 }
@@ -393,16 +404,22 @@ func (a *replaySegmentAccumulator) provenPlaceholderTransition(slot int32, hero 
 	return true
 }
 
+// accept folds one replay event into the accumulated evidence.
 func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 	if event.Type != s2replay.EventEntitySample || event.EntitySample == nil || event.PlayerSlot < 0 || event.Tick > a.request.EndTick {
 		return
 	}
+
+	// Census every observed slot before dropping samples from unselected
+	// slots.
 	a.census[event.PlayerSlot] = struct{}{}
 	if !a.allSlots {
 		if _, ok := a.selected[event.PlayerSlot]; !ok {
 			return
 		}
 	}
+
+	// Track the slot's entity history and identity.
 	participant := a.participants[event.PlayerSlot]
 	participant.PlayerSlot = event.PlayerSlot
 	if !slices.Contains(participant.HistoricalEntityIDs, event.Entity) {
@@ -411,6 +428,8 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 	if len(participant.HistoricalEntityIDs) == 1 {
 		participant.HistoricalEntityID = event.Entity
 	}
+
+	// Open a new entity epoch when the entity index or serial changed.
 	serial := event.EntitySample.EntitySerial
 	if len(participant.Epochs) == 0 || participant.Epochs[len(participant.Epochs)-1].EntityID != event.Entity || participant.Epochs[len(participant.Epochs)-1].Serial != serial {
 		participant.Epochs = append(participant.Epochs, ReplayEntityEpoch{EntityID: event.Entity, Serial: serial, FirstSampleTick: event.Tick, LastSampleTick: event.Tick})
@@ -449,6 +468,8 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 	if event.Tick < a.leadInStart {
 		return
 	}
+
+	// Materialize a row for the sample, coalescing duplicates at one tick.
 	row := replayRow(event)
 	row.LeadIn = event.Tick < a.request.StartTick
 	key := ReplaySegmentRowKey{Tick: row.Tick, PlayerSlot: row.PlayerSlot}
@@ -469,16 +490,39 @@ func (a *replaySegmentAccumulator) accept(event s2replay.Event) {
 	a.rows = append(a.rows, row)
 }
 
+// finish assembles the accumulated state into the final evidence record.
 func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySegmentEvidence, error) {
 	if a.err != nil {
 		return ReplaySegmentEvidence{}, a.err
 	}
-	out := ReplaySegmentEvidence{placeholderHeroes: a.placeholderHeroes, SchemaVersion: ReplaySegmentEvidenceSchemaVersion, Source: source, Range: ReplaySegmentRange{RequestedStartTick: a.request.StartTick, RequestedEndTick: a.request.EndTick, LeadInStartTick: a.leadInStart, RequestedLeadInTicks: a.request.LeadInTicks, LeadInTicks: a.request.StartTick - a.leadInStart, ExactStartTick: a.request.StartTick, ExactEndTick: a.request.EndTick}, Participants: []ReplayParticipant{}, Rows: a.rows}
+	out := ReplaySegmentEvidence{
+		SchemaVersion: ReplaySegmentEvidenceSchemaVersion,
+		Source:        source,
+		Range: ReplaySegmentRange{
+			RequestedStartTick:   a.request.StartTick,
+			RequestedEndTick:     a.request.EndTick,
+			LeadInStartTick:      a.leadInStart,
+			RequestedLeadInTicks: a.request.LeadInTicks,
+			LeadInTicks:          a.request.StartTick - a.leadInStart,
+			ExactStartTick:       a.request.StartTick,
+			ExactEndTick:         a.request.EndTick,
+		},
+		Participants:      []ReplayParticipant{},
+		Rows:              a.rows,
+		placeholderHeroes: a.placeholderHeroes,
+	}
+
+	// Record the identity correspondence, or leave it pending when the caller
+	// declared no expectation.
 	if a.request.ExpectedIdentity == nil {
 		out.Correspondence = ReplayIdentityCorrespondence{Status: ReplayCorrespondencePending, Reason: "no expected replay identity supplied"}
 	} else {
 		out.Correspondence = compareReplayIdentity(source, *a.request.ExpectedIdentity)
 	}
+
+	// Build the participant list: with no explicit slot selection the census
+	// is every slot with recorded samples; otherwise flag requested slots
+	// absent from the replay.
 	participants := a.participants
 	if a.allSlots {
 		participants = make(map[int32]ReplayParticipant, len(a.census))
@@ -500,6 +544,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 		out.Participants = append(out.Participants, participant)
 	}
 	slices.SortFunc(out.Participants, func(a, b ReplayParticipant) int { return cmp.Compare(a.PlayerSlot, b.PlayerSlot) })
+
+	// Materialize a dense row grid over the lead-in and requested range.
 	rowCount := (uint64(a.request.EndTick) - uint64(a.leadInStart) + 1) * uint64(len(out.Participants))
 	if rowCount > MaxReplaySegmentRows {
 		return ReplaySegmentEvidence{}, errors.New("replay segment exceeds materialized row limit")
@@ -522,6 +568,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 			break
 		}
 	}
+
+	// Summarize row coverage and field-level quality.
 	out.Rows = dense
 	out.Quality.Rows, out.Quality.Participants = len(out.Rows), len(out.Participants)
 	out.Quality.ObservedRows = len(observed)
@@ -532,6 +580,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 		out.Quality.AmbiguousParticipants = append(out.Quality.AmbiguousParticipants, slot)
 	}
 	slices.Sort(out.Quality.AmbiguousParticipants)
+
+	// Classify rows as lead-in or requested and count exact field coverage.
 	requested := make(map[uint32]map[int32]bool)
 	for _, row := range out.Rows {
 		if row.LeadIn {
@@ -560,6 +610,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 	if out.Quality.MissingVelocityRows != 0 {
 		out.Quality.MissingFields = append(out.Quality.MissingFields, "m_vecVelocity.m_vecX", "m_vecVelocity.m_vecY", "m_vecVelocity.m_vecZ")
 	}
+
+	// Count requested rows with no observed sample, keeping a bounded listing.
 	for tick := a.request.StartTick; tick <= a.request.EndTick; tick++ {
 		for _, participant := range out.Participants {
 			if _, ok := observed[ReplaySegmentRowKey{Tick: tick, PlayerSlot: participant.PlayerSlot}]; !ok {
@@ -573,6 +625,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 			break
 		}
 	}
+
+	// Determine whether each requested boundary tick is fully observed.
 	startSlots := map[int32]bool{}
 	endSlots := map[int32]bool{}
 	for _, participant := range out.Participants {
@@ -594,6 +648,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 	if !out.Quality.ExactEndPresent {
 		out.Range.ExactEndTick = 0
 	}
+
+	// Grade eligibility against the declared freshness policy.
 	if a.request.MaxFreshnessTicks == nil {
 		out.Eligibility, out.EligibilityReasons = ReplayEligibilityNotDeclared, []string{"freshness requirement not declared"}
 	} else if out.Correspondence.Status != ReplayCorrespondenceMatched {
@@ -622,6 +678,8 @@ func (a *replaySegmentAccumulator) finish(source ReplaySourceIdentity) (ReplaySe
 	return out, nil
 }
 
+// compareReplayIdentity grades the observed source identity against the
+// consumer's expectation.
 func compareReplayIdentity(source ReplaySourceIdentity, expected ReplayIdentityExpectation) ReplayIdentityCorrespondence {
 	if expected.SHA256 != "" && !canonicalSHA256(expected.SHA256) {
 		return ReplayIdentityCorrespondence{Expected: expected, Status: ReplayCorrespondenceMismatched, Reason: "expected SHA256 must be 64 lowercase hexadecimal characters"}
@@ -647,6 +705,8 @@ func compareReplayIdentity(source ReplaySourceIdentity, expected ReplayIdentityE
 	return ReplayIdentityCorrespondence{Expected: expected, Status: ReplayCorrespondenceMatched}
 }
 
+// canonicalSHA256 reports whether the value is 64 lowercase hexadecimal
+// characters.
 func canonicalSHA256(value string) bool {
 	if len(value) != sha256.Size*2 {
 		return false
@@ -659,6 +719,7 @@ func canonicalSHA256(value string) bool {
 	return true
 }
 
+// replayRow converts one entity sample event into a segment row.
 func replayRow(event s2replay.Event) ReplaySegmentRow {
 	sample := event.EntitySample
 	gameTime := event.GameTime
@@ -675,6 +736,8 @@ func replayRow(event s2replay.Event) ReplaySegmentRow {
 	return row
 }
 
+// missingReplaySegmentRow builds the synthetic row for a participant with no
+// sample at a tick.
 func missingReplaySegmentRow(tick uint32, leadIn bool, slot int32) ReplaySegmentRow {
 	missing := func() ReplayScalar {
 		return ReplayScalar{Quality: ReplayFieldMissing, MissingReason: "no_entity_sample_at_tick"}
@@ -682,6 +745,8 @@ func missingReplaySegmentRow(tick uint32, leadIn bool, slot int32) ReplaySegment
 	return ReplaySegmentRow{Tick: tick, LeadIn: leadIn, PlayerSlot: slot, EntityID: -1, EntitySerial: -1, PositionX: missing(), PositionY: missing(), PositionZ: missing(), FacingX: missing(), FacingY: missing(), FacingZ: missing(), VelocityX: missing(), VelocityY: missing(), VelocityZ: missing()}
 }
 
+// rowsEquivalent reports whether two rows carry the same evidence, ignoring
+// pointer identity of the game time.
 func rowsEquivalent(a, b ReplaySegmentRow) bool {
 	if a.GameTime != nil && b.GameTime != nil {
 		av, bv := *a.GameTime, *b.GameTime
@@ -690,6 +755,8 @@ func rowsEquivalent(a, b ReplaySegmentRow) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+// scalar builds one scalar record, downgrading absent, non-finite, or
+// future-dated values to a typed missing reason.
 func scalar(value float32, tick, rowTick uint32, present bool, field, reason string) ReplayScalar {
 	if !present || field == "" || tick > rowTick {
 		if tick > rowTick {
@@ -707,11 +774,13 @@ func scalar(value float32, tick, rowTick uint32, present bool, field, reason str
 	return out
 }
 
+// sha256Hex returns the hexadecimal SHA-256 digest of the data.
 func sha256Hex(data []byte) string {
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])
 }
 
+// replayHeader parses the DEM_FileHeader message from the demo bytes.
 func replayHeader(demo []byte) (*protocol.CDemoFileHeader, error) {
 	parser, err := s2replay.NewParser(demo)
 	if err != nil {

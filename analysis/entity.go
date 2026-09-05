@@ -109,6 +109,8 @@ type EntitySample struct {
 	HasHeroDamage        bool    `json:"has_hero_damage,omitempty"`
 }
 
+// acceptEntitySample records one entity sample in the per-player and
+// per-entity timelines.
 func (b *builder) acceptEntitySample(ev s2replay.Event) {
 	if ev.EntitySample == nil {
 		return

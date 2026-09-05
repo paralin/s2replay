@@ -79,6 +79,7 @@ type WorldCensusError struct {
 	Field        string
 }
 
+// Error returns the typed refusal message with the offending values.
 func (e *WorldCensusError) Error() string {
 	return fmt.Sprintf("world census: %s tick=%d entity=%d serial=%d field=%s", e.Kind, e.Tick, e.EntityID, e.EntitySerial, e.Field)
 }
@@ -176,6 +177,8 @@ func BuildWorldCensus(events []s2replay.Event, tick uint32) (WorldCensus, error)
 	return out, nil
 }
 
+// validateWorldCensusEvent refuses events with inconsistent identity,
+// sample ticks, or non-finite and future-dated fields.
 func validateWorldCensusEvent(event s2replay.Event, requestedTick uint32) error {
 	sample := event.EntitySample
 	if event.Entity < 0 || sample.Entity < 0 || sample.Entity != event.Entity || sample.EntitySerial < 0 || event.EntitySerial < 0 || event.EntitySerial != sample.EntitySerial {
@@ -239,6 +242,7 @@ func validateWorldCensusEvent(event s2replay.Event, requestedTick uint32) error 
 	return nil
 }
 
+// worldCensusEntity converts one entity sample event into a census row.
 func worldCensusEntity(event s2replay.Event, requestedTick uint32) WorldCensusEntity {
 	sample := event.EntitySample
 	row := WorldCensusEntity{
@@ -266,6 +270,7 @@ func worldCensusEntity(event s2replay.Event, requestedTick uint32) WorldCensusEn
 	return row
 }
 
+// censusFloat builds a present float record with its source age.
 func censusFloat(value float32, sourceTick, requestedTick uint32) WorldCensusFloat {
 	return WorldCensusFloat{Value: value, Present: true, SourceTick: sourceTick, FreshnessTicks: requestedTick - sourceTick}
 }

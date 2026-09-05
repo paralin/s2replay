@@ -11,6 +11,7 @@ import (
 	"github.com/paralin/s2replay"
 )
 
+// runbackSample builds an entity sample with the common fields populated.
 func runbackSample(tick uint32, entity, serial int32, class string, slot int32) s2replay.EntitySample {
 	return s2replay.EntitySample{
 		Tick: tick, Entity: entity, EntitySerial: serial, ClassID: entity + 100,
@@ -23,6 +24,7 @@ func runbackSample(tick uint32, entity, serial int32, class string, slot int32) 
 	}
 }
 
+// runbackPawn builds a hero pawn sample attributed to the slot.
 func runbackPawn(tick uint32, entity int32, slot int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*7, "CCitadelPlayerPawn", slot)
 	sample.Level = 25
@@ -31,6 +33,7 @@ func runbackPawn(tick uint32, entity int32, slot int32) s2replay.EntitySample {
 	return sample
 }
 
+// runbackController builds a controller sample bound to the pawn entity.
 func runbackController(tick uint32, entity, pawn int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*7, "CCitadelPlayerController", -1)
 	sample.HasPawnEntity = true
@@ -256,6 +259,7 @@ func TestOptInPinnedRunbackFacts(t *testing.T) {
 	t.Logf("heroes=%d world=%d snapshot=%d", a.Quality.Heroes, a.Quality.WorldEntities, a.Quality.SnapshotEntities)
 }
 
+// runbackMidBoss builds a mid boss sample at full health.
 func runbackMidBoss(tick uint32, entity int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*3, RunbackMidBossClass, -1)
 	sample.Team = 4
@@ -264,6 +268,7 @@ func runbackMidBoss(tick uint32, entity int32) s2replay.EntitySample {
 	return sample
 }
 
+// runbackTower builds a tower sample on the team.
 func runbackTower(tick uint32, entity int32, team int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*3, RunbackTowerClass, -1)
 	sample.Team = team
@@ -272,6 +277,7 @@ func runbackTower(tick uint32, entity int32, team int32) s2replay.EntitySample {
 	return sample
 }
 
+// runbackWalker builds a walker sample on the team.
 func runbackWalker(tick uint32, entity int32, team int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*3, RunbackWalkerClass, -1)
 	sample.Team = team

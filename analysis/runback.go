@@ -313,6 +313,7 @@ type RunbackError struct {
 	Field        string
 }
 
+// Error returns the typed refusal message with the offending values.
 func (e *RunbackError) Error() string {
 	return fmt.Sprintf("runback facts: %s tick=%d entity=%d serial=%d slot=%d field=%s", e.Kind, e.Tick, e.EntityID, e.EntitySerial, e.PlayerSlot, e.Field)
 }
@@ -330,6 +331,8 @@ func ExtractRunbackFacts(demo []byte, request RunbackRequest) (RunbackFacts, err
 	return extractRunbackFactsWithBuild(demo, request, revision, clean)
 }
 
+// extractRunbackFactsWithBuild extracts Runback facts with an explicit parser
+// build identity; it backs tests and fixtures.
 func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision string, cleanBuild bool) (RunbackFacts, error) {
 	if !cleanBuild {
 		return RunbackFacts{}, errors.New("running parser build has unknown or modified VCS identity")
@@ -557,6 +560,8 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 	return out, nil
 }
 
+// isRunbackControllerClass reports whether the class name is a player
+// controller.
 func isRunbackControllerClass(name string) bool {
 	return strings.Contains(name, "CitadelPlayerController")
 }
@@ -565,6 +570,7 @@ func isRunbackItemClass(name string) bool {
 	return strings.Contains(name, "CCitadel_Item_") || strings.Contains(name, "CCitadelItem")
 }
 
+// runbackPosition converts the sample's position components.
 func runbackPosition(sample *s2replay.EntitySample, tick uint32) [3]RunbackFloat {
 	return [3]RunbackFloat{
 		runbackFloat(sample.PositionX, sample.PositionXTick, sample.HasPosition, tick, RunbackMissingNotInSample),
@@ -573,6 +579,8 @@ func runbackPosition(sample *s2replay.EntitySample, tick uint32) [3]RunbackFloat
 	}
 }
 
+// runbackVector3 converts per-axis vector components with independent
+// presence and source ticks.
 func runbackVector3(x, y, z float32, xTick, yTick, zTick uint32, hasX, hasY, hasZ bool, tick uint32, reason string) [3]RunbackFloat {
 	return [3]RunbackFloat{
 		runbackFloat(x, xTick, hasX, tick, reason),
@@ -581,6 +589,8 @@ func runbackVector3(x, y, z float32, xTick, yTick, zTick uint32, hasX, hasY, has
 	}
 }
 
+// runbackFloat builds a float record, downgrading absent or non-finite
+// values to a typed missing reason.
 func runbackFloat(value float32, sourceTick uint32, present bool, requestedTick uint32, reason string) RunbackFloat {
 	if !present {
 		return RunbackFloat{MissingReason: reason}
@@ -595,6 +605,7 @@ func runbackFloat(value float32, sourceTick uint32, present bool, requestedTick 
 	return out
 }
 
+// runbackUint builds an unsigned integer record with provenance.
 func runbackUint(value uint32, sourceTick uint32, present bool, requestedTick uint32, reason string) RunbackUint {
 	if !present {
 		return RunbackUint{MissingReason: reason}
@@ -606,6 +617,7 @@ func runbackUint(value uint32, sourceTick uint32, present bool, requestedTick ui
 	return out
 }
 
+// runbackInt builds a signed integer record with provenance.
 func runbackInt(value int32, sourceTick uint32, present bool, requestedTick uint32, reason string) RunbackInt {
 	if !present {
 		return RunbackInt{MissingReason: reason}
@@ -617,10 +629,12 @@ func runbackInt(value int32, sourceTick uint32, present bool, requestedTick uint
 	return out
 }
 
+// missingRunbackInt builds a typed-missing integer record.
 func missingRunbackInt(requestedTick uint32, reason string) RunbackInt {
 	return RunbackInt{MissingReason: reason}
 }
 
+// runbackAlive derives the alive verdict from health or activity state.
 func runbackAlive(sample *s2replay.EntitySample, tick uint32) RunbackAlive {
 	if sample.HasHealth {
 		alive := sample.Health > 0
@@ -633,6 +647,7 @@ func runbackAlive(sample *s2replay.EntitySample, tick uint32) RunbackAlive {
 	return RunbackAlive{Alive: true, Basis: RunbackAliveActive, SourceTick: tick}
 }
 
+// runbackItems collects the item entities owned by one pawn.
 func runbackItems(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, tick uint32) []RunbackItem {
 	items := []RunbackItem{}
 	for i := range samples {
@@ -653,6 +668,7 @@ func runbackItems(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, 
 	return items
 }
 
+// runbackAbilities collects the ability entities owned by one pawn.
 func runbackAbilities(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, tick uint32) []RunbackAbility {
 	abilities := []RunbackAbility{}
 	for i := range samples {
@@ -673,6 +689,8 @@ func runbackAbilities(samples []s2replay.EntitySample, pawn *s2replay.EntitySamp
 	return abilities
 }
 
+// runbackModifiers collects the modifier intervals open for a slot at the
+// tick.
 func runbackModifiers(timelines Result, slot int32, tick uint32) []RunbackModifier {
 	modifiers := []RunbackModifier{}
 	for _, interval := range timelines.Modifiers.Modifiers {
@@ -699,6 +717,7 @@ func runbackModifiers(timelines Result, slot int32, tick uint32) []RunbackModifi
 	return modifiers
 }
 
+// runbackMissingFields lists the vector components missing from every hero.
 func runbackMissingFields(facts RunbackFacts) []string {
 	var missing []string
 	missing = append(missing, runbackFloatMissing("position", facts.Heroes, func(hero RunbackHero) [3]RunbackFloat { return hero.Position })...)
@@ -709,6 +728,7 @@ func runbackMissingFields(facts RunbackFacts) []string {
 	return missing
 }
 
+// runbackFloatMissing lists the absent components of one hero vector field.
 func runbackFloatMissing(name string, heroes []RunbackHero, pick func(RunbackHero) [3]RunbackFloat) []string {
 	var missing []string
 	for _, hero := range heroes {
@@ -721,6 +741,7 @@ func runbackFloatMissing(name string, heroes []RunbackHero, pick func(RunbackHer
 	return missing
 }
 
+// runbackEligibility grades the facts against the declared freshness policy.
 func runbackEligibility(facts RunbackFacts, request RunbackRequest) (ReplaySegmentEligibility, []string) {
 	if request.MaxFreshnessTicks == nil {
 		return ReplayEligibilityNotDeclared, []string{"freshness requirement not declared"}
@@ -741,6 +762,7 @@ func runbackEligibility(facts RunbackFacts, request RunbackRequest) (ReplaySegme
 	return ReplayEligibilityEligible, nil
 }
 
+// missingRunbackPosition builds a fully typed-missing position vector.
 func missingRunbackPosition() [3]RunbackFloat {
 	return [3]RunbackFloat{
 		{MissingReason: RunbackMissingNotInSample},
@@ -838,6 +860,7 @@ func runbackObjectives(samples []s2replay.EntitySample, byEntity map[int32]*s2re
 	return out
 }
 
+// runbackObjectiveEntity converts one objective entity sample into a row.
 func runbackObjectiveEntity(sample *s2replay.EntitySample, tick uint32) RunbackObjectiveEntity {
 	return RunbackObjectiveEntity{
 		EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassID: sample.ClassID, ClassName: sample.ClassName,

@@ -12,6 +12,7 @@ import (
 	"github.com/paralin/s2replay"
 )
 
+// teamfightEvents builds pawn sample events for the ticks and slots.
 func teamfightEvents(ticks []uint32, slots []int32) []s2replay.Event {
 	events := make([]s2replay.Event, 0, len(ticks)*len(slots))
 	for _, tick := range ticks {

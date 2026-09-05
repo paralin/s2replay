@@ -12,6 +12,7 @@ import (
 	"github.com/paralin/s2replay"
 )
 
+// censusEvent builds an entity sample event with the common fields populated.
 func censusEvent(tick uint32, entity, serial int32, class string, slot int32) s2replay.Event {
 	return s2replay.Event{
 		Type: s2replay.EventEntitySample, Tick: tick, Entity: entity, EntitySerial: serial, PlayerSlot: slot,
@@ -246,6 +247,7 @@ func TestBuildWorldCensusRejectsMalformedInput(t *testing.T) {
 	}
 }
 
+// censusSnapshotSource is a WorldCensusSnapshotSource returning fixed samples.
 type censusSnapshotSource struct {
 	samples []s2replay.EntitySample
 	tick    uint32
@@ -319,6 +321,7 @@ func TestOptInPinnedWorldCensus(t *testing.T) {
 	}
 }
 
+// unavailableSnapshotSource is a WorldCensusSnapshotSource that always refuses.
 type unavailableSnapshotSource struct{}
 
 func (*unavailableSnapshotSource) WorldEntitySnapshot(tick uint32) ([]s2replay.EntitySample, error) {

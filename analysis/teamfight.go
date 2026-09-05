@@ -300,6 +300,8 @@ func normalizeTeamfightHeroPlaceholder(segment ReplaySegmentEvidence) ReplaySegm
 	return segment
 }
 
+// teamfightIdentityStatus grades participant identity completeness and
+// conflicts.
 func teamfightIdentityStatus(segment ReplaySegmentEvidence) (TeamfightIdentityStatus, string) {
 	if len(segment.Quality.AmbiguousParticipants) != 0 {
 		return TeamfightIdentityAmbiguous, "hero or team identity conflicts for participant slots " + formatTeamfightSlots(segment.Quality.AmbiguousParticipants)
@@ -316,6 +318,8 @@ func teamfightIdentityStatus(segment ReplaySegmentEvidence) (TeamfightIdentitySt
 	return TeamfightIdentityResolved, ""
 }
 
+// formatTeamfightSlots renders the slots as a bracketed comma-separated
+// list.
 func formatTeamfightSlots(slots []int32) string {
 	text := "["
 	for i, slot := range slots {
