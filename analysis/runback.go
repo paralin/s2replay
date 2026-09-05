@@ -443,7 +443,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		if !isRunbackControllerClass(sample.ClassName) || !sample.HasPawnEntity {
 			continue
 		}
-		if pawn := byEntity[sample.PawnEntity]; pawn != nil && pawn.ClassName == "CCitadelPlayerPawn" {
+		if pawn := byEntity[sample.PawnEntity]; pawn != nil && pawn.EntitySerial == sample.PawnEntitySerial && pawn.ClassName == "CCitadelPlayerPawn" {
 			controllerByPawn[sample.PawnEntity] = sample
 		}
 	}
@@ -513,8 +513,8 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 				HeroDamage: missingRunbackInt(tick, RunbackMissingNoEntity),
 			}
 		}
-		hero.Items = runbackItems(samples, sample.Entity, tick)
-		hero.Abilities = runbackAbilities(samples, sample.Entity, tick)
+		hero.Items = runbackItems(samples, sample, tick)
+		hero.Abilities = runbackAbilities(samples, sample, tick)
 		hero.Modifiers = runbackModifiers(timelines, slot, tick)
 		out.Heroes = append(out.Heroes, hero)
 	}
@@ -629,11 +629,11 @@ func runbackAlive(sample *s2replay.EntitySample, tick uint32) RunbackAlive {
 	return RunbackAlive{Alive: true, Basis: RunbackAliveActive, SourceTick: tick}
 }
 
-func runbackItems(samples []s2replay.EntitySample, pawnEntity int32, tick uint32) []RunbackItem {
+func runbackItems(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, tick uint32) []RunbackItem {
 	items := []RunbackItem{}
 	for i := range samples {
 		sample := &samples[i]
-		if !isRunbackItemClass(sample.ClassName) || !sample.HasOwnerEntity || sample.OwnerEntity != pawnEntity {
+		if !isRunbackItemClass(sample.ClassName) || !sample.HasOwnerEntity || sample.OwnerEntity != pawn.Entity || sample.OwnerEntitySerial != pawn.EntitySerial {
 			continue
 		}
 		items = append(items, RunbackItem{
@@ -649,11 +649,11 @@ func runbackItems(samples []s2replay.EntitySample, pawnEntity int32, tick uint32
 	return items
 }
 
-func runbackAbilities(samples []s2replay.EntitySample, pawnEntity int32, tick uint32) []RunbackAbility {
+func runbackAbilities(samples []s2replay.EntitySample, pawn *s2replay.EntitySample, tick uint32) []RunbackAbility {
 	abilities := []RunbackAbility{}
 	for i := range samples {
 		sample := &samples[i]
-		if !isRunbackAbilityClass(sample.ClassName) || !sample.HasOwnerEntity || sample.OwnerEntity != pawnEntity {
+		if !isRunbackAbilityClass(sample.ClassName) || !sample.HasOwnerEntity || sample.OwnerEntity != pawn.Entity || sample.OwnerEntitySerial != pawn.EntitySerial {
 			continue
 		}
 		abilities = append(abilities, RunbackAbility{
@@ -853,7 +853,7 @@ func runbackTransients(samples []s2replay.EntitySample, byEntity map[int32]*s2re
 		}
 		if sample.HasOwnerEntity {
 			owner := byEntity[sample.OwnerEntity]
-			if owner != nil && owner.ClassName == "CCitadelPlayerPawn" {
+			if owner != nil && owner.EntitySerial == sample.OwnerEntitySerial && owner.ClassName == "CCitadelPlayerPawn" {
 				if _, ok := pawnSlots[sample.OwnerEntity]; ok {
 					// Attributed to a hero: recorded on the hero row instead.
 					continue

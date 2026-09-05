@@ -35,6 +35,7 @@ func runbackController(tick uint32, entity, pawn int32) s2replay.EntitySample {
 	sample := runbackSample(tick, entity, entity*7, "CCitadelPlayerController", -1)
 	sample.HasPawnEntity = true
 	sample.PawnEntity = pawn
+	sample.PawnEntitySerial = pawn * 7
 	sample.PawnEntityTick = tick
 	sample.NetWorth = int32(1000 + entity)
 	sample.NetWorthTick = tick
@@ -163,6 +164,7 @@ func TestBuildRunbackFactsNonFiniteRefused(t *testing.T) {
 	ability.HasCooldownEnd = true
 	ability.HasOwnerEntity = true
 	ability.OwnerEntity = 92
+	ability.OwnerEntitySerial = 92 * 7
 	samples := []s2replay.EntitySample{runbackPawn(100, 92, 1), ability}
 	got, err := buildRunbackFacts(samples, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
 	if err != nil {
@@ -427,6 +429,7 @@ func TestBuildRunbackFactsOwnedItemNotTransient(t *testing.T) {
 	item := runbackSample(100, 300, 21, "CCitadel_Item_WarpStone", -1)
 	item.HasOwnerEntity = true
 	item.OwnerEntity = 92
+	item.OwnerEntitySerial = 92 * 7
 	item.OwnerEntityTick = 100
 	samples := []s2replay.EntitySample{runbackPawn(100, 92, 1), item}
 	got, err := buildRunbackFacts(samples, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
@@ -608,6 +611,7 @@ func TestOptInPinnedRunbackObjectives(t *testing.T) {
 func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
 	item := runbackSample(100, 300, 21, "CCitadel_Item_Empty", -1)
 	item.HasOwnerEntity, item.OwnerEntity = true, 92
+	item.OwnerEntitySerial = 92 * 7
 	item.HasSubclassID, item.SubclassID, item.SubclassIDTick = true, 0xf1234567, 80
 	item.HasAbilitySlot, item.AbilitySlot, item.AbilitySlotTick = true, 12, 81
 	item.HasUpgradeInfo, item.UpgradeInfo, item.UpgradeInfoTick = true, 0, 82
@@ -615,6 +619,7 @@ func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
 	item.HasCooldownEnd, item.CooldownEnd, item.CooldownEndTick = true, 14.5, 91
 	ability := runbackSample(100, 301, 22, "CCitadel_Ability_PrimaryWeapon_Empty", -1)
 	ability.HasOwnerEntity, ability.OwnerEntity = true, 92
+	ability.OwnerEntitySerial = 92 * 7
 	got, err := buildRunbackFacts([]s2replay.EntitySample{runbackPawn(100, 92, 1), item, ability}, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -640,5 +645,28 @@ func TestBuildRunbackFactsPreservesConcreteEquipmentIdentity(t *testing.T) {
 	missing := hero.Abilities[0].SubclassID
 	if missing.Present || missing.MissingReason != "m_nSubclassID_not_present" {
 		t.Fatalf("missing identity fabricated: %+v", missing)
+	}
+}
+
+func TestBuildRunbackFactsRejectsReusedOwnershipGenerations(t *testing.T) {
+	pawn := runbackPawn(100, 92, 1)
+	item := runbackSample(100, 300, 21, "CCitadel_Item_WarpStone", -1)
+	item.HasOwnerEntity = true
+	item.OwnerEntity = pawn.Entity
+	item.OwnerEntitySerial = pawn.EntitySerial - 1
+	ability := item
+	ability.Entity = 301
+	ability.ClassName = "CCitadel_Ability_Dash"
+	controller := runbackController(100, 10, pawn.Entity)
+	controller.PawnEntitySerial = pawn.EntitySerial - 1
+	facts, err := buildRunbackFacts([]s2replay.EntitySample{pawn, item, ability, controller}, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, RunbackTickProvenance{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Heroes) != 1 || len(facts.Heroes[0].Items) != 0 || len(facts.Heroes[0].Abilities) != 0 || facts.Heroes[0].NetWorth.Present {
+		t.Fatalf("stale generation attached: %+v", facts.Heroes)
+	}
+	if len(facts.Objectives.Transients) != 1 || facts.Objectives.Transients[0].EntityID != item.Entity {
+		t.Fatalf("unattributed item lost: %+v", facts.Objectives.Transients)
 	}
 }

@@ -110,15 +110,17 @@ type EntitySample struct {
 	UpgradeInfoTick uint32 `json:"upgrade_info_tick,omitempty"`
 	HasUpgradeInfo  bool   `json:"has_upgrade_info,omitempty"`
 
-	// OwnerEntity is the resolved entity index of m_hOwnerEntity.
-	OwnerEntity     int32  `json:"owner_entity,omitempty"`
-	OwnerEntityTick uint32 `json:"owner_entity_tick,omitempty"`
-	HasOwnerEntity  bool   `json:"has_owner_entity,omitempty"`
+	// OwnerEntity and OwnerEntitySerial identify the generation in m_hOwnerEntity.
+	OwnerEntitySerial int32  `json:"owner_entity_serial,omitempty"`
+	OwnerEntity       int32  `json:"owner_entity,omitempty"`
+	OwnerEntityTick   uint32 `json:"owner_entity_tick,omitempty"`
+	HasOwnerEntity    bool   `json:"has_owner_entity,omitempty"`
 
-	// PawnEntity is the resolved entity index of the controller hero pawn.
-	PawnEntity     int32  `json:"pawn_entity,omitempty"`
-	PawnEntityTick uint32 `json:"pawn_entity_tick,omitempty"`
-	HasPawnEntity  bool   `json:"has_pawn_entity,omitempty"`
+	// PawnEntity and PawnEntitySerial identify the controller hero pawn generation.
+	PawnEntitySerial int32  `json:"pawn_entity_serial,omitempty"`
+	PawnEntity       int32  `json:"pawn_entity,omitempty"`
+	PawnEntityTick   uint32 `json:"pawn_entity_tick,omitempty"`
+	HasPawnEntity    bool   `json:"has_pawn_entity,omitempty"`
 
 	// NetWorth is the controller scoreboard net worth.
 	NetWorth     int32  `json:"net_worth,omitempty"`
@@ -400,13 +402,15 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	s.AbilitySlot, s.AbilitySlotTick, s.HasAbilitySlot = firstUInt32AtAny(e, "m_eAbilitySlot")
 	s.UpgradeInfo, s.UpgradeInfoTick, s.HasUpgradeInfo = firstUInt32AtAny(e, "m_nUpgradeInfo")
 	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, "m_nLevel", "m_PlayerDataGlobal.m_iLevel")
-	if handle, handleTick, ok := firstInt32AtAny(e, "m_hOwnerEntity"); ok && handle >= 0 {
-		s.OwnerEntity = int32(uint32(handle) & uint32(entityHandleMask))
+	if handle, handleTick, ok := firstUInt32AtAny(e, "m_hOwnerEntity"); ok && validEntityHandle(handle) {
+		s.OwnerEntity = int32(handle & uint32(entityHandleMask))
+		s.OwnerEntitySerial = int32(handle >> 14)
 		s.OwnerEntityTick = handleTick
 		s.HasOwnerEntity = true
 	}
-	if handle, handleTick, ok := firstInt32AtAny(e, "m_hHeroPawn", "m_hPawn"); ok && handle >= 0 && uint32(handle) != invalidEntityHandle {
-		s.PawnEntity = int32(uint32(handle) & uint32(entityHandleMask))
+	if handle, handleTick, ok := firstUInt32AtAny(e, "m_hHeroPawn", "m_hPawn"); ok && validEntityHandle(handle) {
+		s.PawnEntity = int32(handle & uint32(entityHandleMask))
+		s.PawnEntitySerial = int32(handle >> 14)
 		s.PawnEntityTick = handleTick
 		s.HasPawnEntity = true
 	}
@@ -551,8 +555,15 @@ func (p *Parser) FindEntity(index int32) *Entity {
 	return p.entities[index]
 }
 
+func validEntityHandle(handle uint32) bool {
+	return handle != invalidEntityHandle && handle != ^uint32(0)
+}
+
 // FindEntityByHandle returns the current entity for a Source 2 entity handle.
 func (p *Parser) FindEntityByHandle(handle uint64) *Entity {
+	if handle > uint64(^uint32(0)) || !validEntityHandle(uint32(handle)) {
+		return nil
+	}
 	e := p.FindEntity(int32(handle & entityHandleMask))
 	if e == nil || e.serial != int32(handle>>14) {
 		return nil
@@ -851,10 +862,11 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 	}
 	p.chargeLastSeen[e.index] = charges
 	slot := int32(-1)
-	if owner, ok := e.Int32("m_hOwnerEntity"); ok && owner >= 0 {
-		ownerIndex := int32(uint32(owner) & uint32(entityHandleMask))
-		if mapped, mappedOk := p.entityPlayerSlots[ownerIndex]; mappedOk {
-			slot = mapped
+	if handle, ok := e.UInt32("m_hOwnerEntity"); ok {
+		if owner := p.FindEntityByHandle(uint64(handle)); owner != nil && owner.active {
+			if mapped, mappedOk := p.entityPlayerSlots[owner.index]; mappedOk {
+				slot = mapped
+			}
 		}
 	}
 	p.pendingEvents = append(p.pendingEvents, Event{
@@ -892,9 +904,12 @@ func (p *Parser) updateEntityPlayerSlot(e *Entity) {
 		return
 	}
 	for _, name := range []string{"m_hHeroPawn", "m_hPawn"} {
-		handle, ok := e.Int32(name)
-		if ok && handle >= 0 && uint32(handle) != invalidEntityHandle {
-			p.entityPlayerSlots[int32(uint32(handle)&uint32(entityHandleMask))] = slot
+		handle, ok := e.UInt32(name)
+		if !ok {
+			continue
+		}
+		if pawn := p.FindEntityByHandle(uint64(handle)); pawn != nil && pawn.active {
+			p.entityPlayerSlots[pawn.index] = slot
 			return
 		}
 	}

@@ -171,9 +171,9 @@ func TestWorldSnapshotKeepsPlayerSlotAttribution(t *testing.T) {
 	chargesPath.path[0], chargesPath.last = 0, 0
 	ownerPathInAbility.path[0], ownerPathInAbility.last = 1, 0
 	ability.state.set(chargesPath, int32(2))
-	ability.state.set(ownerPathInAbility, int32(1))
+	ability.state.set(ownerPathInAbility, uint32(7<<14|1))
 
-	parser := &Parser{clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[int32]int32), worldSnapshotMode: true}
+	parser := &Parser{entities: map[int32]*Entity{1: owner}, clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[int32]int32), worldSnapshotMode: true}
 	parser.appendEntitySample(10, owner)
 	if parser.entityPlayerSlots[1] != 4 || len(parser.pendingEvents) != 0 {
 		t.Fatalf("snapshot attribution update: slots=%v events=%d", parser.entityPlayerSlots, len(parser.pendingEvents))
@@ -223,5 +223,73 @@ func TestWorldEntitySnapshotPreservesEquipmentSlotAndUpgradeInfo(t *testing.T) {
 	sample := samples[0]
 	if !sample.HasAbilitySlot || sample.AbilitySlot != 12 || sample.AbilitySlotTick != 9 || !sample.HasUpgradeInfo || sample.UpgradeInfo != 0xf1234567 || sample.UpgradeInfoTick != 9 {
 		t.Fatalf("equipment state lost: %+v", sample)
+	}
+}
+
+func TestWorldEntitySnapshotPreservesHandleGenerations(t *testing.T) {
+	for _, tc := range []struct {
+		handle  uint32
+		present bool
+	}{
+		{0x8000005c, true}, {7<<14 | 92, true}, {invalidEntityHandle, false}, {^uint32(0), false},
+	} {
+		class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_hOwnerEntity"}, {varName: "m_hHeroPawn"}}}}
+		entity := newEntity(7, 3, class)
+		for i := 0; i < 2; i++ {
+			path := fieldPath{last: 0}
+			path.path[0] = i
+			entity.state.set(path, tc.handle)
+			entity.fieldTicks[path] = 9
+		}
+		parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
+		parser.clock.setTick(10)
+		samples, err := parser.WorldEntitySnapshot(10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := samples[0]
+		if s.HasOwnerEntity != tc.present || s.HasPawnEntity != tc.present {
+			t.Fatalf("handle %x presence: %+v", tc.handle, s)
+		}
+		if tc.present && (s.OwnerEntity != 92 || s.PawnEntity != 92 || s.OwnerEntitySerial != int32(tc.handle>>14) || s.PawnEntitySerial != int32(tc.handle>>14) || s.OwnerEntityTick != 9 || s.PawnEntityTick != 9) {
+			t.Fatalf("handle %x lost generation: %+v", tc.handle, s)
+		}
+	}
+}
+
+func TestAbilityChargeAttributionRejectsReusedOwnerIndex(t *testing.T) {
+	class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_iRemainingCharges"}, {varName: "m_hOwnerEntity"}}}}
+	ability := newEntity(2, 8, class)
+	charges := fieldPath{last: 0}
+	ownerPath := fieldPath{last: 0}
+	ownerPath.path[0] = 1
+	ability.state.set(charges, int32(2))
+	ability.state.set(ownerPath, uint32(7<<14|1))
+	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{1: newEntity(1, 8, &entityClass{})}, entityPlayerSlots: map[int32]int32{1: 4}, chargeLastSeen: make(map[int32]int32)}
+	parser.appendAbilityChargeEvent(10, ability)
+	if len(parser.pendingEvents) != 1 || parser.pendingEvents[0].PlayerSlot != -1 {
+		t.Fatalf("stale owner attributed: %+v", parser.pendingEvents)
+	}
+}
+
+func TestControllerAttributionRequiresCurrentPawnHandle(t *testing.T) {
+	class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_unLobbyPlayerSlot"}, {varName: "m_hHeroPawn"}}}}
+	controller := newEntity(10, 1, class)
+	slotPath := fieldPath{last: 0}
+	handlePath := fieldPath{last: 0}
+	handlePath.path[0] = 1
+	controller.state.set(slotPath, int32(4))
+	controller.state.set(handlePath, uint32(0x8000005c))
+	pawn := newEntity(92, 0x20000, &entityClass{})
+	parser := &Parser{entities: map[int32]*Entity{92: pawn}, entityPlayerSlots: make(map[int32]int32)}
+	parser.updateEntityPlayerSlot(controller)
+	if parser.entityPlayerSlots[92] != 4 {
+		t.Fatalf("unsigned current pawn not attributed: %v", parser.entityPlayerSlots)
+	}
+	delete(parser.entityPlayerSlots, 92)
+	pawn.serial++
+	parser.updateEntityPlayerSlot(controller)
+	if _, ok := parser.entityPlayerSlots[92]; ok {
+		t.Fatalf("reused pawn attributed: %v", parser.entityPlayerSlots)
 	}
 }

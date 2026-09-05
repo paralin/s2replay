@@ -75,9 +75,11 @@ type EntitySample struct {
 	Level                uint32  `json:"level,omitempty"`
 	LevelTick            uint32  `json:"level_tick,omitempty"`
 	HasLevel             bool    `json:"has_level,omitempty"`
+	OwnerEntitySerial    int32   `json:"owner_entity_serial,omitempty"`
 	OwnerEntity          int32   `json:"owner_entity,omitempty"`
 	OwnerEntityTick      uint32  `json:"owner_entity_tick,omitempty"`
 	HasOwnerEntity       bool    `json:"has_owner_entity,omitempty"`
+	PawnEntitySerial     int32   `json:"pawn_entity_serial,omitempty"`
 	PawnEntity           int32   `json:"pawn_entity,omitempty"`
 	PawnEntityTick       uint32  `json:"pawn_entity_tick,omitempty"`
 	HasPawnEntity        bool    `json:"has_pawn_entity,omitempty"`
@@ -184,9 +186,11 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		LevelTick:            ev.EntitySample.LevelTick,
 		HasLevel:             ev.EntitySample.HasLevel,
 		OwnerEntity:          ev.EntitySample.OwnerEntity,
+		OwnerEntitySerial:    ev.EntitySample.OwnerEntitySerial,
 		OwnerEntityTick:      ev.EntitySample.OwnerEntityTick,
 		HasOwnerEntity:       ev.EntitySample.HasOwnerEntity,
 		PawnEntity:           ev.EntitySample.PawnEntity,
+		PawnEntitySerial:     ev.EntitySample.PawnEntitySerial,
 		PawnEntityTick:       ev.EntitySample.PawnEntityTick,
 		HasPawnEntity:        ev.EntitySample.HasPawnEntity,
 		NetWorth:             ev.EntitySample.NetWorth,
