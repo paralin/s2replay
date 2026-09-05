@@ -335,6 +335,8 @@ func sanitizeEntitySample(sample *EntitySample) {
 		value   *float32
 		present *bool
 	}{
+		{"stamina_latch_time", &sample.StaminaLatchTime, &sample.HasStaminaLatchTime},
+		{"stamina_latch_value", &sample.StaminaLatchValue, &sample.HasStaminaLatchValue},
 		{"cooldown_start", &sample.CooldownStart, &sample.HasCooldownStart},
 		{"cooldown_end", &sample.CooldownEnd, &sample.HasCooldownEnd},
 		{"charge_recharge_start", &sample.ChargeRechargeStart, &sample.HasChargeRechargeStart},

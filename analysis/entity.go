@@ -93,6 +93,18 @@ type EntitySample struct {
 	RemainingCharges     int32  `json:"remaining_charges,omitempty"`
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
 	HasRemainingCharges  bool   `json:"has_remaining_charges,omitempty"`
+	// StaminaLatchTime preserves the resource anchor in server seconds.
+	StaminaLatchTime float32 `json:"stamina_latch_time,omitempty"`
+	// StaminaLatchTimeTick identifies the anchor's source update.
+	StaminaLatchTimeTick uint32 `json:"stamina_latch_time_tick,omitempty"`
+	// HasStaminaLatchTime distinguishes zero from missing evidence.
+	HasStaminaLatchTime bool `json:"has_stamina_latch_time,omitempty"`
+	// StaminaLatchValue preserves the resource value at the anchor, not current stamina.
+	StaminaLatchValue float32 `json:"stamina_latch_value,omitempty"`
+	// StaminaLatchValueTick identifies the value's source update.
+	StaminaLatchValueTick uint32 `json:"stamina_latch_value_tick,omitempty"`
+	// HasStaminaLatchValue distinguishes zero from missing evidence.
+	HasStaminaLatchValue bool `json:"has_stamina_latch_value,omitempty"`
 	// CooldownStart records the start of the active cooldown interval in server seconds.
 	CooldownStart float32 `json:"cooldown_start,omitempty"`
 	// CooldownStartTick identifies the last replay update for CooldownStart.
@@ -226,6 +238,12 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		RemainingCharges:        ev.EntitySample.RemainingCharges,
 		RemainingChargesTick:    ev.EntitySample.RemainingChargesTick,
 		HasRemainingCharges:     ev.EntitySample.HasRemainingCharges,
+		StaminaLatchTime:        ev.EntitySample.StaminaLatchTime,
+		StaminaLatchTimeTick:    ev.EntitySample.StaminaLatchTimeTick,
+		HasStaminaLatchTime:     ev.EntitySample.HasStaminaLatchTime,
+		StaminaLatchValue:       ev.EntitySample.StaminaLatchValue,
+		StaminaLatchValueTick:   ev.EntitySample.StaminaLatchValueTick,
+		HasStaminaLatchValue:    ev.EntitySample.HasStaminaLatchValue,
 		CooldownStart:           ev.EntitySample.CooldownStart,
 		CooldownStartTick:       ev.EntitySample.CooldownStartTick,
 		HasCooldownStart:        ev.EntitySample.HasCooldownStart,

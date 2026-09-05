@@ -150,6 +150,11 @@ type RunbackFactsQuality struct {
 
 // RunbackHero is one replay hero slot observed at the tick.
 type RunbackHero struct {
+	// StaminaLatchTime is the recorded resource anchor in server seconds.
+	StaminaLatchTime RunbackFloat `json:"stamina_latch_time"`
+	// StaminaLatchValue is stamina at the anchor; current stamina requires regeneration state.
+	StaminaLatchValue RunbackFloat `json:"stamina_latch_value"`
+
 	PlayerSlot   int32  `json:"player_slot"`
 	EntityID     int32  `json:"entity_id"`
 	EntitySerial int32  `json:"entity_serial"`
@@ -502,6 +507,9 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			continue
 		}
 		hero := RunbackHero{
+			StaminaLatchTime:  runbackFloat(sample.StaminaLatchTime, sample.StaminaLatchTimeTick, sample.HasStaminaLatchTime, request.Tick, RunbackMissingNotInSample),
+			StaminaLatchValue: runbackFloat(sample.StaminaLatchValue, sample.StaminaLatchValueTick, sample.HasStaminaLatchValue, request.Tick, RunbackMissingNotInSample),
+
 			PlayerSlot: slot, EntityID: sample.Entity, EntitySerial: sample.EntitySerial,
 			ClassID: sample.ClassID, ClassName: sample.ClassName,
 			HeroID:    runbackUint(sample.HeroID, sample.HeroIDTick, sample.HasHeroID, tick, RunbackMissingNotInSample),

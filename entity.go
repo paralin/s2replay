@@ -132,6 +132,19 @@ type EntitySample struct {
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
 	HasRemainingCharges  bool   `json:"has_remaining_charges,omitempty"`
 
+	// StaminaLatchTime is the observed stamina interpolation anchor in server seconds.
+	StaminaLatchTime float32 `json:"stamina_latch_time,omitempty"`
+	// StaminaLatchTimeTick identifies the source update for StaminaLatchTime.
+	StaminaLatchTimeTick uint32 `json:"stamina_latch_time_tick,omitempty"`
+	// HasStaminaLatchTime distinguishes observed zero from unavailable evidence.
+	HasStaminaLatchTime bool `json:"has_stamina_latch_time,omitempty"`
+	// StaminaLatchValue is the stamina value at StaminaLatchTime, not current stamina.
+	StaminaLatchValue float32 `json:"stamina_latch_value,omitempty"`
+	// StaminaLatchValueTick identifies the source update for StaminaLatchValue.
+	StaminaLatchValueTick uint32 `json:"stamina_latch_value_tick,omitempty"`
+	// HasStaminaLatchValue distinguishes observed zero from unavailable evidence.
+	HasStaminaLatchValue bool `json:"has_stamina_latch_value,omitempty"`
+
 	// CooldownStart records the start of the active cooldown interval in server seconds.
 	CooldownStart float32 `json:"cooldown_start,omitempty"`
 	// CooldownStartTick identifies the last replay update for CooldownStart.
@@ -440,6 +453,12 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
 		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchTime"); ok {
+		s.StaminaLatchTime, s.StaminaLatchTimeTick, s.HasStaminaLatchTime = value, valueTick, true
+	}
+	if value, valueTick, _, ok := firstFloat32At(e, "m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchValue"); ok {
+		s.StaminaLatchValue, s.StaminaLatchValueTick, s.HasStaminaLatchValue = value, valueTick, true
 	}
 	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownStart"); ok {
 		s.CooldownStart, s.CooldownStartTick, s.HasCooldownStart = value, valueTick, true
