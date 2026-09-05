@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	// Parse flags and resolve the repository root to hash.
 	write := flag.Bool("write", false, "rewrite identity.go with the computed digest")
 	check := flag.Bool("check", false, "fail when identity.go or source state is stale/dirty")
 	flag.Parse()
@@ -22,20 +23,33 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Collect the name of every file that contributes to parser behavior.
 	names := []string{"go.mod", "go.sum"}
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
+
+		// Skip directories that hold no parser behavior.
 		if entry.IsDir() {
 			if entry.Name() == ".git" || entry.Name() == ".tmp" || entry.Name() == "tools" {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".proto") || (filepath.Ext(path) == ".go" && strings.HasSuffix(path, "_test.go")) || filepath.Base(path) == "identity.go" || (filepath.Ext(path) == ".proto" && !strings.HasPrefix(filepath.ToSlash(path), "protocol/")) {
+
+		// Skip files outside the digest: non-source files, tests, the
+		// digest declaration itself, and protos outside the protocol
+		// directory.
+		if (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".proto") ||
+			(filepath.Ext(path) == ".go" && strings.HasSuffix(path, "_test.go")) ||
+			filepath.Base(path) == "identity.go" ||
+			(filepath.Ext(path) == ".proto" && !strings.HasPrefix(filepath.ToSlash(path), "protocol/")) {
 			return nil
 		}
+
+		// Record the file by its repo-relative slash path.
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
@@ -46,6 +60,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Hash each file name and content in sorted order.
 	sort.Strings(names)
 	h := sha256.New()
 	for _, name := range names {
@@ -60,6 +76,9 @@ func main() {
 	}
 	digest := hex.EncodeToString(h.Sum(nil))
 	fmt.Println(digest)
+
+	// In check mode, fail when identity.go holds a stale digest or the
+	// behavior source carries uncommitted or untracked changes.
 	if *check {
 		data, err := os.ReadFile(filepath.Join(root, "identity.go"))
 		if err != nil {
@@ -79,6 +98,9 @@ func main() {
 	if !*write {
 		return
 	}
+
+	// Rewrite the digest value inside identity.go, preserving the rest of
+	// the file text.
 	path := filepath.Join(root, "identity.go")
 	data, err := os.ReadFile(path)
 	if err != nil {
