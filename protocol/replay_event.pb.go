@@ -5,6 +5,7 @@
 package protocol
 
 import (
+	base64 "encoding/base64"
 	binary "encoding/binary"
 	fmt "fmt"
 	io "io"
@@ -474,6 +475,9 @@ type ReplayModifier struct {
 	HasLastAppliedTime bool `protobuf:"varint,20,opt,name=has_last_applied_time,json=hasLastAppliedTime,proto3" json:"hasLastAppliedTime,omitempty"`
 	// HasDuration distinguishes unknown timing from an observed indefinite duration.
 	HasDuration bool `protobuf:"varint,21,opt,name=has_duration,json=hasDuration,proto3" json:"hasDuration,omitempty"`
+	// PayloadProto is the merged CModifierTableEntry serialized with its existing
+	// binary codec. JSON base64 retains unknown fields and nonfinite float bits.
+	PayloadProto []byte `protobuf:"bytes,22,opt,name=payload_proto,json=payloadProto,proto3" json:"payloadProto,omitempty"`
 }
 
 func (x *ReplayModifier) Reset() {
@@ -627,6 +631,13 @@ func (x *ReplayModifier) GetHasDuration() bool {
 		return x.HasDuration
 	}
 	return false
+}
+
+func (x *ReplayModifier) GetPayloadProto() []byte {
+	if x != nil {
+		return x.PayloadProto
+	}
+	return nil
 }
 
 type ReplayPurchase struct {
@@ -2020,6 +2031,9 @@ func (m *ReplayModifier) CloneVT() *ReplayModifier {
 	r.HasSerialNumber = m.HasSerialNumber
 	r.HasLastAppliedTime = m.HasLastAppliedTime
 	r.HasDuration = m.HasDuration
+	if rhs := m.PayloadProto; rhs != nil {
+		r.PayloadProto = slices.Clone(rhs)
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -2659,6 +2673,9 @@ func (this *ReplayModifier) EqualVT(that *ReplayModifier) bool {
 		return false
 	}
 	if this.HasDuration != that.HasDuration {
+		return false
+	}
+	if string(this.PayloadProto) != string(that.PayloadProto) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -4038,6 +4055,11 @@ func (x *ReplayModifier) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("hasDuration")
 		s.WriteBool(x.HasDuration)
 	}
+	if len(x.PayloadProto) > 0 || s.HasField("payloadProto") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("payloadProto")
+		s.WriteBytes(x.PayloadProto)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -4118,6 +4140,9 @@ func (x *ReplayModifier) UnmarshalProtoJSON(s *json.UnmarshalState) {
 		case "has_duration", "hasDuration":
 			s.AddField("has_duration")
 			x.HasDuration = s.ReadBool()
+		case "payload_proto", "payloadProto":
+			s.AddField("payload_proto")
+			x.PayloadProto = s.ReadBytes()
 		}
 	})
 }
@@ -6319,6 +6344,15 @@ func (m *ReplayModifier) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.PayloadProto) > 0 {
+		i -= len(m.PayloadProto)
+		copy(dAtA[i:], m.PayloadProto)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.PayloadProto)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb2
+	}
 	if m.HasDuration {
 		i--
 		if m.HasDuration {
@@ -8027,6 +8061,10 @@ func (m *ReplayModifier) SizeVT() (n int) {
 	if m.HasDuration {
 		n += 3
 	}
+	l = len(m.PayloadProto)
+	if l > 0 {
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -9151,6 +9189,15 @@ func (x *ReplayModifier) MarshalProtoText() string {
 		}
 		sb.WriteString("has_duration: ")
 		sb.WriteString(strconv.FormatBool(x.HasDuration))
+	}
+	if len(x.PayloadProto) != 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("payload_proto: ")
+		sb.WriteString("\"")
+		sb.WriteString(base64.StdEncoding.EncodeToString(x.PayloadProto))
+		sb.WriteString("\"")
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -11430,6 +11477,32 @@ func (m *ReplayModifier) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			m.HasDuration = bool(v != 0)
+		case 22:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PayloadProto", wireType)
+			}
+			var byteLen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			byteLen = int(_v)
+			if err != nil {
+				return err
+			}
+			if byteLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PayloadProto = append(m.PayloadProto[:0], dAtA[iNdEx:postIndex]...)
+			if m.PayloadProto == nil {
+				m.PayloadProto = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

@@ -1,6 +1,8 @@
 package s2replay
 
 import (
+	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/paralin/s2replay/protocol"
@@ -73,5 +75,40 @@ func TestModifierUnknownSerialDoesNotInventReplacement(t *testing.T) {
 	}
 	if len(p.pendingModifiers) != 2 || p.pendingModifiers[1].Transition != ModifierRefresh {
 		t.Fatalf("unproven replacement: %+v", p.pendingModifiers)
+	}
+}
+
+// TestModifierPayloadMergeContract pins the generated codec used for instance deltas.
+func TestModifierPayloadMergeContract(t *testing.T) {
+	truth, falsity := true, false
+	one, zero := int32(1), int32(0)
+	x, y := float32(3), float32(4)
+	prior := &protocol.CModifierTableEntry{Bool1_: &truth, Int1_: &one, Vec1_: &protocol.CMsgVector{X: &x}}
+	update := &protocol.CModifierTableEntry{Bool1_: &falsity, Int1_: &zero, Vec1_: &protocol.CMsgVector{Y: &y}}
+	data, err := update.MarshalVT()
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknown := binary.AppendUvarint(nil, 1000<<3)
+	unknown = binary.AppendUvarint(unknown, 7)
+	data = append(data, unknown...)
+	merged := prior.CloneVT()
+	for range 2 {
+		if err := merged.UnmarshalVT(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if merged.Bool1_ == nil || *merged.Bool1_ || merged.Int1_ == nil || *merged.Int1_ != 0 || merged.Bool2_ != nil || merged.Vec1_.X == nil || *merged.Vec1_.X != x || merged.Vec1_.Y == nil || *merged.Vec1_.Y != y || merged.Vec1_.Z != nil {
+		t.Fatal("generated merge lost presence or nested components")
+	}
+	if !*prior.Bool1_ || *prior.Int1_ != 1 || prior.Vec1_.Y != nil {
+		t.Fatal("merging a clone mutated prior payload")
+	}
+	encoded, err := merged.CloneVT().MarshalVT()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasSuffix(encoded, bytes.Repeat(unknown, 2)) {
+		t.Fatal("generated merge must retain, not interpret or deduplicate, unknown wire occurrences")
 	}
 }

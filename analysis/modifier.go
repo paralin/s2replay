@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"bytes"
 	"cmp"
 
 	"github.com/paralin/s2replay"
@@ -13,6 +14,9 @@ type ModifierTimeline struct {
 
 // ModifierInterval is a closed or replay-end-open modifier lifecycle interval.
 type ModifierInterval struct {
+	// PayloadProto retains opaque CModifierTableEntry binary state, including
+	// presence and unknown fields. JSON encodes these bytes as base64.
+	PayloadProto       []byte  `json:"payload_proto,omitempty"`
 	StartTick          uint32  `json:"start_tick"`
 	EndTick            uint32  `json:"end_tick"`
 	StartTime          float64 `json:"start_time"`
@@ -72,6 +76,7 @@ func (b *builder) refreshModifierInterval(ev s2replay.Event) {
 		b.activeModifiers[ev.Modifier.TableIndex] = modifierIntervalFromEvent(ev)
 		return
 	}
+	active.PayloadProto = bytes.Clone(ev.Modifier.PayloadProto)
 	active.LastObservedTick = ev.Tick
 	active.SerialNumber, active.HasSerialNumber = ev.Modifier.SerialNumber, ev.Modifier.HasSerialNumber
 	active.Caster = ev.Modifier.Caster
@@ -96,6 +101,7 @@ func (b *builder) removeModifierInterval(ev s2replay.Event) {
 	}
 	active.EndTick = ev.Tick
 	active.EndTime = ev.GameTime
+	active.PayloadProto = bytes.Clone(ev.Modifier.PayloadProto)
 	active.LastObservedTick = ev.Tick
 	active.SerialNumber, active.HasSerialNumber = ev.Modifier.SerialNumber, ev.Modifier.HasSerialNumber
 	active.Caster = ev.Modifier.Caster
@@ -114,6 +120,7 @@ func (b *builder) removeModifierInterval(ev s2replay.Event) {
 
 func modifierIntervalFromEvent(ev s2replay.Event) ModifierInterval {
 	return ModifierInterval{
+		PayloadProto:     bytes.Clone(ev.Modifier.PayloadProto),
 		StartTick:        ev.Tick,
 		LastObservedTick: ev.Tick,
 		SerialNumber:     ev.Modifier.SerialNumber, HasSerialNumber: ev.Modifier.HasSerialNumber,
