@@ -10,9 +10,12 @@ const DefaultTickInterval = 1.0 / 64.0
 // DefaultTickInterval and is replaced by the exact server value when known;
 // callers read GameTime and never depend on the placeholder interval.
 type Clock struct {
-	tick     uint32
-	interval float64
-	exact    bool
+	tick             uint32
+	interval         float64
+	exact            bool
+	serverTick       uint32
+	serverTickSource uint32
+	serverTickKnown  bool
 }
 
 func newClock() *Clock { return &Clock{interval: DefaultTickInterval} }
@@ -38,4 +41,18 @@ func (c *Clock) SetInterval(seconds float64) {
 		c.interval = seconds
 		c.exact = true
 	}
+}
+
+// ServerTick returns the last observed network tick and its enclosing demo tick.
+// It is absent until a CNETMsg_Tick with an explicit tick is decoded outside
+// signon. No header offset, extrapolation, or demo-clock value is substituted.
+func (c *Clock) ServerTick() (tick, sourceDemoTick uint32, known bool) {
+	return c.serverTick, c.serverTickSource, c.serverTickKnown
+}
+
+func (c *Clock) observeServerTick(tick, sourceDemoTick uint32) {
+	if sourceDemoTick == ^uint32(0) {
+		return
+	}
+	c.serverTick, c.serverTickSource, c.serverTickKnown = tick, sourceDemoTick, true
 }

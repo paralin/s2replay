@@ -140,6 +140,10 @@ func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 
 func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 	switch m := msg.(type) {
+	case *protocol.CNETMsg_Tick:
+		if m.Tick != nil {
+			p.clock.observeServerTick(*m.Tick, tick)
+		}
 	case *protocol.CNETMsg_SpawnGroup_Load:
 		if m.GetWorldname() != "" && m.GetSpawngroupownerhandle() == 0 {
 			if p.rootWorlds == nil {

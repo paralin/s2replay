@@ -79,8 +79,8 @@ type RunbackFacts struct {
 	EligibilityReasons []string                     `json:"eligibility_reasons,omitempty"`
 }
 
-// RunbackTickProvenance records the demo tick interval and server start tick
-// with their provenance. Values are populated only from observed source data;
+// RunbackTickProvenance records the tick interval, header start tick and
+// observed network tick with their provenance. Values are populated only from observed source data;
 // no default or assumed rate is ever reported as present.
 type RunbackTickProvenance struct {
 	// TickIntervalSeconds is the seconds-per-tick reported by
@@ -89,6 +89,8 @@ type RunbackTickProvenance struct {
 	TickIntervalSeconds RunbackFloat `json:"tick_interval_seconds"`
 	// ServerStartTick is the start tick declared in the demo file header.
 	ServerStartTick RunbackInt `json:"server_start_tick"`
+	// ServerTick is CNETMsg_Tick at SourceTick, not demo tick plus header start.
+	ServerTick RunbackUint `json:"server_tick"`
 }
 
 // RunbackObjectives is the explicit objective state observed at the tick.
@@ -377,6 +379,8 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	}
 	clock := snapshotParser.Clock()
 	provenance := RunbackTickProvenance{}
+	serverTick, sourceTick, known := clock.ServerTick()
+	provenance.ServerTick = runbackUint(serverTick, sourceTick, known, request.Tick, "no_network_tick")
 	if clock.TickIntervalKnown() {
 		provenance.TickIntervalSeconds = runbackFloat(float32(clock.TickInterval()), 0, true, request.Tick, RunbackMissingNotInSample)
 		provenance.TickIntervalSeconds.SourceTick = request.Tick
@@ -748,6 +752,9 @@ func missingRunbackPosition() [3]RunbackFloat {
 // normalizeRunbackTickProvenance fills typed missing reasons for absent
 // provenance fields so downstream consumers never see silently empty values.
 func normalizeRunbackTickProvenance(p RunbackTickProvenance) RunbackTickProvenance {
+	if !p.ServerTick.Present && p.ServerTick.MissingReason == "" {
+		p.ServerTick.MissingReason = "no_network_tick"
+	}
 	if p.TickIntervalSeconds.MissingReason == "" && !p.TickIntervalSeconds.Present {
 		p.TickIntervalSeconds.MissingReason = RunbackMissingNoServerInfo
 	}

@@ -101,6 +101,12 @@ entity samples from the replay if they predate these fields; an index alone
 cannot establish ownership after an entity is replaced. Runback facts keep
 their existing schema and record the parser revision used for extraction.
 
+Runback tick provenance also includes the last observed `CNETMsg_Tick` as
+`server_tick`, with its source demo tick and freshness. Cooldown deadlines use
+the server clock; neither demo time nor the header's `server_start_tick` is an
+observed substitute. Older facts without `server_tick` must be re-extracted
+before restoring absolute cooldown deadlines.
+
 ## Protocol generation
 
 The Deadlock protocol Go package under `protocol/` is generated, never

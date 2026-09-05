@@ -449,6 +449,7 @@ func TestBuildRunbackFactsTickProvenance(t *testing.T) {
 	provenance := RunbackTickProvenance{
 		TickIntervalSeconds: RunbackFloat{Value: 0.015625, Present: true, SourceTick: 100},
 		ServerStartTick:     RunbackInt{Value: 2220, Present: true, FreshnessTicks: 100},
+		ServerTick:          RunbackUint{Value: 1898, Present: true, SourceTick: 99, FreshnessTicks: 1},
 	}
 	got, err := buildRunbackFacts(samples, Result{}, ReplaySourceIdentity{}, RunbackRequest{Tick: 100}, provenance, nil)
 	if err != nil {
@@ -457,6 +458,9 @@ func TestBuildRunbackFactsTickProvenance(t *testing.T) {
 	tp := got.TickProvenance
 	if !tp.TickIntervalSeconds.Present || tp.TickIntervalSeconds.Value != 0.015625 {
 		t.Fatalf("tick interval: %+v", tp.TickIntervalSeconds)
+	}
+	if !tp.ServerTick.Present || tp.ServerTick.Value != 1898 || tp.ServerTick.SourceTick != 99 || tp.ServerTick.FreshnessTicks != 1 {
+		t.Fatalf("network tick: %+v", tp.ServerTick)
 	}
 	if !tp.ServerStartTick.Present || tp.ServerStartTick.Value != 2220 {
 		t.Fatalf("server start tick: %+v", tp.ServerStartTick)
@@ -472,6 +476,9 @@ func TestBuildRunbackFactsTickProvenanceTypedMissing(t *testing.T) {
 	tp := got.TickProvenance
 	if tp.TickIntervalSeconds.Present || tp.TickIntervalSeconds.MissingReason != RunbackMissingNoServerInfo {
 		t.Fatalf("unknown interval must be typed missing: %+v", tp.TickIntervalSeconds)
+	}
+	if tp.ServerTick.Present || tp.ServerTick.MissingReason != "no_network_tick" {
+		t.Fatalf("unknown network clock: %+v", tp.ServerTick)
 	}
 	if tp.ServerStartTick.Present || tp.ServerStartTick.MissingReason != RunbackMissingHeaderField {
 		t.Fatalf("absent start tick must be typed missing: %+v", tp.ServerStartTick)
