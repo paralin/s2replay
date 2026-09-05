@@ -206,7 +206,8 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			if err != nil {
 				return nil, err
 			}
-			index = int32(v) + 1
+			// Explicit entries encode a gap from the preceding index.
+			index += int32(v) + 2
 		}
 		key := ""
 		hasKey, err := r.readBool()
