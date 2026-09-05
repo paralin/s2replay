@@ -298,10 +298,12 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			if err != nil {
 				return nil, err
 			}
-			if v >= maxStringTableIndex {
+			// Explicit entries encode a gap from the preceding index; the
+			// accumulated result, not the wire value, is what needs bounding.
+			index += int32(v) + 2
+			if index >= maxStringTableIndex {
 				return nil, errStringTableIndexTooLarge
 			}
-			index = int32(v + 1)
 		}
 
 		// Decode the entry key, either a history reference plus suffix or a
