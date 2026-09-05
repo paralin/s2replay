@@ -1,6 +1,8 @@
 package s2replay
 
 import (
+	"bytes"
+
 	"github.com/paralin/s2replay/protocol"
 )
 
@@ -58,6 +60,7 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 	if e.Modifier != nil {
 		m := e.Modifier
 		out.Modifier = &protocol.ReplayModifier{
+			PayloadProto:             bytes.Clone(m.PayloadProto),
 			Tick:                     m.Tick,
 			GameTime:                 m.GameTime,
 			Transition:               string(m.Transition),

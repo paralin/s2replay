@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -267,6 +268,9 @@ type RunbackAbility struct {
 
 // RunbackModifier is one modifier active at the tick.
 type RunbackModifier struct {
+	// PayloadProto retains opaque CModifierTableEntry binary state, including
+	// presence and unknown fields. JSON encodes these bytes as base64.
+	PayloadProto []byte `json:"payload_proto,omitempty"`
 	// TableIndex and serial identify the parser instance; absent serial evidence
 	// must not be treated as a restorable instance in older facts.
 	TableIndex      int32  `json:"table_index"`
@@ -749,7 +753,8 @@ func runbackModifiers(timelines Result, pawn *s2replay.EntitySample, tick uint32
 			continue
 		}
 		modifiers = append(modifiers, RunbackModifier{
-			TableIndex: interval.TableIndex, SerialNumber: interval.SerialNumber, HasSerialNumber: interval.HasSerialNumber,
+			PayloadProto: bytes.Clone(interval.PayloadProto),
+			TableIndex:   interval.TableIndex, SerialNumber: interval.SerialNumber, HasSerialNumber: interval.HasSerialNumber,
 			Parent: interval.Parent, Caster: interval.Caster, AbilitySubclass: interval.SourceID,
 			Duration: interval.Duration, HasDuration: interval.HasDuration,
 			LastAppliedTime: interval.LastAppliedTime, HasLastAppliedTime: interval.HasLastAppliedTime,

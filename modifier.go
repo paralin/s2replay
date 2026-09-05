@@ -1,6 +1,7 @@
 package s2replay
 
 import (
+	"bytes"
 	"io"
 	"strconv"
 
@@ -18,6 +19,9 @@ const (
 // ModifierEvent records an instance transition and the last observed payload.
 // Presence distinguishes unknown serial/timing from explicit zero or indefinite duration.
 type ModifierEvent struct {
+	// PayloadProto is a serialized CModifierTableEntry after same-instance merging.
+	// JSON base64 preserves unknown fields and source float bits without interpretation.
+	PayloadProto             []byte             `json:"payload_proto,omitempty"`
 	Tick                     uint32             `json:"tick"`
 	GameTime                 float64            `json:"game_time"`
 	Transition               ModifierTransition `json:"transition"`
@@ -42,7 +46,8 @@ type ModifierEvent struct {
 }
 
 type modifierState struct {
-	entry ModifierEvent
+	entry   ModifierEvent
+	payload *protocol.CModifierTableEntry
 }
 
 func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) error {
@@ -56,45 +61,63 @@ func (p *Parser) applyActiveModifierItem(tick uint32, item *stringTableItem) err
 	if err := entry.UnmarshalVT(item.value); err != nil {
 		return modifierDecodeError{index: item.index, err: err}
 	}
-	ev := modifierEventFromEntry(tick, p.clock.GameTime(), item.index, entry)
 	prev, hadPrev := p.modifiers[item.index]
-	if entry.GetEntryType() == protocol.MODIFIER_ENTRY_TYPE_MODIFIER_ENTRY_TYPE_REMOVED {
-		if !hadPrev {
-			return nil
-		}
-		ev.Transition = ModifierRemove
-		ev.MatchedPrior = true
-		ev = mergeModifierUpdate(ev, prev.entry, entry)
-		delete(p.modifiers, item.index)
-		p.pendingModifiers = append(p.pendingModifiers, ev)
-		p.appendModifierEvent(ev)
+	removal := entry.GetEntryType() == protocol.MODIFIER_ENTRY_TYPE_MODIFIER_ENTRY_TYPE_REMOVED
+	if removal && !hadPrev {
 		return nil
 	}
 	// A present serial change authoritatively replaces the table occupant.
 	// Missing serials are partial updates, not a replacement with serial zero.
-	hasSerial := entry.SerialNumber != nil
-	if hadPrev && hasSerial && prev.entry.HasSerialNumber && ev.SerialNumber != prev.entry.SerialNumber {
-		removed := prev.entry
-		removed.Tick, removed.GameTime = ev.Tick, ev.GameTime
-		removed.Transition, removed.MatchedPrior = ModifierRemove, true
-		p.pendingModifiers = append(p.pendingModifiers, removed)
-		p.appendModifierEvent(removed)
+	replacement := !removal && hadPrev && entry.SerialNumber != nil && prev.entry.HasSerialNumber && entry.GetSerialNumber() != prev.entry.SerialNumber
+	if replacement {
 		hadPrev = false
 	}
 	if hadPrev {
-		ev = mergeModifierUpdate(ev, prev.entry, entry)
+		// The generated decoder merges present fields, including nested messages,
+		// and appends unknown wire occurrences. Clone to retain earlier snapshots.
+		entry = prev.payload.CloneVT()
+		if err := entry.UnmarshalVT(item.value); err != nil {
+			return modifierDecodeError{index: item.index, err: err}
+		}
+	}
+	// Serialize before publishing transitions so a codec error cannot leave a
+	// replacement half-published. Exported consumers never borrow typed state.
+	payloadProto, err := entry.MarshalVT()
+	if err != nil {
+		return modifierDecodeError{index: item.index, err: err}
+	}
+	if replacement {
+		removed := prev.entry
+		removed.Tick, removed.GameTime = tick, p.clock.GameTime()
+		removed.Transition, removed.MatchedPrior = ModifierRemove, true
+		p.pendingModifiers = append(p.pendingModifiers, removed)
+		p.appendModifierEvent(removed)
+	}
+	ev := modifierEventFromEntry(tick, p.clock.GameTime(), item.index, entry)
+	ev.PayloadProto = payloadProto
+	ev.MatchedPrior = hadPrev
+	switch {
+	case removal:
+		ev.Transition = ModifierRemove
+		delete(p.modifiers, item.index)
+		p.pendingModifiers = append(p.pendingModifiers, ev)
+		p.appendModifierEvent(ev)
+		return nil
+	case hadPrev:
 		ev.Transition = ModifierRefresh
-		ev.MatchedPrior = true
-	} else {
+	default:
 		ev.Transition = ModifierAdd
 	}
-	p.modifiers[item.index] = modifierState{entry: ev}
+	state := modifierState{entry: ev, payload: entry}
+	state.entry.PayloadProto = bytes.Clone(ev.PayloadProto)
+	p.modifiers[item.index] = state
 	p.pendingModifiers = append(p.pendingModifiers, ev)
 	p.appendModifierEvent(ev)
 	return nil
 }
 
 func (p *Parser) appendModifierEvent(ev ModifierEvent) {
+	ev.PayloadProto = bytes.Clone(ev.PayloadProto)
 	entity := int32(ev.Parent & uint32(entityHandleMask))
 	slot, ok := p.entityPlayerSlots[entity]
 	if !ok {
@@ -132,54 +155,6 @@ func modifierEventFromEntry(tick uint32, gameTime float64, tableIndex int32, ent
 		AbilitySubclass:          entry.GetAbilitySubclass(),
 		InAuraRange:              entry.GetInAuraRange(),
 	}
-}
-
-// mergeModifierUpdate retains omitted fields only within the same instance.
-// Explicit zero and explicit indefinite duration (-1) remain observed values.
-func mergeModifierUpdate(update, prior ModifierEvent, entry *protocol.CModifierTableEntry) ModifierEvent {
-	if entry.Parent == nil {
-		update.Parent = prior.Parent
-	}
-	if entry.SerialNumber == nil {
-		update.SerialNumber = prior.SerialNumber
-		update.HasSerialNumber = prior.HasSerialNumber
-	}
-	if entry.ModifierSubclass == nil {
-		update.ModifierSubclass = prior.ModifierSubclass
-	}
-	if entry.StackCount == nil {
-		update.StackCount = prior.StackCount
-	}
-	if entry.MaxStackCount == nil {
-		update.MaxStackCount = prior.MaxStackCount
-	}
-	if entry.LastAppliedTime == nil {
-		update.LastAppliedTime = prior.LastAppliedTime
-		update.HasLastAppliedTime = prior.HasLastAppliedTime
-	}
-	if entry.Duration == nil {
-		update.Duration = prior.Duration
-		update.HasDuration = prior.HasDuration
-	}
-	if entry.Caster == nil {
-		update.Caster = prior.Caster
-	}
-	if entry.Ability == nil {
-		update.Ability = prior.Ability
-	}
-	if entry.AuraProviderSerialNumber == nil {
-		update.AuraProviderSerialNumber = prior.AuraProviderSerialNumber
-	}
-	if entry.AuraProviderEhandle == nil {
-		update.AuraProviderEHandle = prior.AuraProviderEHandle
-	}
-	if entry.AbilitySubclass == nil {
-		update.AbilitySubclass = prior.AbilitySubclass
-	}
-	if entry.InAuraRange == nil {
-		update.InAuraRange = prior.InAuraRange
-	}
-	return update
 }
 
 func (p *Parser) NextModifierEvent() (ModifierEvent, error) {

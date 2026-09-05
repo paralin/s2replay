@@ -85,6 +85,9 @@ message ReplayModifier {
   bool has_last_applied_time = 20;
   // HasDuration distinguishes unknown timing from an observed indefinite duration.
   bool has_duration = 21;
+  // PayloadProto is the merged CModifierTableEntry serialized with its existing
+  // binary codec. JSON base64 retains unknown fields and nonfinite float bits.
+  bytes payload_proto = 22;
 }
 
 message ReplayPurchase {
