@@ -4,12 +4,18 @@ import (
 	"github.com/paralin/s2replay/protocol"
 )
 
+// entityClass describes one networked entity class.
 type entityClass struct {
-	id         int32
-	name       string
+	// id is the networked class id.
+	id int32
+	// name is the networked class name.
+	name string
+	// serializer defines the class's fields; nil before SendTables arrive.
 	serializer *serializer
 }
 
+// pathForName resolves a dotted field name to its field path, reporting
+// whether the class's serializer contains it.
 func (c *entityClass) pathForName(name string) (fieldPath, bool) {
 	var fp fieldPath
 	fp.path = [fieldPathMaxDepth]int{-1}
@@ -22,6 +28,7 @@ func (c *entityClass) pathForName(name string) (fieldPath, bool) {
 	return fp, false
 }
 
+// fieldName joins a field path back into its dotted field name.
 func (c *entityClass) fieldName(fp fieldPath) string {
 	if c.serializer == nil {
 		return ""
@@ -29,6 +36,8 @@ func (c *entityClass) fieldName(fp fieldPath) string {
 	return joinFieldName(c.serializer.nameByPath(fp, 0))
 }
 
+// fieldByPath returns the field descriptor at the given path, or nil when the
+// path is invalid for this class.
 func (c *entityClass) fieldByPath(fp fieldPath) *field {
 	if c.serializer == nil {
 		return nil
@@ -36,6 +45,8 @@ func (c *entityClass) fieldByPath(fp fieldPath) *field {
 	return c.serializer.fieldByPath(fp, 0)
 }
 
+// rootField returns the top-level field containing the given path, or nil
+// when the path has no root.
 func (c *entityClass) rootField(fp fieldPath) *field {
 	if c.serializer == nil || fp.path[0] < 0 || fp.path[0] >= len(c.serializer.fields) {
 		return nil
@@ -43,6 +54,8 @@ func (c *entityClass) rootField(fp fieldPath) *field {
 	return c.serializer.fields[fp.path[0]]
 }
 
+// decoder returns the field decoder for the given path, or nil when the class
+// has no serializer or the path is invalid.
 func (c *entityClass) decoder(fp fieldPath) fieldDecoder {
 	if c.serializer == nil {
 		return nil
@@ -50,6 +63,8 @@ func (c *entityClass) decoder(fp fieldPath) fieldDecoder {
 	return c.serializer.decoderByPath(fp, 0)
 }
 
+// applyServerInfo records the tick interval, game directory, and map name,
+// and derives the class id bit width from the class limit.
 func (p *Parser) applyServerInfo(msg *protocol.CSVCMsg_ServerInfo) {
 	p.clock.SetInterval(float64(msg.GetTickInterval()))
 	p.serverGame = msg.GetGameDir()
@@ -59,6 +74,8 @@ func (p *Parser) applyServerInfo(msg *protocol.CSVCMsg_ServerInfo) {
 	}
 }
 
+// applyDemoClassInfo records the classes advertised by a DEM_ClassInfo
+// message and refreshes the instance baseline.
 func (p *Parser) applyDemoClassInfo(msg *protocol.CDemoClassInfo) {
 	if p.classIDBits == 0 {
 		p.classIDBits = bitsForDemoClasses(msg.GetClasses())
@@ -75,6 +92,8 @@ func (p *Parser) applyDemoClassInfo(msg *protocol.CDemoClassInfo) {
 	p.updateInstanceBaseline()
 }
 
+// applySvcClassInfo records the classes advertised by a SVC_ClassInfo message
+// and refreshes the instance baseline.
 func (p *Parser) applySvcClassInfo(msg *protocol.CSVCMsg_ClassInfo) {
 	if p.classIDBits == 0 {
 		p.classIDBits = bitsForSvcClasses(msg.GetClasses())
@@ -91,6 +110,8 @@ func (p *Parser) applySvcClassInfo(msg *protocol.CSVCMsg_ClassInfo) {
 	p.updateInstanceBaseline()
 }
 
+// bitsForDemoClasses returns the bit width needed to encode the class ids in
+// a DEM_ClassInfo message.
 func bitsForDemoClasses(classes []*protocol.CDemoClassInfoClassT) uint8 {
 	var maxID int32
 	for _, c := range classes {
@@ -101,6 +122,8 @@ func bitsForDemoClasses(classes []*protocol.CDemoClassInfoClassT) uint8 {
 	return bitsForClassLimit(maxID)
 }
 
+// bitsForSvcClasses returns the bit width needed to encode the class ids in a
+// SVC_ClassInfo message.
 func bitsForSvcClasses(classes []*protocol.CSVCMsg_ClassInfoClassT) uint8 {
 	var maxID int32
 	for _, c := range classes {
@@ -111,6 +134,8 @@ func bitsForSvcClasses(classes []*protocol.CSVCMsg_ClassInfoClassT) uint8 {
 	return bitsForClassLimit(maxID)
 }
 
+// bitsForClassLimit returns the number of bits needed to represent n, with a
+// minimum of one.
 func bitsForClassLimit(n int32) uint8 {
 	var bits uint8
 	v := n
@@ -124,6 +149,7 @@ func bitsForClassLimit(n int32) uint8 {
 	return bits
 }
 
+// splitFieldName splits a dotted field name into its components.
 func splitFieldName(name string) []string {
 	if name == "" {
 		return nil
@@ -139,6 +165,7 @@ func splitFieldName(name string) []string {
 	return append(parts, name[start:])
 }
 
+// joinFieldName joins field path components back into a dotted field name.
 func joinFieldName(parts []string) string {
 	if len(parts) == 0 {
 		return ""

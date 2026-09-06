@@ -16,17 +16,26 @@ const (
 
 // Entity is the parser-owned current state for one networked entity.
 type Entity struct {
-	index      int32
-	serial     int32
-	class      *entityClass
-	active     bool
-	state      *fieldState
-	paths      map[string]fieldPath
-	misses     map[string]bool
+	// index is the networked entity index.
+	index int32
+	// serial is the entity generation counter used in handles.
+	serial int32
+	// class is the entity's class; nil before class info arrives.
+	class *entityClass
+	// active indicates whether the entity exists in the current snapshot.
+	active bool
+	// state holds the decoded field values.
+	state *fieldState
+	// paths caches resolved field paths by name.
+	paths map[string]fieldPath
+	// misses caches field names known to be absent from the class.
+	misses map[string]bool
+	// fieldTicks records the tick at which each field path was last updated.
 	fieldTicks map[fieldPath]uint32
 }
 
-// EntitySample is the typed Phase 4 projection used by downstream event code.
+// EntitySample is a typed snapshot of one entity's state at a tick, consumed
+// by downstream event code.
 type EntitySample struct {
 	// CameraAngles is the client camera orientation, distinct from aim-facing angles.
 	CameraAngles [3]float32 `json:"camera_angles"`
@@ -232,6 +241,7 @@ type ObjectiveEvent struct {
 	GameTimeF       float32 `json:"game_time_f"`
 }
 
+// newEntity constructs an active entity with empty field state.
 func newEntity(index, serial int32, class *entityClass) *Entity {
 	return &Entity{
 		index:      index,
@@ -347,6 +357,7 @@ func (e *Entity) Int32(name string) (int32, bool) {
 	return 0, false
 }
 
+// sample builds a typed snapshot of the entity's current state at a tick.
 func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	s := EntitySample{
 		Tick:         tick,
@@ -505,9 +516,15 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	); ok && slot >= 0 {
 		s.PlayerSlot = slot
 	}
-	return s, s.HasCameraAngles[0] || s.HasCameraAngles[1] || s.HasCameraAngles[2] || s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing || s.HasVelocity || s.HasFacingX || s.HasFacingY || s.HasFacingZ || s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
+	hasSignal := s.HasCameraAngles[0] || s.HasCameraAngles[1] || s.HasCameraAngles[2] ||
+		s.HasHealth || s.HasShield || s.HasPosition || s.HasFacing ||
+		s.HasVelocity ||
+		s.HasFacingX || s.HasFacingY || s.HasFacingZ ||
+		s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
+	return s, hasSignal
 }
 
+// fieldValue returns a field value with the tick it was last updated.
 func (e *Entity) fieldValue(name string) (any, uint32, bool) {
 	fp, ok := e.class.pathForName(name)
 	if !ok {
@@ -520,6 +537,8 @@ func (e *Entity) fieldValue(name string) (any, uint32, bool) {
 	return v, e.fieldTicks[fp], true
 }
 
+// vector3 reads a 3-component value, preferring a single vector field and
+// falling back to per-component fields.
 func (e *Entity) vector3(vectorNames, componentNames []string) ([3]float32, [3]uint32, [3]string, [3]bool) {
 	var values [3]float32
 	var ticks [3]uint32
@@ -549,6 +568,7 @@ func (e *Entity) vector3(vectorNames, componentNames []string) ([3]float32, [3]u
 	return values, ticks, fields, present
 }
 
+// firstFloat32At returns the first readable float field among names with its tick and source name.
 func firstFloat32At(e *Entity, names ...string) (float32, uint32, string, bool) {
 	for _, name := range names {
 		value, ok := e.Float32(name)
@@ -564,6 +584,7 @@ func firstFloat32At(e *Entity, names ...string) (float32, uint32, string, bool) 
 	return 0, 0, "", false
 }
 
+// minTick returns the earlier of two ticks.
 func minTick(a, b uint32) uint32 {
 	if a < b {
 		return a
@@ -571,6 +592,7 @@ func minTick(a, b uint32) uint32 {
 	return b
 }
 
+// firstFloat32AtAny returns the first readable float field among names with its tick.
 func firstFloat32AtAny(e *Entity, names ...string) (float32, uint32, bool) {
 	for _, name := range names {
 		if value, tick, _, ok := firstFloat32At(e, name); ok {
@@ -580,6 +602,7 @@ func firstFloat32AtAny(e *Entity, names ...string) (float32, uint32, bool) {
 	return 0, 0, false
 }
 
+// firstUInt32AtAny returns the first uint32-convertible field among names with its tick.
 func firstUInt32AtAny(e *Entity, names ...string) (uint32, uint32, bool) {
 	for _, name := range names {
 		_, tick, ok := e.fieldValue(name)
@@ -594,6 +617,7 @@ func firstUInt32AtAny(e *Entity, names ...string) (uint32, uint32, bool) {
 	return 0, 0, false
 }
 
+// firstInt32AtAny returns the first int32-convertible field among names with its tick.
 func firstInt32AtAny(e *Entity, names ...string) (int32, uint32, bool) {
 	for _, name := range names {
 		_, tick, ok := e.fieldValue(name)
@@ -608,6 +632,7 @@ func firstInt32AtAny(e *Entity, names ...string) (int32, uint32, bool) {
 	return 0, 0, false
 }
 
+// deadlockCoordFromCell converts a cell plus local offset into world coordinates.
 func deadlockCoordFromCell(cell, vec float32) float32 {
 	return float32(int32(cell)*512-16384) + vec
 }
@@ -648,6 +673,7 @@ func (p *Parser) NextEntitySample() (EntitySample, error) {
 	return s, nil
 }
 
+// applyPacketEntities decodes a packet entities update and applies creates, updates, and deletes to parser state.
 func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEntities) error {
 	buf := msg.GetEntityData()
 	if len(buf) == 0 {
@@ -730,6 +756,7 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 	return nil
 }
 
+// readFields decodes field paths from the reader and stores values with their tick.
 func (e *Entity) readFields(r *packetReader, tick uint32) error {
 	paths, err := readFieldPaths(r)
 	if err != nil {
@@ -750,6 +777,7 @@ func (e *Entity) readFields(r *packetReader, tick uint32) error {
 	return nil
 }
 
+// entityDecodeError wraps an entity field decoding failure with debug context.
 type entityDecodeError struct {
 	entity    *Entity
 	path      fieldPath
@@ -792,6 +820,7 @@ func (e entityDecodeError) Unwrap() error {
 	return e.err
 }
 
+// packetEntityError wraps a packet entity failure with tick and index context.
 type packetEntityError struct {
 	tick    uint32
 	index   int32
@@ -810,6 +839,7 @@ func (e packetEntityError) Unwrap() error {
 	return e.err
 }
 
+// appendControllerSample emits a throttled controller scoreboard sample.
 func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 	// One sample per controller per second of game time keeps the stream
 	// bounded while still resolving economy curves.
@@ -863,6 +893,7 @@ func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 	})
 }
 
+// isPlayerControllerClass reports whether a class name is a player controller.
 func isPlayerControllerClass(name string) bool {
 	for i := 0; i+len("CitadelPlayerController") <= len(name); i++ {
 		if name[i:i+len("CitadelPlayerController")] == "CitadelPlayerController" {
@@ -872,6 +903,7 @@ func isPlayerControllerClass(name string) bool {
 	return false
 }
 
+// appendEntitySample routes a fresh entity sample to the right event queue.
 func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	if e == nil || e.class == nil || !e.active {
 		return
@@ -946,6 +978,7 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 	})
 }
 
+// updateEntityPlayerSlot maps an entity index to a player slot when the entity carries slot fields.
 func (p *Parser) updateEntityPlayerSlot(e *Entity) {
 	for _, name := range []string{
 		"m_iPlayerSlot",
@@ -977,10 +1010,12 @@ func (p *Parser) updateEntityPlayerSlot(e *Entity) {
 	}
 }
 
+// isLikelyHeroClass reports whether a class name looks like a hero pawn.
 func isLikelyHeroClass(name string) bool {
 	return stringsContains(name, "CitadelPlayerPawn") || stringsContains(name, "Hero")
 }
 
+// stringsContains reports whether sub occurs in s without importing strings.
 func stringsContains(s, sub string) bool {
 	if len(sub) == 0 {
 		return true
@@ -997,10 +1032,10 @@ func stringsContains(s, sub string) bool {
 }
 
 // WorldEntitySnapshot advances the parser through tick and samples every
-// active entity once. A request older than the parser position is refused. It
-// includes ability, projectile, and other ephemeral
-// entities still active at the boundary; entities deleted before the boundary
-// are absent. It consumes the parser and does not retain event records.
+// active entity once. A request older than the parser position is refused.
+// It includes ability, projectile, and other ephemeral entities still active
+// at the boundary; entities deleted before the boundary are absent. It
+// consumes the parser and does not retain event records.
 func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 	if tick == PreGameTick {
 		return nil, errInvalidWorldSnapshotTick
@@ -1057,6 +1092,7 @@ func (p *Parser) WorldEntitySnapshot(tick uint32) ([]EntitySample, error) {
 	return p.activeWorldEntitySamples(tick)
 }
 
+// activeWorldEntitySamples samples every active entity at a tick, sorted by entity.
 func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
 	activeCount := 0
 	for _, entity := range p.entities {
@@ -1102,6 +1138,7 @@ func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
 	return out, nil
 }
 
+// validateWorldEntitySample rejects samples carrying non-finite values.
 func validateWorldEntitySample(sample EntitySample) error {
 	values := []struct {
 		name  string

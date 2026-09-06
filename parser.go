@@ -33,43 +33,77 @@ type Command struct {
 // Parser walks a Source 2 PBDEMS2 demo container. It validates the header,
 // yields the outer command stream one record at a time, and owns the Clock.
 // Packet unpacking, message dispatch, and entity decoding layer on top of this
-// container in later phases.
+// container.
 type Parser struct {
-	r                 reader
-	clock             *Clock
-	serverMap         string
-	serverGame        string
-	rootWorlds        map[uint32]string
-	lookahead         *Command
-	pending           []*Message
-	pendingSamples    []EntitySample
-	pendingModifiers  []ModifierEvent
-	pendingEvents     []Event
-	chargeLastSeen    map[int32]int32
-	stopped           bool
-	eventOnly         bool
+	// r is the underlying byte reader over the demo stream.
+	r reader
+	// clock tracks the parser's current tick and derived game time.
+	clock *Clock
+	// serverMap is the map name reported by ServerInfo.
+	serverMap string
+	// serverGame is the game directory reported by ServerInfo.
+	serverGame string
+	// rootWorlds maps spawn group handles to their world names.
+	rootWorlds map[uint32]string
+	// lookahead holds a command read past the requested boundary.
+	lookahead *Command
+	// pending is the queue of decoded messages awaiting consumption.
+	pending []*Message
+	// pendingSamples is the queue of entity samples awaiting consumption.
+	pendingSamples []EntitySample
+	// pendingModifiers is the queue of modifier events awaiting consumption.
+	pendingModifiers []ModifierEvent
+	// pendingEvents is the queue of unified events awaiting consumption.
+	pendingEvents []Event
+	// chargeLastSeen remembers the last charge count per ability entity.
+	chargeLastSeen map[int32]int32
+	// stopped makes the next Next call report io.EOF once set.
+	stopped bool
+	// eventOnly suppresses sample retention when set.
+	eventOnly bool
+	// worldSnapshotMode suppresses event retention during snapshot walks.
 	worldSnapshotMode bool
 
-	classIDBits          uint8
-	classesByID          map[int32]*entityClass
-	classesByName        map[string]*entityClass
-	classBaselines       map[int32][]byte
-	serializers          map[string]*serializer
-	entities             map[int32]*Entity
-	modifiers            map[int32]modifierState
-	playerItems          map[int32]map[uint32]struct{}
-	entityPlayerSlots    map[int32]int32
-	stringTables         *stringTables
-	entityStateErrors    map[string]int
-	skippedMessages      map[skippedMessageKey]int
+	// classIDBits is the bit width used to encode entity class ids.
+	classIDBits uint8
+	// classesByID maps class ids to their class records.
+	classesByID map[int32]*entityClass
+	// classesByName maps class names to their class records.
+	classesByName map[string]*entityClass
+	// classBaselines maps class ids to their serialized baseline state.
+	classBaselines map[int32][]byte
+	// serializers maps serializer names to their field layout.
+	serializers map[string]*serializer
+	// entities maps entity indices to their current state.
+	entities map[int32]*Entity
+	// modifiers maps modifier indices to their current state.
+	modifiers map[int32]modifierState
+	// playerItems maps player slots to their owned item ids.
+	playerItems map[int32]map[uint32]struct{}
+	// entityPlayerSlots maps entity indices to player slots.
+	entityPlayerSlots map[int32]int32
+	// stringTables holds the decoded string tables.
+	stringTables *stringTables
+	// entityStateErrors counts entity decode failures by message.
+	entityStateErrors map[string]int
+	// skippedMessages counts packet or user messages skipped by kind.
+	skippedMessages map[skippedMessageKey]int
+	// lastControllerSample remembers the last sampled tick per controller.
 	lastControllerSample map[int32]uint32
-	firstEntityError     string
-	seenFullPacket       bool
-	applyingFullPacket   bool
-	entityCreates        int
-	entityUpdates        int
-	entityDeletes        int
-	entityLeaves         int
+	// firstEntityError records the first entity decode failure message.
+	firstEntityError string
+	// seenFullPacket indicates a full packet has been processed.
+	seenFullPacket bool
+	// applyingFullPacket indicates a full packet payload is being unpacked.
+	applyingFullPacket bool
+	// entityCreates counts entity create operations.
+	entityCreates int
+	// entityUpdates counts entity update operations.
+	entityUpdates int
+	// entityDeletes counts entity delete operations.
+	entityDeletes int
+	// entityLeaves counts entity leave operations.
+	entityLeaves int
 }
 
 // NewParser validates the PBDEMS2 header and returns a Parser positioned at the

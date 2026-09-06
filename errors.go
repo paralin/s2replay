@@ -60,3 +60,31 @@ var (
 	// errStringTableDataTooLarge indicates a compressed table expands beyond the parser limit.
 	errStringTableDataTooLarge = errors.New("s2replay: string-table data too large")
 )
+
+// WorldSnapshotError reports that a requested snapshot tick was not observed.
+type WorldSnapshotError struct {
+	// RequestedTick is the snapshot tick requested by the caller.
+	RequestedTick uint32
+	// FinalTick is the last tick observed before the replay ended.
+	FinalTick uint32
+}
+
+// Error describes the missing snapshot without changing its structured evidence.
+func (e *WorldSnapshotError) Error() string {
+	return "s2replay: world snapshot tick not observed"
+}
+
+// WorldEntitySampleError reports malformed direct entity evidence.
+type WorldEntitySampleError struct {
+	// EntityID identifies the replay entity with malformed evidence.
+	EntityID int32
+	// EntitySerial distinguishes generations that reuse EntityID.
+	EntitySerial int32
+	// Field names the non-finite sample field.
+	Field string
+}
+
+// Error identifies the malformed field; entity identity remains in the record.
+func (e *WorldEntitySampleError) Error() string {
+	return "s2replay: non-finite world entity sample field " + e.Field
+}

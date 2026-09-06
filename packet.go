@@ -37,6 +37,7 @@ func (p *Parser) NextMessage() (*Message, error) {
 	return m, nil
 }
 
+// queueCommandMessages decodes a command payload and queues its inner messages.
 func (p *Parser) queueCommandMessages(cmd *Command) error {
 	decoded, ok, err := decodeDemoCommand(int32(cmd.Kind), cmd.Payload)
 	if err != nil || !ok {
@@ -71,6 +72,7 @@ func (p *Parser) queueCommandMessages(cmd *Command) error {
 	return nil
 }
 
+// queuePacketMessages walks a packet payload and queues each decodable message.
 func (p *Parser) queuePacketMessages(tick uint32, payload []byte) error {
 	r := newPacketReader(payload)
 	for r.bitsRemaining() > 8 {
@@ -113,6 +115,7 @@ func (p *Parser) queuePacketMessages(tick uint32, payload []byte) error {
 	return nil
 }
 
+// appendMessage applies a decoded message and queues it for the consumer.
 func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 	if err := p.applyDecodedMessage(tick, decoded.msg); err != nil {
 		p.Stop()
@@ -138,6 +141,7 @@ func (p *Parser) appendMessage(tick uint32, decoded decodedMessage) {
 	})
 }
 
+// applyDecodedMessage dispatches a decoded message to its state handler.
 func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 	switch m := msg.(type) {
 	case *protocol.CNETMsg_Tick:
@@ -205,6 +209,7 @@ func (p *Parser) applyDecodedMessage(tick uint32, msg decodedProto) error {
 	return nil
 }
 
+// appendKillStreakEvent converts a kill streak message into a unified event.
 func (p *Parser) appendKillStreakEvent(tick uint32, msg *protocol.CCitadelUserMsg_KillStreak) {
 	p.pendingEvents = append(p.pendingEvents, Event{
 		Type:       EventKillStreak,
@@ -224,6 +229,7 @@ func (p *Parser) appendKillStreakEvent(tick uint32, msg *protocol.CCitadelUserMs
 	})
 }
 
+// appendStaminaConsumedEvent converts a stamina message into a unified event.
 func (p *Parser) appendStaminaConsumedEvent(tick uint32, msg *protocol.CCitadelUserMsg_StaminaConsumed) {
 	// The message defaults entindex_target to -1 when attribution is absent;
 	// keep that sentinel instead of masking it into a bogus handle.
@@ -254,6 +260,7 @@ func (p *Parser) appendStaminaConsumedEvent(tick uint32, msg *protocol.CCitadelU
 	})
 }
 
+// appendObjectiveEvent converts an objective message into a unified event.
 func (p *Parser) appendObjectiveEvent(tick uint32, kind string, a, b, c, d int32, gameTimeF float32) {
 	p.pendingEvents = append(p.pendingEvents, Event{
 		Type:       EventObjective,
@@ -272,6 +279,7 @@ func (p *Parser) appendObjectiveEvent(tick uint32, kind string, a, b, c, d int32
 	})
 }
 
+// appendPostMatchEvent converts the post-match details message into a unified event.
 func (p *Parser) appendPostMatchEvent(tick uint32, msg *protocol.CCitadelUserMsg_PostMatchDetails) {
 	details := msg.GetMatchDetails()
 	if len(details) == 0 {
@@ -379,6 +387,7 @@ func (p *Parser) appendPostMatchEvent(tick uint32, msg *protocol.CCitadelUserMsg
 	p.pendingEvents = append(p.pendingEvents, ev)
 }
 
+// appendDamageSummaryEvent converts a damage summary message into a unified event.
 func (p *Parser) appendDamageSummaryEvent(tick uint32, msg *protocol.CCitadelUserMsg_RecentDamageSummary) {
 	ev := Event{
 		Type:       EventDamageSummary,

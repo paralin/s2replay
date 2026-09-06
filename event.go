@@ -57,15 +57,16 @@ type PurchaseEvent struct {
 }
 
 // Event is the unified typed stream used by downstream Deadlock analysis.
-// OwnedItems is the player item set at event time when attribution is available.
 type Event struct {
-	SchemaVersion    int                   `json:"schema_version"`
-	Type             EventType             `json:"type"`
-	Tick             uint32                `json:"tick"`
-	GameTime         float64               `json:"game_time"`
-	Entity           int32                 `json:"entity"`
-	EntitySerial     int32                 `json:"entity_serial,omitempty"`
-	PlayerSlot       int32                 `json:"player_slot"`
+	SchemaVersion int       `json:"schema_version"`
+	Type          EventType `json:"type"`
+	Tick          uint32    `json:"tick"`
+	GameTime      float64   `json:"game_time"`
+	Entity        int32     `json:"entity"`
+	EntitySerial  int32     `json:"entity_serial,omitempty"`
+	PlayerSlot    int32     `json:"player_slot"`
+	// OwnedItems is the player item set at event time when attribution is
+	// available.
 	OwnedItems       []uint32              `json:"owned_items,omitempty"`
 	Damage           *DamageEvent          `json:"damage,omitempty"`
 	Modifier         *ModifierEvent        `json:"modifier,omitempty"`
@@ -272,6 +273,7 @@ func (p *Parser) CollectEvents(limit int) ([]Event, error) {
 	return events, nil
 }
 
+// sanitizeEvent cleans non-finite values across all event payloads.
 func sanitizeEvent(ev *Event) {
 	ev.GameTime = finiteFloat64(ev.GameTime)
 	if ev.Damage != nil {
@@ -290,6 +292,7 @@ func sanitizeEvent(ev *Event) {
 	}
 }
 
+// sanitizeDamageEvent clamps all float fields of a damage event to finite values.
 func sanitizeDamageEvent(ev *DamageEvent) {
 	ev.GameTime = finiteFloat64(ev.GameTime)
 	ev.PreDamage = finiteFloat32(ev.PreDamage)
@@ -304,6 +307,7 @@ func sanitizeDamageEvent(ev *DamageEvent) {
 	ev.DamageDirectionZ = finiteFloat32(ev.DamageDirectionZ)
 }
 
+// sanitizeEntitySample zeroes non-finite values and drops related presence flags.
 func sanitizeEntitySample(sample *EntitySample) {
 	for axis, name := range []string{"camera_pitch", "camera_yaw", "camera_roll"} {
 		if !isFiniteFloat32(sample.CameraAngles[axis]) {
@@ -400,6 +404,7 @@ func sanitizeEntitySample(sample *EntitySample) {
 	}
 }
 
+// markInvalidField appends a field name to the invalid list without duplicates.
 func markInvalidField(fields *[]string, name string) {
 	if slices.Contains(*fields, name) {
 		return
@@ -407,10 +412,12 @@ func markInvalidField(fields *[]string, name string) {
 	*fields = append(*fields, name)
 }
 
+// isFiniteFloat64 reports whether v is neither NaN nor infinity.
 func isFiniteFloat64(v float64) bool {
 	return !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
+// finiteFloat32 clamps a non-finite float32 to zero.
 func finiteFloat32(v float32) float32 {
 	if !isFiniteFloat32(v) {
 		return 0
@@ -418,6 +425,7 @@ func finiteFloat32(v float32) float32 {
 	return v
 }
 
+// finiteFloat64 clamps a non-finite float64 to zero.
 func finiteFloat64(v float64) float64 {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		return 0
@@ -425,10 +433,12 @@ func finiteFloat64(v float64) float64 {
 	return v
 }
 
+// isFiniteFloat32 reports whether v is neither NaN nor infinity.
 func isFiniteFloat32(v float32) bool {
 	return !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0)
 }
 
+// applyAbilitiesChanged updates owned items and emits a purchase event.
 func (p *Parser) applyAbilitiesChanged(tick uint32, msg *protocol.CCitadelUserMsg_AbilitiesChanged) {
 	slot := msg.GetPurchaserPlayerSlot()
 	abilityID := msg.GetAbilityId()
@@ -462,6 +472,7 @@ func (p *Parser) applyAbilitiesChanged(tick uint32, msg *protocol.CCitadelUserMs
 	})
 }
 
+// applyItemPurchaseNotification updates owned items and emits a purchase event.
 func (p *Parser) applyItemPurchaseNotification(tick uint32, msg *protocol.CCitadelUserMessage_ItemPurchaseNotification) {
 	slot := msg.GetUserid()
 	abilityID := msg.GetAbilityId()
@@ -494,6 +505,7 @@ func (p *Parser) applyItemPurchaseNotification(tick uint32, msg *protocol.CCitad
 	})
 }
 
+// appendDamageEvent converts a damage message into a unified event.
 func (p *Parser) appendDamageEvent(tick uint32, msg *protocol.CCitadelUserMessage_Damage) {
 	damage := damageEventFromProto(normalizedTick(tick), p.clock.GameTime(), msg)
 	slot, ok := p.entityPlayerSlots[damage.Attacker]
@@ -513,6 +525,7 @@ func (p *Parser) appendDamageEvent(tick uint32, msg *protocol.CCitadelUserMessag
 	p.pendingEvents = append(p.pendingEvents, ev)
 }
 
+// addPlayerItem records an ability in a player's owned item set.
 func (p *Parser) addPlayerItem(slot int32, abilityID uint32) {
 	items := p.playerItems[slot]
 	if items == nil {
@@ -522,6 +535,7 @@ func (p *Parser) addPlayerItem(slot int32, abilityID uint32) {
 	items[abilityID] = struct{}{}
 }
 
+// removePlayerItem drops an ability from a player's owned item set.
 func (p *Parser) removePlayerItem(slot int32, abilityID uint32) {
 	items := p.playerItems[slot]
 	if items == nil {
@@ -533,6 +547,7 @@ func (p *Parser) removePlayerItem(slot int32, abilityID uint32) {
 	}
 }
 
+// playerItemSet returns a sorted copy of a player's owned item ids.
 func (p *Parser) playerItemSet(slot int32) []uint32 {
 	items := p.playerItems[slot]
 	if len(items) == 0 {
@@ -546,6 +561,7 @@ func (p *Parser) playerItemSet(slot int32) []uint32 {
 	return out
 }
 
+// normalizedTick maps the pre-game sentinel tick to zero.
 func normalizedTick(tick uint32) uint32 {
 	if tick == PreGameTick {
 		return 0
