@@ -298,10 +298,15 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			if err != nil {
 				return nil, err
 			}
+			// A raw gap at or above the index ceiling can never accumulate to
+			// a valid index and would overflow the addition below.
+			if v >= maxStringTableIndex {
+				return nil, errStringTableIndexTooLarge
+			}
 			// Explicit entries encode a gap from the preceding index; the
 			// accumulated result, not the wire value, is what needs bounding.
 			index += int32(v) + 2
-			if index >= maxStringTableIndex {
+			if index > maxStringTableIndex {
 				return nil, errStringTableIndexTooLarge
 			}
 		}
