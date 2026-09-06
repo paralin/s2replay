@@ -2,81 +2,61 @@ package s2replay
 
 import "errors"
 
-// errBadMagic indicates the input does not start with the PBDEMS2 header.
-var errBadMagic = errors.New("s2replay: not a PBDEMS2 demo (bad magic header)")
+var (
+	// errBadMagic indicates the input does not start with the PBDEMS2 header.
+	errBadMagic = errors.New("s2replay: not a PBDEMS2 demo (bad magic header)")
 
-// errInvalidVarint indicates a malformed varint in the outer demo stream.
-var errInvalidVarint = errors.New("s2replay: invalid varint in demo stream")
+	// errInvalidVarint indicates a malformed varint in the outer demo stream.
+	errInvalidVarint = errors.New("s2replay: invalid varint in demo stream")
 
-// errShortRead indicates a length-delimited run ran past the end of the buffer.
-var errShortRead = errors.New("s2replay: short read in demo stream")
+	// errShortRead indicates a length-delimited run ran past the end of the buffer.
+	errShortRead = errors.New("s2replay: short read in demo stream")
 
-// errBitReadOverflow indicates a packet bitstream read past its payload.
-var errBitReadOverflow = errors.New("s2replay: packet bitstream overflow")
+	// errBitReadOverflow indicates a packet bitstream read past its payload.
+	errBitReadOverflow = errors.New("s2replay: packet bitstream overflow")
 
-// errNegativePacketSize indicates an inner packet message declared a bad size.
-var errNegativePacketSize = errors.New("s2replay: negative packet message size")
+	// errNegativePacketSize indicates an inner packet message declared a bad size.
+	errNegativePacketSize = errors.New("s2replay: negative packet message size")
 
-// errUnknownEntityClass indicates packet entities referenced a missing class.
-var errUnknownEntityClass = errors.New("s2replay: packet entity referenced unknown class")
+	// errUnknownEntityClass indicates packet entities referenced a missing class.
+	errUnknownEntityClass = errors.New("s2replay: packet entity referenced unknown class")
 
-// errUnknownEntity indicates packet entities referenced a missing entity.
-var errUnknownEntity = errors.New("s2replay: packet entity referenced unknown entity")
+	// errUnknownEntity indicates packet entities referenced a missing entity.
+	errUnknownEntity = errors.New("s2replay: packet entity referenced unknown entity")
 
-// errUnknownFieldPath indicates an entity update used an undecodable field path.
-var errUnknownFieldPath = errors.New("s2replay: packet entity referenced unknown field path")
+	// errUnknownFieldPath indicates an entity update used an undecodable field path.
+	errUnknownFieldPath = errors.New("s2replay: packet entity referenced unknown field path")
 
-// errUnknownStringTable indicates a string-table update referenced a missing table.
-var errUnknownStringTable = errors.New("s2replay: string-table update referenced unknown table")
+	// errUnknownStringTable indicates a string-table update referenced a missing table.
+	errUnknownStringTable = errors.New("s2replay: string-table update referenced unknown table")
 
-// errInvalidWorldSnapshotTick rejects the pre-game sentinel as a timecode.
-var errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot tick")
+	// errInvalidWorldSnapshotTick rejects the pre-game sentinel as a timecode.
+	errInvalidWorldSnapshotTick = errors.New("s2replay: invalid world snapshot tick")
 
-// errInvalidStringTableUpdateCount indicates a negative string-table update count.
-var errInvalidStringTableUpdateCount = errors.New("s2replay: negative string-table update count")
+	// errWorldSnapshotPastTick rejects a request older than the parser position.
+	errWorldSnapshotPastTick = errors.New("s2replay: world snapshot tick is behind parser position")
 
-// errStringTableUpdateCountTooLarge indicates an implausible string-table update count.
-var errStringTableUpdateCountTooLarge = errors.New("s2replay: string-table update count too large")
+	// errInvalidAbilitySlot rejects values outside the engine's uint16 enum domain.
+	errInvalidAbilitySlot = errors.New("s2replay: invalid ability slot enum")
 
-// errStringTableIndexTooLarge indicates an explicit entry index exceeds the Source limit.
-var errStringTableIndexTooLarge = errors.New("s2replay: string-table index too large")
+	// errInvalidStringTableUpdateCount indicates a negative string-table update count.
+	errInvalidStringTableUpdateCount = errors.New("s2replay: negative string-table update count")
 
-// errInvalidStringTableUserDataSize indicates a negative fixed user-data bit count.
-var errInvalidStringTableUserDataSize = errors.New("s2replay: negative string-table user-data size")
+	// errStringTableUpdateCountTooLarge indicates an implausible string-table update count.
+	errStringTableUpdateCountTooLarge = errors.New("s2replay: string-table update count too large")
 
-// errStringTableUserDataTooLarge indicates user data exceeds the Source string-table limit.
-var errStringTableUserDataTooLarge = errors.New("s2replay: string-table user data too large")
+	// errStringTableIndexTooLarge indicates an explicit entry index exceeds the Source limit.
+	errStringTableIndexTooLarge = errors.New("s2replay: string-table index too large")
 
-// errStringTableKeyTooLarge indicates a key exceeds the Source network-string limit.
-var errStringTableKeyTooLarge = errors.New("s2replay: string-table key too large")
+	// errInvalidStringTableUserDataSize indicates a negative fixed user-data bit count.
+	errInvalidStringTableUserDataSize = errors.New("s2replay: negative string-table user-data size")
 
-// errStringTableDataTooLarge indicates a compressed table expands beyond the parser limit.
-var errStringTableDataTooLarge = errors.New("s2replay: string-table data too large")
+	// errStringTableUserDataTooLarge indicates user data exceeds the Source string-table limit.
+	errStringTableUserDataTooLarge = errors.New("s2replay: string-table user data too large")
 
+	// errStringTableKeyTooLarge indicates a key exceeds the Source network-string limit.
+	errStringTableKeyTooLarge = errors.New("s2replay: string-table key too large")
 
-// errWorldSnapshotPastTick rejects a request older than the parser position.
-var errWorldSnapshotPastTick = errors.New("s2replay: world snapshot tick is behind parser position")
-
-// WorldSnapshotError reports that a requested snapshot tick was not observed.
-type WorldSnapshotError struct {
-	RequestedTick uint32
-	FinalTick     uint32
-}
-
-func (e *WorldSnapshotError) Error() string {
-	return "s2replay: world snapshot tick not observed"
-}
-
-// WorldEntitySampleError reports malformed direct entity evidence.
-type WorldEntitySampleError struct {
-	EntityID     int32
-	EntitySerial int32
-	Field        string
-}
-
-func (e *WorldEntitySampleError) Error() string {
-	return "s2replay: non-finite world entity sample field " + e.Field
-}
-
-// errInvalidAbilitySlot rejects values outside the engine's uint16 enum domain.
-var errInvalidAbilitySlot = errors.New("s2replay: invalid ability slot enum")
+	// errStringTableDataTooLarge indicates a compressed table expands beyond the parser limit.
+	errStringTableDataTooLarge = errors.New("s2replay: string-table data too large")
+)

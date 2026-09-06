@@ -4,44 +4,65 @@ import (
 	"strconv"
 
 	"github.com/klauspost/compress/snappy"
-
 	"github.com/paralin/s2replay/protocol"
 )
 
 const (
+	// stringTableKeyHistorySize is the rolling prefix dictionary size.
 	stringTableKeyHistorySize = 32
-
-	// Source string tables use 20-bit entry indexes, 1 KiB network strings,
-	// and 14-bit user-data byte lengths.
-	maxStringTableUpdates       = 1 << 20
-	maxStringTableIndex         = maxStringTableUpdates - 1
-	maxStringTableKeyBytes      = 1 << 10
+	// maxStringTableUpdates bounds allocations for a declared update batch.
+	maxStringTableUpdates = 1 << 20
+	// maxStringTableIndex is the largest accepted 20-bit entry index.
+	maxStringTableIndex = maxStringTableUpdates - 1
+	// maxStringTableKeyBytes limits a reconstructed network-string key.
+	maxStringTableKeyBytes = 1 << 10
+	// maxStringTableUserDataBytes bounds each raw or decompressed entry value.
 	maxStringTableUserDataBytes = 1 << 14
-	maxStringTableDataBytes     = 1 << 24
+	// maxStringTableDataBytes bounds expansion of a compressed table payload.
+	maxStringTableDataBytes = 1 << 24
 )
 
+// stringTables holds every string table seen in the demo, addressable by
+// creation order and by name.
 type stringTables struct {
-	tables    map[int32]*stringTable
+	// tables maps table id to the table.
+	tables map[int32]*stringTable
+	// nameIndex maps table name to table id.
 	nameIndex map[string]int32
+	// nextIndex is the id assigned to the next created table.
 	nextIndex int32
 }
 
+// stringTable is one network string table: its wire decode settings and the
+// items observed so far.
 type stringTable struct {
-	index             int32
-	name              string
-	items             map[int32]*stringTableItem
+	// index is the table id assigned in creation order.
+	index int32
+	// name is the table's network name, such as instancebaseline.
+	name string
+	// items maps entry index to the current item state.
+	items map[int32]*stringTableItem
+	// userDataFixedSize indicates whether user data is a fixed bit count.
 	userDataFixedSize bool
-	userDataSizeBits  int32
-	flags             int32
-	varintBitCounts   bool
+	// userDataSizeBits is the user-data bit count for fixed-size entries.
+	userDataSizeBits int32
+	// flags holds the table's wire flags, including the compressed-value bit.
+	flags int32
+	// varintBitCounts indicates value byte counts use ubitvar encoding.
+	varintBitCounts bool
 }
 
+// stringTableItem is one string table entry: its index, key, and user data.
 type stringTableItem struct {
+	// index identifies the entry within its table.
 	index int32
-	key   string
+	// key is the reconstructed network-string key.
+	key string
+	// value is the decoded user data for this entry.
 	value []byte
 }
 
+// newStringTables constructs an empty string table set.
 func newStringTables() *stringTables {
 	return &stringTables{
 		tables:    make(map[int32]*stringTable),
@@ -49,10 +70,14 @@ func newStringTables() *stringTables {
 	}
 }
 
+// getOrCreate returns the named table, creating it with the next free id
+// when it does not yet exist.
 func (ts *stringTables) getOrCreate(name string) *stringTable {
 	if id, ok := ts.nameIndex[name]; ok {
 		return ts.tables[id]
 	}
+
+	// Create the table and register it under both id and name.
 	t := &stringTable{
 		index: ts.nextIndex,
 		name:  name,
@@ -64,7 +89,11 @@ func (ts *stringTables) getOrCreate(name string) *stringTable {
 	return t
 }
 
+// applyCreateStringTable applies a svc_CreateStringTable message, decoding
+// the table's initial contents and activating any derived state it drives.
 func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_CreateStringTable) error {
+	// Record the table's decode settings, reusing an existing table entry
+	// created earlier by a full-update snapshot.
 	t := p.stringTables.getOrCreate(msg.GetName())
 	t.userDataFixedSize = msg.GetUserDataFixedSize()
 	t.userDataSizeBits = msg.GetUserDataSizeBits()
@@ -74,6 +103,7 @@ func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_Creat
 		t.items = make(map[int32]*stringTableItem)
 	}
 
+	// Decompress the table payload before decoding when it is snappy-compressed.
 	buf := msg.GetStringData()
 	if msg.GetDataCompressed() {
 		decodedLen, err := snappy.DecodedLen(buf)
@@ -88,6 +118,8 @@ func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_Creat
 			return err
 		}
 	}
+
+	// Decode the initial items and register them in the table.
 	items, err := parseStringTable(buf, msg.GetNumEntries(), t.userDataFixedSize, t.userDataSizeBits, t.flags, t.varintBitCounts)
 	if err != nil {
 		return err
@@ -100,17 +132,24 @@ func (p *Parser) applyCreateStringTable(tick uint32, msg *protocol.CSVCMsg_Creat
 			}
 		}
 	}
+
+	// instancebaseline changes drive every entity class's default state.
 	if t.name == "instancebaseline" {
 		p.updateInstanceBaseline()
 	}
 	return nil
 }
 
+// applyUpdateStringTable applies a svc_UpdateStringTable message, patching
+// the changed entries into the table identified by the message.
 func (p *Parser) applyUpdateStringTable(tick uint32, msg *protocol.CSVCMsg_UpdateStringTable) error {
 	t := p.stringTables.tables[msg.GetTableId()]
 	if t == nil {
 		return errUnknownStringTable
 	}
+
+	// Decode the changed entries and patch them into the table, preserving
+	// fields an incremental update does not carry.
 	items, err := parseStringTable(msg.GetStringData(), msg.GetNumChangedEntries(), t.userDataFixedSize, t.userDataSizeBits, t.flags, t.varintBitCounts)
 	if err != nil {
 		return err
@@ -123,6 +162,8 @@ func (p *Parser) applyUpdateStringTable(tick uint32, msg *protocol.CSVCMsg_Updat
 			if len(item.value) != 0 {
 				old.value = item.value
 			}
+
+			// Updated modifiers regenerate their event from the merged state.
 			if t.name == "ActiveModifiers" {
 				if err := p.applyActiveModifierItem(tick, old); err != nil {
 					return err
@@ -137,18 +178,25 @@ func (p *Parser) applyUpdateStringTable(tick uint32, msg *protocol.CSVCMsg_Updat
 			}
 		}
 	}
+
+	// instancebaseline changes drive every entity class's default state.
 	if t.name == "instancebaseline" {
 		p.updateInstanceBaseline()
 	}
 	return nil
 }
 
+// applyDemoStringTables applies a CDemoStringTables full-update snapshot,
+// creating tables and items the snapshot names and merging it into state.
 func (p *Parser) applyDemoStringTables(tick uint32, msg *protocol.CDemoStringTables) error {
 	for _, incoming := range msg.GetTables() {
 		t := p.stringTables.getOrCreate(incoming.GetTableName())
 		if t == nil {
 			continue
 		}
+
+		// Merge the snapshot into the table: present fields overwrite, absent
+		// fields keep their current state.
 		if incoming.TableFlags != nil {
 			t.flags = incoming.GetTableFlags()
 		}
@@ -180,6 +228,8 @@ func (p *Parser) applyDemoStringTables(tick uint32, msg *protocol.CDemoStringTab
 				}
 			}
 		}
+
+		// instancebaseline changes drive every entity class's default state.
 		if t.name == "instancebaseline" {
 			p.updateInstanceBaseline()
 		}
@@ -187,11 +237,15 @@ func (p *Parser) applyDemoStringTables(tick uint32, msg *protocol.CDemoStringTab
 	return nil
 }
 
+// updateInstanceBaseline rebuilds the parser's class baseline table from the
+// current contents of the instancebaseline string table.
 func (p *Parser) updateInstanceBaseline() {
 	tableID, ok := p.stringTables.nameIndex["instancebaseline"]
 	if !ok {
 		return
 	}
+
+	// Take the current baseline data from each entry, keyed by class id.
 	table := p.stringTables.tables[tableID]
 	if table == nil {
 		return
@@ -205,7 +259,11 @@ func (p *Parser) updateInstanceBaseline() {
 	}
 }
 
+// parseStringTable decodes a string-table payload carrying numUpdates entries
+// with the table's wire settings, enforcing Source size limits on indexes,
+// keys, and user data.
 func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userDataSizeBits int32, flags int32, varintBitCounts bool) ([]*stringTableItem, error) {
+	// Validate declared sizes before allocating result storage or converting lengths.
 	if numUpdates < 0 {
 		return nil, errInvalidStringTableUpdateCount
 	}
@@ -219,16 +277,21 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 		return nil, errStringTableUserDataTooLarge
 	}
 
+	// Decode exactly the declared number of entries; an exhausted payload is an error.
 	r := newPacketReader(buf)
 	items := make([]*stringTableItem, 0, int(numUpdates))
 	keys := make([]string, 0, stringTableKeyHistorySize)
 	index := int32(-1)
-	for i := int32(0); i < numUpdates && r.bitsRemaining() > 0; i++ {
+	for range numUpdates {
+		// Decode the entry index: an implicit increment or an explicit value.
 		incr, err := r.readBool()
 		if err != nil {
 			return nil, err
 		}
 		if incr {
+			if index >= maxStringTableIndex {
+				return nil, errStringTableIndexTooLarge
+			}
 			index++
 		} else {
 			v, err := r.readUvarint32()
@@ -241,6 +304,8 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			index = int32(v + 1)
 		}
 
+		// Decode the entry key, either a history reference plus suffix or a
+		// full inline string.
 		key := ""
 		hasKey, err := r.readBool()
 		if err != nil {
@@ -269,6 +334,8 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 					}
 				}
 			}
+
+			// Decode the key's suffix and record the complete key in history.
 			suffix, err := r.readStringMax(maxStringTableKeyBytes - len(key))
 			if err != nil {
 				return nil, err
@@ -281,6 +348,7 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			keys = append(keys, key)
 		}
 
+		// Decode the entry's user data, which may be omitted entirely.
 		value := []byte(nil)
 		hasValue, err := r.readBool()
 		if err != nil {
@@ -296,6 +364,8 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 						return nil, err
 					}
 				}
+
+				// Variable-length user data carries its byte count on the wire.
 				var bytes uint32
 				if varintBitCounts {
 					bytes, err = r.readUBitVar()
@@ -317,6 +387,8 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 			if err != nil {
 				return nil, err
 			}
+
+			// Decompress the value when the entry is flagged compressed.
 			if compressed {
 				decodedLen, err := snappy.DecodedLen(value)
 				if err != nil {

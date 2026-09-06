@@ -21,6 +21,7 @@ func buildDemo(t *testing.T, recs []Command) []byte {
 	return buf
 }
 
+// TestNewParserRejectsBadMagic verifies that malformed demo headers are rejected.
 func TestNewParserRejectsBadMagic(t *testing.T) {
 	if _, err := NewParser([]byte("not a demo at all!!")); err != errBadMagic {
 		t.Fatalf("want errBadMagic, got %v", err)
@@ -30,7 +31,9 @@ func TestNewParserRejectsBadMagic(t *testing.T) {
 	}
 }
 
+// TestParserWalksCommandsAndClock verifies command iteration and demo clock updates.
 func TestParserWalksCommandsAndClock(t *testing.T) {
+	// Build a demo containing a header, packet ticks, and a stop command.
 	header := &protocol.CDemoFileHeader{DemoFileStamp: proto(demoMagic), MapName: proto("dl_midtown")}
 	headerBytes, err := header.MarshalVT()
 	if err != nil {
@@ -48,6 +51,7 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Read the header command and verify its decoded metadata.
 	first, err := p.Next()
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +66,7 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 	if got.GetMapName() != "dl_midtown" {
 		t.Fatalf("map name: want dl_midtown, got %q", got.GetMapName())
 	}
-	// The pre-game sentinel tick must not advance the clock.
+	// Confirm that the pre-game sentinel tick does not advance the clock.
 	if p.Clock().Tick() != 0 {
 		t.Fatalf("clock advanced on sentinel tick: %d", p.Clock().Tick())
 	}
@@ -70,6 +74,8 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 	if _, err := p.Next(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Confirm that the first gameplay tick advances the demo clock.
 	if p.Clock().Tick() != 64 {
 		t.Fatalf("tick: want 64, got %d", p.Clock().Tick())
 	}
@@ -77,6 +83,7 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 		t.Fatalf("game time: want %v, got %v", want, p.Clock().GameTime())
 	}
 
+	// Consume the remaining commands and verify stable exhaustion behavior.
 	for {
 		if _, err := p.Next(); err == io.EOF {
 			break
@@ -89,8 +96,10 @@ func TestParserWalksCommandsAndClock(t *testing.T) {
 	}
 }
 
+// proto returns a pointer to a string literal value.
 func proto(s string) *string { return &s }
 
+// TestServerWorldTracksDecodedServerInfo verifies server identity replacement.
 func TestServerWorldTracksDecodedServerInfo(t *testing.T) {
 	p, err := NewParser(buildDemo(t, nil))
 	if err != nil {
@@ -109,6 +118,7 @@ func TestServerWorldTracksDecodedServerInfo(t *testing.T) {
 	}
 }
 
+// TestRecoveryWorldIdentityAndUnload verifies recovered world identity tracking.
 func TestRecoveryWorldIdentityAndUnload(t *testing.T) {
 	p, err := NewParser(buildDemo(t, nil))
 	if err != nil {
@@ -121,8 +131,7 @@ func TestRecoveryWorldIdentityAndUnload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Packet framing: a six-bit short UBitVar message ID and byte varint size,
-	// followed by the protobuf at the current bit offset.
+	// Encode packet framing as a six-bit message ID, byte varint size, and protobuf.
 	var bits []bool
 	put := func(value uint64, count int) {
 		for i := range count {
@@ -153,11 +162,15 @@ func TestRecoveryWorldIdentityAndUnload(t *testing.T) {
 	if _, world := p.ServerWorld(); world != "dl_midtown" {
 		t.Fatalf("loaded world = %q", world)
 	}
-	p.applyDecodedMessage(1, &protocol.CNETMsg_SpawnGroup_Load{Worldname: proto("another"), Spawngrouphandle: &three})
+	if err := p.applyDecodedMessage(1, &protocol.CNETMsg_SpawnGroup_Load{Worldname: proto("another"), Spawngrouphandle: &three}); err != nil {
+		t.Fatal(err)
+	}
 	if _, world := p.ServerWorld(); world != "" {
 		t.Fatalf("ambiguous world = %q", world)
 	}
-	p.applyDecodedMessage(2, &protocol.CNETMsg_SpawnGroup_Unload{Spawngrouphandle: &three})
+	if err := p.applyDecodedMessage(2, &protocol.CNETMsg_SpawnGroup_Unload{Spawngrouphandle: &three}); err != nil {
+		t.Fatal(err)
+	}
 	if _, world := p.ServerWorld(); world != "dl_midtown" {
 		t.Fatalf("remaining world = %q", world)
 	}

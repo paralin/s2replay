@@ -20,6 +20,26 @@
       "players": {
         "2": [
           {
+            "camera_angles": [
+              0,
+              0,
+              0
+            ],
+            "camera_angles_ticks": [
+              0,
+              0,
+              0
+            ],
+            "camera_angles_source_fields": [
+              "",
+              "",
+              ""
+            ],
+            "has_camera_angles": [
+              false,
+              false,
+              false
+            ],
             "tick": 2,
             "game_time": 2,
             "player_slot": 2,
@@ -47,6 +67,26 @@
       "entities": {
         "100": [
           {
+            "camera_angles": [
+              0,
+              0,
+              0
+            ],
+            "camera_angles_ticks": [
+              0,
+              0,
+              0
+            ],
+            "camera_angles_source_fields": [
+              "",
+              "",
+              ""
+            ],
+            "has_camera_angles": [
+              false,
+              false,
+              false
+            ],
             "tick": 2,
             "game_time": 2,
             "player_slot": 2,
