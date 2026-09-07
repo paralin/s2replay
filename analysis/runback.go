@@ -3,9 +3,9 @@ package analysis
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/paralin/s2replay"
@@ -65,7 +65,11 @@ type RunbackRequest struct {
 	MaxFreshnessTicks *uint32                    `json:"max_freshness_ticks,omitempty"`
 }
 
+//go:generate go run github.com/mailru/easyjson/easyjson -output_filename runback-json.gen.go runback.go
+
 // RunbackFacts is the versioned replay-local world and hero record for one tick.
+//
+//easyjson:json
 type RunbackFacts struct {
 	SchemaVersion      int                          `json:"schema_version"`
 	Source             ReplaySourceIdentity         `json:"source"`
@@ -354,7 +358,9 @@ type RunbackError struct {
 
 // Error returns the typed refusal message with the offending values.
 func (e *RunbackError) Error() string {
-	return fmt.Sprintf("runback facts: %s tick=%d entity=%d serial=%d slot=%d field=%s", e.Kind, e.Tick, e.EntityID, e.EntitySerial, e.PlayerSlot, e.Field)
+	return "runback facts: " + string(e.Kind) + " tick=" + strconv.FormatUint(uint64(e.Tick), 10) +
+		" entity=" + strconv.FormatInt(int64(e.EntityID), 10) + " serial=" + strconv.FormatInt(int64(e.EntitySerial), 10) +
+		" slot=" + strconv.FormatInt(int64(e.PlayerSlot), 10) + " field=" + e.Field
 }
 
 // ExtractRunbackFacts parses immutable demo bytes and extracts one tick.
@@ -393,7 +399,9 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	if err := consumeReplayEvents(modifierParser, func(event s2replay.Event) {
 		if event.Tick <= request.Tick {
 			events = append(events, event)
-		} else if event.Tick != s2replay.PreGameTick {
+			return
+		}
+		if event.Tick != s2replay.PreGameTick {
 			// Later commands cannot contribute state at the selected moment.
 			// Stop consumes queued events before ending the parser stream.
 			modifierParser.Stop()
@@ -423,17 +431,15 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	provenance := RunbackTickProvenance{}
 	serverTick, sourceTick, known := clock.ServerTick()
 	provenance.ServerTick = runbackUint(serverTick, sourceTick, known, request.Tick, "no_network_tick")
+	provenance.TickIntervalSeconds = RunbackFloat{MissingReason: RunbackMissingNoServerInfo}
 	if clock.TickIntervalKnown() {
 		provenance.TickIntervalSeconds = runbackFloat(float32(clock.TickInterval()), 0, true, request.Tick, RunbackMissingNotInSample)
 		provenance.TickIntervalSeconds.SourceTick = request.Tick
 		provenance.TickIntervalSeconds.FreshnessTicks = 0
-	} else {
-		provenance.TickIntervalSeconds = RunbackFloat{MissingReason: RunbackMissingNoServerInfo}
 	}
+	provenance.ServerStartTick = RunbackInt{MissingReason: RunbackMissingHeaderField}
 	if startTick := header.GetServerStartTick(); startTick != 0 {
 		provenance.ServerStartTick = RunbackInt{Value: startTick, Present: true, SourceTick: 0, FreshnessTicks: request.Tick}
-	} else {
-		provenance.ServerStartTick = RunbackInt{MissingReason: RunbackMissingHeaderField}
 	}
 	// The file header can name the bootstrap map "start". The snapshot
 	// parser owns the server world at the requested tick. Do not invent a
@@ -461,9 +467,8 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		Heroes:         []RunbackHero{},
 		WorldEntities:  []RunbackWorldEntity{},
 	}
-	if request.ExpectedIdentity == nil {
-		out.Correspondence = ReplayIdentityCorrespondence{Status: ReplayCorrespondencePending, Reason: "no expected replay identity supplied"}
-	} else {
+	out.Correspondence = ReplayIdentityCorrespondence{Status: ReplayCorrespondencePending, Reason: "no expected replay identity supplied"}
+	if request.ExpectedIdentity != nil {
 		out.Correspondence = compareReplayIdentity(source, *request.ExpectedIdentity)
 	}
 
@@ -474,7 +479,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorInvalidEntity, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial}
 		}
 		if prior, ok := byEntity[sample.Entity]; ok {
-			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorInvalidEntity, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial, Field: fmt.Sprintf("duplicate_entity_sample_serial_%d_vs_%d", prior.EntitySerial, sample.EntitySerial)}
+			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorInvalidEntity, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial, Field: "duplicate_entity_sample_serial_" + strconv.FormatInt(int64(prior.EntitySerial), 10) + "_vs_" + strconv.FormatInt(int64(sample.EntitySerial), 10)}
 		}
 		byEntity[sample.Entity] = sample
 	}
@@ -513,7 +518,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorSlotOutOfRange, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial, PlayerSlot: sample.PlayerSlot, Field: "player_slot"}
 		}
 		if prior, ok := slotPawns[sample.PlayerSlot]; ok {
-			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorDuplicateSlot, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial, PlayerSlot: sample.PlayerSlot, Field: fmt.Sprintf("pawn_%d", prior)}
+			return RunbackFacts{}, &RunbackError{Kind: RunbackErrorDuplicateSlot, Tick: tick, EntityID: sample.Entity, EntitySerial: sample.EntitySerial, PlayerSlot: sample.PlayerSlot, Field: "pawn_" + strconv.FormatInt(int64(prior), 10)}
 		}
 		pawnSlots[sample.Entity] = sample.PlayerSlot
 		slotPawns[sample.PlayerSlot] = sample.Entity
@@ -608,7 +613,11 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 func isRunbackControllerClass(name string) bool {
 	return strings.Contains(name, "CitadelPlayerController")
 }
+
+// isRunbackAbilityClass identifies network classes for ability entities.
 func isRunbackAbilityClass(name string) bool { return strings.Contains(name, "Ability") }
+
+// isRunbackItemClass identifies network classes for item entities.
 func isRunbackItemClass(name string) bool {
 	return strings.Contains(name, "CCitadel_Item_") || strings.Contains(name, "CCitadelItem")
 }
@@ -789,7 +798,7 @@ func runbackFloatMissing(name string, heroes []RunbackHero, pick func(RunbackHer
 	for _, hero := range heroes {
 		for i, field := range pick(hero) {
 			if !field.Present {
-				missing = append(missing, fmt.Sprintf("%s.%c", name, 'x'+rune(i)))
+				missing = append(missing, name+"."+string('x'+rune(i)))
 			}
 		}
 	}

@@ -6,7 +6,11 @@ require github.com/aperturerobotics/protobuf-go-lite v0.14.0
 
 require (
 	github.com/klauspost/compress v1.18.6
+	github.com/mailru/easyjson v0.9.1
 	golang.org/x/mod v0.29.0
 )
 
-require github.com/aperturerobotics/json-iterator-lite v1.0.0 // indirect
+require (
+	github.com/aperturerobotics/json-iterator-lite v1.0.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+)
