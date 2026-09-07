@@ -1,18 +1,42 @@
 package s2replay
 
-import "runtime/debug"
+import (
+	"runtime/debug"
+
+	"golang.org/x/mod/module"
+)
 
 //go:generate go run ./scripts/parserdigest -write
 
 // ParserSourceDigest identifies the canonical parser source and module inputs.
-const ParserSourceDigest = "ac24a55e7663d0c684560e767ae2110f13e7acb22d4577efa3bb4f72acb4370b"
+const ParserSourceDigest = "6794e1a75f7487855404cb5bbc927812d818477932e24d265360585042124ed5"
 
-// BuildRevision returns the clean VCS revision embedded in the running binary.
-// It refuses unknown and modified builds because they cannot identify durable evidence.
+// BuildRevision identifies the parser source in the running binary. Standalone
+// builds require clean VCS metadata; dependencies require a checksummed module
+// pseudo-version. Local replacements and unknown revisions are refused.
 func BuildRevision() (string, bool) {
-	// Read the build metadata supplied by the Go linker.
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
+		return "", false
+	}
+	return parserBuildRevision(info)
+}
+
+// parserBuildRevision keeps the embedding application's revision separate from
+// the parser dependency's revision. A module checksum excludes local source.
+func parserBuildRevision(info *debug.BuildInfo) (string, bool) {
+	const parserModule = "github.com/paralin/s2replay"
+	if info.Main.Path != parserModule {
+		for _, dependency := range info.Deps {
+			if dependency.Path != parserModule {
+				continue
+			}
+			if dependency.Replace != nil || dependency.Sum == "" {
+				return "", false
+			}
+			revision, err := module.PseudoVersionRev(dependency.Version)
+			return revision, err == nil && revision != ""
+		}
 		return "", false
 	}
 
