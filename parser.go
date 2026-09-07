@@ -1,10 +1,10 @@
 package s2replay
 
 import (
+	"context"
 	"io"
 
 	"github.com/klauspost/compress/snappy"
-
 	"github.com/paralin/s2replay/protocol"
 )
 
@@ -35,6 +35,9 @@ type Command struct {
 // Packet unpacking, message dispatch, and entity decoding layer on top of this
 // container.
 type Parser struct {
+	// ctx bounds this parser's lifetime when constructed with a context.
+	// Cancellation is observed between outer commands; Parser remains single-threaded.
+	ctx context.Context
 	// r is the underlying byte reader over the demo stream.
 	r reader
 	// clock tracks the parser's current tick and derived game time.
@@ -131,6 +134,21 @@ func NewParser(demo []byte) (*Parser, error) {
 	}, nil
 }
 
+// NewParserWithContext constructs a parser whose command reads stop on context
+// cancellation. It retains ctx and demo for its lifetime. A command already
+// being decoded finishes before the next read observes cancellation.
+func NewParserWithContext(ctx context.Context, demo []byte) (*Parser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	p, err := NewParser(demo)
+	if err != nil {
+		return nil, err
+	}
+	p.ctx = ctx
+	return p, nil
+}
+
 // Clock returns the game-time clock advanced by Next.
 func (p *Parser) Clock() *Clock { return p.clock }
 
@@ -139,8 +157,17 @@ func (p *Parser) Stop() { p.stopped = true }
 
 // Next reads the next outer command, decompressing its payload when the
 // compression bit is set, and advances the clock. It returns io.EOF once the
-// stream is exhausted or after Stop.
+// stream is exhausted or after Stop. A context-bound parser returns its context
+// error before reading another command when canceled.
 func (p *Parser) Next() (*Command, error) {
+	// Cancellation bounds every consumer that advances this command stream.
+	if p.ctx != nil {
+		if err := p.ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Honor explicit stops and the command retained by a bounded snapshot walk.
 	if p.stopped {
 		return nil, io.EOF
 	}
@@ -156,6 +183,7 @@ func (p *Parser) Next() (*Command, error) {
 		return nil, io.EOF
 	}
 
+	// Decode the command envelope before interpreting its payload.
 	rawKind, err := p.r.readUvarint()
 	if err != nil {
 		return nil, err
@@ -164,6 +192,7 @@ func (p *Parser) Next() (*Command, error) {
 	compressed := kind&demoIsCompressed != 0
 	kind &^= demoIsCompressed
 
+	// Read the selected tick and its bounded command payload.
 	tick, err := p.r.readUvarint()
 	if err != nil {
 		return nil, err
@@ -183,6 +212,7 @@ func (p *Parser) Next() (*Command, error) {
 		}
 	}
 
+	// Only gameplay commands advance the visible clock.
 	t := uint32(tick)
 	if t != PreGameTick {
 		p.clock.setTick(t)

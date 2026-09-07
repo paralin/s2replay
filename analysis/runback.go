@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"math"
 	"slices"
@@ -366,6 +367,12 @@ func (e *RunbackError) Error() string {
 // ExtractRunbackFacts parses immutable demo bytes and extracts one tick.
 // ExtractRunbackFacts refuses binaries without clean VCS identity.
 func ExtractRunbackFacts(demo []byte, request RunbackRequest) (RunbackFacts, error) {
+	return ExtractRunbackFactsContext(context.Background(), demo, request)
+}
+
+// ExtractRunbackFactsContext extracts one moment, observing cancellation between
+// demo commands in both parser passes. It returns no partial facts on cancellation.
+func ExtractRunbackFactsContext(ctx context.Context, demo []byte, request RunbackRequest) (RunbackFacts, error) {
 	if request.Tick == s2replay.PreGameTick || request.Tick == 0 {
 		return RunbackFacts{}, &RunbackError{Kind: RunbackErrorInvalidTick, Tick: request.Tick, Field: "tick"}
 	}
@@ -373,12 +380,12 @@ func ExtractRunbackFacts(demo []byte, request RunbackRequest) (RunbackFacts, err
 	if !clean {
 		return RunbackFacts{}, errors.New("running parser build has unknown or modified VCS identity")
 	}
-	return extractRunbackFactsWithBuild(demo, request, revision, clean)
+	return extractRunbackFactsWithBuild(ctx, demo, request, revision, clean)
 }
 
 // extractRunbackFactsWithBuild extracts Runback facts with an explicit parser
 // build identity; it backs tests and fixtures.
-func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision string, cleanBuild bool) (RunbackFacts, error) {
+func extractRunbackFactsWithBuild(ctx context.Context, demo []byte, request RunbackRequest, revision string, cleanBuild bool) (RunbackFacts, error) {
 	if !cleanBuild {
 		return RunbackFacts{}, errors.New("running parser build has unknown or modified VCS identity")
 	}
@@ -391,7 +398,7 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	}
 	// One parser collects the event stream for modifier lifecycles; one
 	// advances to the tick for the owned active-world snapshot.
-	modifierParser, err := s2replay.NewParser(demo)
+	modifierParser, err := s2replay.NewParserWithContext(ctx, demo)
 	if err != nil {
 		return RunbackFacts{}, err
 	}
@@ -411,7 +418,7 @@ func extractRunbackFactsWithBuild(demo []byte, request RunbackRequest, revision 
 	}
 	timelines := Build(events)
 
-	snapshotParser, err := s2replay.NewParser(demo)
+	snapshotParser, err := s2replay.NewParserWithContext(ctx, demo)
 	if err != nil {
 		return RunbackFacts{}, err
 	}

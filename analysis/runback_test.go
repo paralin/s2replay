@@ -208,7 +208,7 @@ func TestOptInPinnedRunbackFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	extract := func() RunbackFacts {
-		facts, err := extractRunbackFactsWithBuild(b, RunbackRequest{Tick: 63280}, "fixture", true)
+		facts, err := extractRunbackFactsWithBuild(t.Context(), b, RunbackRequest{Tick: 63280}, "fixture", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -533,7 +533,7 @@ func TestOptInPinnedRunbackObjectives(t *testing.T) {
 		t.Fatal(err)
 	}
 	extract := func() RunbackFacts {
-		facts, err := extractRunbackFactsWithBuild(b, RunbackRequest{Tick: 63280}, "fixture", true)
+		facts, err := extractRunbackFactsWithBuild(t.Context(), b, RunbackRequest{Tick: 63280}, "fixture", true)
 		if err != nil {
 			t.Fatal(err)
 		}
