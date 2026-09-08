@@ -47,6 +47,13 @@ type EntitySample struct {
 	// HasCameraAngles distinguishes observed zero components from missing evidence.
 	HasCameraAngles [3]bool `json:"has_camera_angles"`
 
+	// LifeState is the native lifecycle state; zero means alive, independently of health.
+	LifeState uint32 `json:"life_state,omitempty"`
+	// LifeStateTick identifies the last recorded lifecycle update.
+	LifeStateTick uint32 `json:"life_state_tick,omitempty"`
+	// HasLifeState distinguishes a recorded alive state from absent evidence.
+	HasLifeState bool `json:"has_life_state,omitempty"`
+
 	Tick                 uint32   `json:"tick"`
 	GameTime             float64  `json:"game_time"`
 	Entity               int32    `json:"entity"`
@@ -381,6 +388,9 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		ClassName:    e.class.name,
 		PlayerSlot:   -1,
 	}
+
+	// Preserve lifecycle separately because dead entities can retain positive health.
+	s.LifeState, s.LifeStateTick, s.HasLifeState = firstUInt32AtAny(e, "m_lifeState")
 	s.Health, s.HealthTick, s.HasHealth = firstFloat32AtAny(e,
 		"m_iHealth",
 		"m_iCurrentHealth",

@@ -55,6 +55,7 @@ type RunbackAliveBasis string
 
 // RunbackAliveBasis values state why an alive verdict holds.
 const (
+	RunbackAliveLifeState      RunbackAliveBasis = "life_state"
 	RunbackAliveHealthPositive RunbackAliveBasis = "health_positive"
 	RunbackAliveActive         RunbackAliveBasis = "active_no_health"
 )
@@ -729,17 +730,26 @@ func missingRunbackInt(requestedTick uint32, reason string) RunbackInt {
 	return RunbackInt{MissingReason: reason}
 }
 
-// runbackAlive derives the alive verdict from health or activity state.
+// runbackAlive prefers native life state, then health, then observed activity.
 func runbackAlive(sample *s2replay.EntitySample, tick uint32) RunbackAlive {
-	if sample.HasHealth {
-		alive := sample.Health > 0
-		out := RunbackAlive{Alive: alive, Basis: RunbackAliveHealthPositive, SourceTick: sample.HealthTick}
-		if tick >= sample.HealthTick {
-			out.FreshnessTicks = tick - sample.HealthTick
-		}
-		return out
+	// Native lifecycle distinguishes dead remnants that still carry positive health.
+	out := RunbackAlive{Alive: true, Basis: RunbackAliveActive, SourceTick: tick}
+	switch {
+	case sample.HasLifeState:
+		out.Alive = sample.LifeState == 0
+		out.Basis = RunbackAliveLifeState
+		out.SourceTick = sample.LifeStateTick
+	case sample.HasHealth:
+		out.Alive = sample.Health > 0
+		out.Basis = RunbackAliveHealthPositive
+		out.SourceTick = sample.HealthTick
 	}
-	return RunbackAlive{Alive: true, Basis: RunbackAliveActive, SourceTick: tick}
+
+	// Measure freshness from the evidence that determined this verdict.
+	if tick >= out.SourceTick {
+		out.FreshnessTicks = tick - out.SourceTick
+	}
+	return out
 }
 
 // runbackItems collects the item entities owned by one pawn.

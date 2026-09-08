@@ -107,6 +107,11 @@ the server clock; neither demo time nor the header's `server_start_tick` is an
 observed substitute. Older facts without `server_tick` must be re-extracted
 before restoring absolute cooldown deadlines.
 
+Runback alive verdicts prefer recorded native life state when available, then
+fall back to health or entity activity. Dead NPCs can retain positive health.
+Re-extract older facts before restoring a replay world so those remnants are
+not recreated as live actors.
+
 ## Protocol generation
 
 The Deadlock protocol Go package under `protocol/` is generated, never
