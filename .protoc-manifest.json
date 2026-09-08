@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "protocFlagsHash": "2f6259ba8d5269cb9a4d5b332d051e97a7bbaae97aa34bba16a7c89a183ca142",
+  "protocFlagsHash": "b852b2db72d785bd591e69382ecf76af27563493490611dc72ab9850c91fc796",
   "toolVersions": "protoc=embedded,protobuf-go-lite=v0.14.0,starpc=v0.49.18",
   "packages": {
     "github.com/paralin/s2replay/protocol": {
-      "hash": "d00ef1ff413be1f58901b8755ceeb40373ae36e27279efd247621c55a4f85e27",
+      "hash": "af345843698a040b9d0144a631b3832e6918e703b6b4986d29ea2f14ab3603f6",
       "generatedFiles": [
         "protocol/base_modifier.pb.go",
         "protocol/citadel_gameevents.pb.go",

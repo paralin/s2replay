@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/paralin/s2replay/protocol"
 )
@@ -205,6 +206,12 @@ type EntitySample struct {
 	HeroDamage     int32  `json:"hero_damage,omitempty"`
 	HeroDamageTick uint32 `json:"hero_damage_tick,omitempty"`
 	HasHeroDamage  bool   `json:"has_hero_damage,omitempty"`
+	// Grounded and Crouching retain observed movement state, including false.
+	Grounded  bool `json:"grounded"`
+	Crouching bool `json:"crouching"`
+	// HasGrounded and HasCrouching distinguish observations from absent fields.
+	HasGrounded  bool `json:"has_grounded,omitempty"`
+	HasCrouching bool `json:"has_crouching,omitempty"`
 }
 
 // ControllerSample is one periodic snapshot of a player controller entity:
@@ -314,6 +321,12 @@ func (e *Entity) String(name string) (string, bool) {
 	return v, ok
 }
 
+// Bool returns the current field value as a bool when present.
+func (e *Entity) Bool(name string) (bool, bool) {
+	v, ok := e.Get(name).(bool)
+	return v, ok
+}
+
 // UInt32 returns the current field value as a uint32 when it fits.
 func (e *Entity) UInt32(name string) (uint32, bool) {
 	switch v := e.Get(name).(type) {
@@ -417,6 +430,14 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.VelocityXSourceField, s.VelocityYSourceField, s.VelocityZSourceField = fields[0], fields[1], fields[2]
 		s.HasVelocityX, s.HasVelocityY, s.HasVelocityZ = present[0], present[1], present[2]
 		s.HasVelocity = present[0] && present[1] && present[2]
+	}
+	if ground, ok := e.UInt32("m_hGroundEntity"); ok {
+		s.Grounded = validEntityHandle(ground)
+		s.HasGrounded = true
+	}
+	if crouching, ok := e.Bool("m_pMovementServices.m_bDucked"); ok {
+		s.Crouching = crouching
+		s.HasCrouching = true
 	}
 	// Modern flattened serializers nest body origin under the skeleton
 	// instance; older replays expose it directly on CBodyComponent.
@@ -523,7 +544,7 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		s.HasVelocity ||
 		s.HasFacingX || s.HasFacingY || s.HasFacingZ ||
 		s.HasVelocityX || s.HasVelocityY || s.HasVelocityZ
-	return s, hasSignal
+	return s, hasSignal || s.HasGrounded || s.HasCrouching
 }
 
 // fieldValue returns a field value with the tick it was last updated.
@@ -644,6 +665,7 @@ func (p *Parser) FindEntity(index int32) *Entity {
 	return p.entities[index]
 }
 
+// validEntityHandle rejects both Source 2 invalid-handle sentinels.
 func validEntityHandle(handle uint32) bool {
 	return handle != invalidEntityHandle && handle != ^uint32(0)
 }
@@ -796,6 +818,7 @@ type entityDecodeError struct {
 	err       error
 }
 
+// Error includes the entity and field context of the decode failure.
 func (e entityDecodeError) Error() string {
 	s := e.err.Error()
 	if e.entity != nil {
@@ -825,6 +848,7 @@ func (e entityDecodeError) Error() string {
 	return s
 }
 
+// Unwrap returns the underlying field decode error.
 func (e entityDecodeError) Unwrap() error {
 	return e.err
 }
@@ -837,6 +861,7 @@ type packetEntityError struct {
 	err     error
 }
 
+// Error identifies the packet operation and entity that failed.
 func (e packetEntityError) Error() string {
 	return e.err.Error() +
 		" tick=" + strconv.FormatUint(uint64(e.tick), 10) +
@@ -844,6 +869,7 @@ func (e packetEntityError) Error() string {
 		" command=" + strconv.FormatUint(uint64(e.command), 10)
 }
 
+// Unwrap returns the underlying packet entity error.
 func (e packetEntityError) Unwrap() error {
 	return e.err
 }
@@ -904,12 +930,7 @@ func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 
 // isPlayerControllerClass reports whether a class name is a player controller.
 func isPlayerControllerClass(name string) bool {
-	for i := 0; i+len("CitadelPlayerController") <= len(name); i++ {
-		if name[i:i+len("CitadelPlayerController")] == "CitadelPlayerController" {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(name, "CitadelPlayerController")
 }
 
 // appendEntitySample routes a fresh entity sample to the right event queue.
@@ -925,7 +946,12 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 		p.appendControllerSample(tick, e)
 		return
 	}
-	if stringsContains(e.class.name, "Ability") {
+	if e.class.name == "CCitadel_Ability_Jump" {
+		p.appendJumpStateEvent(tick, e)
+		p.appendAbilityChargeEvent(tick, e)
+		return
+	}
+	if strings.Contains(e.class.name, "Ability") {
 		p.appendAbilityChargeEvent(tick, e)
 		return
 	}
@@ -952,6 +978,84 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	}
 }
 
+// entityEpoch identifies one entity incarnation across index reuse.
+type entityEpoch struct {
+	index  int32
+	serial int32
+}
+
+// jumpState retains measured values and presence for change detection.
+type jumpState struct {
+	jumped, hasJumped                               bool
+	desiredAirJumpCount, executedAirJumpCount       int32
+	consecutiveAirJumps, consecutiveWallJumps       int32
+	hasDesiredAirJumpCount, hasExecutedAirJumpCount bool
+	hasConsecutiveAirJumps, hasConsecutiveWallJumps bool
+	canDashJump, hasCanDashJump                     bool
+	inSlideJump, hasInSlideJump                     bool
+}
+
+// appendJumpStateEvent emits initial or changed jump state for one incarnation.
+func (p *Parser) appendJumpStateEvent(tick uint32, e *Entity) {
+	current := jumpState{}
+	current.jumped, current.hasJumped = e.Bool("m_bJumped")
+	current.desiredAirJumpCount, current.hasDesiredAirJumpCount = e.Int32("m_nDesiredAirJumpCount")
+	current.executedAirJumpCount, current.hasExecutedAirJumpCount = e.Int32("m_nExecutedAirJumpCount")
+	current.consecutiveAirJumps, current.hasConsecutiveAirJumps = e.Int32("m_nConsecutiveAirJumps")
+	current.consecutiveWallJumps, current.hasConsecutiveWallJumps = e.Int32("m_nConsecutiveWallJumps")
+	current.canDashJump, current.hasCanDashJump = e.Bool("m_bCanDashJump")
+	current.inSlideJump, current.hasInSlideJump = e.Bool("m_bInSlideJump")
+	if !current.hasJumped && !current.hasDesiredAirJumpCount && !current.hasExecutedAirJumpCount &&
+		!current.hasConsecutiveAirJumps && !current.hasConsecutiveWallJumps &&
+		!current.hasCanDashJump && !current.hasInSlideJump {
+		return
+	}
+
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	if p.jumpLastSeen == nil {
+		p.jumpLastSeen = make(map[entityEpoch]jumpState)
+	}
+	prior, seen := p.jumpLastSeen[epoch]
+	if seen && prior == current {
+		return
+	}
+	p.jumpLastSeen[epoch] = current
+
+	slot := int32(-1)
+	if ownerHandle, ok := e.UInt32("m_hOwnerEntity"); ok {
+		if owner := p.FindEntityByHandle(uint64(ownerHandle)); owner != nil && owner.active {
+			if mapped, mappedOK := p.entityPlayerSlots[owner.index]; mappedOK {
+				slot = mapped
+			}
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type: EventJumpState, Tick: normalizedTick(tick), GameTime: p.clock.GameTime(),
+		Entity: e.index, PlayerSlot: slot,
+		JumpState: &JumpStateEvent{
+			Tick: normalizedTick(tick), GameTime: p.clock.GameTime(), ClassName: e.class.name,
+			InitialObservation: !seen,
+			Jumped:             current.jumped, DesiredAirJumpCount: current.desiredAirJumpCount,
+			ExecutedAirJumpCount: current.executedAirJumpCount,
+			ConsecutiveAirJumps:  current.consecutiveAirJumps,
+			ConsecutiveWallJumps: current.consecutiveWallJumps,
+			CanDashJump:          current.canDashJump, InSlideJump: current.inSlideJump,
+			HasJumped: current.hasJumped, HasDesiredAirJumpCount: current.hasDesiredAirJumpCount,
+			HasExecutedAirJumpCount: current.hasExecutedAirJumpCount,
+			HasConsecutiveAirJumps:  current.hasConsecutiveAirJumps,
+			HasConsecutiveWallJumps: current.hasConsecutiveWallJumps,
+			HasCanDashJump:          current.hasCanDashJump, HasInSlideJump: current.hasInSlideJump,
+			ChangedJumped:               seen && (prior.jumped != current.jumped || prior.hasJumped != current.hasJumped),
+			ChangedDesiredAirJumpCount:  seen && (prior.desiredAirJumpCount != current.desiredAirJumpCount || prior.hasDesiredAirJumpCount != current.hasDesiredAirJumpCount),
+			ChangedExecutedAirJumpCount: seen && (prior.executedAirJumpCount != current.executedAirJumpCount || prior.hasExecutedAirJumpCount != current.hasExecutedAirJumpCount),
+			ChangedConsecutiveAirJumps:  seen && (prior.consecutiveAirJumps != current.consecutiveAirJumps || prior.hasConsecutiveAirJumps != current.hasConsecutiveAirJumps),
+			ChangedConsecutiveWallJumps: seen && (prior.consecutiveWallJumps != current.consecutiveWallJumps || prior.hasConsecutiveWallJumps != current.hasConsecutiveWallJumps),
+			ChangedCanDashJump:          seen && (prior.canDashJump != current.canDashJump || prior.hasCanDashJump != current.hasCanDashJump),
+			ChangedInSlideJump:          seen && (prior.inSlideJump != current.inSlideJump || prior.hasInSlideJump != current.hasInSlideJump),
+		},
+	})
+}
+
 // appendAbilityChargeEvent emits a charge-count event when an ability
 // entity's m_iRemainingCharges differs from the last value seen for it.
 // Dash charges are the primary consumer; any charged ability flows here.
@@ -960,10 +1064,15 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 	if !ok {
 		return
 	}
-	if last, seen := p.chargeLastSeen[e.index]; seen && last == charges {
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	if p.chargeLastSeen == nil {
+		p.chargeLastSeen = make(map[entityEpoch]int32)
+	}
+	if last, seen := p.chargeLastSeen[epoch]; seen && last == charges {
 		return
 	}
-	p.chargeLastSeen[e.index] = charges
+	p.chargeLastSeen[epoch] = charges
+
 	slot := int32(-1)
 	if handle, ok := e.UInt32("m_hOwnerEntity"); ok {
 		if owner := p.FindEntityByHandle(uint64(handle)); owner != nil && owner.active {
@@ -1021,23 +1130,7 @@ func (p *Parser) updateEntityPlayerSlot(e *Entity) {
 
 // isLikelyHeroClass reports whether a class name looks like a hero pawn.
 func isLikelyHeroClass(name string) bool {
-	return stringsContains(name, "CitadelPlayerPawn") || stringsContains(name, "Hero")
-}
-
-// stringsContains reports whether sub occurs in s without importing strings.
-func stringsContains(s, sub string) bool {
-	if len(sub) == 0 {
-		return true
-	}
-	if len(sub) > len(s) {
-		return false
-	}
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(name, "CitadelPlayerPawn") || strings.Contains(name, "Hero")
 }
 
 // WorldEntitySnapshot advances the parser through tick and samples every
