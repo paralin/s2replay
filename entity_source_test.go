@@ -173,7 +173,7 @@ func TestWorldSnapshotKeepsPlayerSlotAttribution(t *testing.T) {
 	ability.state.set(chargesPath, int32(2))
 	ability.state.set(ownerPathInAbility, uint32(7<<14|1))
 
-	parser := &Parser{entities: map[int32]*Entity{1: owner}, clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[int32]int32), worldSnapshotMode: true}
+	parser := &Parser{entities: map[int32]*Entity{1: owner}, clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[entityEpoch]int32), worldSnapshotMode: true}
 	parser.appendEntitySample(10, owner)
 	if parser.entityPlayerSlots[1] != 4 || len(parser.pendingEvents) != 0 {
 		t.Fatalf("snapshot attribution update: slots=%v events=%d", parser.entityPlayerSlots, len(parser.pendingEvents))
@@ -265,7 +265,7 @@ func TestAbilityChargeAttributionRejectsReusedOwnerIndex(t *testing.T) {
 	ownerPath.path[0] = 1
 	ability.state.set(charges, int32(2))
 	ability.state.set(ownerPath, uint32(7<<14|1))
-	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{1: newEntity(1, 8, &entityClass{})}, entityPlayerSlots: map[int32]int32{1: 4}, chargeLastSeen: make(map[int32]int32)}
+	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{1: newEntity(1, 8, &entityClass{})}, entityPlayerSlots: map[int32]int32{1: 4}, chargeLastSeen: make(map[entityEpoch]int32)}
 	parser.appendAbilityChargeEvent(10, ability)
 	if len(parser.pendingEvents) != 1 || parser.pendingEvents[0].PlayerSlot != -1 {
 		t.Fatalf("stale owner attributed: %+v", parser.pendingEvents)

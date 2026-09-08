@@ -59,7 +59,9 @@ type Parser struct {
 	// pendingEvents is the queue of unified events awaiting consumption.
 	pendingEvents []Event
 	// chargeLastSeen remembers the last charge count per ability entity.
-	chargeLastSeen map[int32]int32
+	chargeLastSeen map[entityEpoch]int32
+	// jumpLastSeen retains observed jump state for each entity generation.
+	jumpLastSeen map[entityEpoch]jumpState
 	// stopped makes the next Next call report io.EOF once set.
 	stopped bool
 	// eventOnly suppresses sample retention when set.
@@ -126,7 +128,8 @@ func NewParser(demo []byte) (*Parser, error) {
 		modifiers:            make(map[int32]modifierState),
 		playerItems:          make(map[int32]map[uint32]struct{}),
 		entityPlayerSlots:    make(map[int32]int32),
-		chargeLastSeen:       make(map[int32]int32),
+		chargeLastSeen:       make(map[entityEpoch]int32),
+		jumpLastSeen:         make(map[entityEpoch]jumpState),
 		stringTables:         newStringTables(),
 		entityStateErrors:    make(map[string]int),
 		skippedMessages:      make(map[skippedMessageKey]int),
