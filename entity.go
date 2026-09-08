@@ -398,7 +398,9 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 		[]string{"m_angClientCamera"},
 		[]string{"m_angClientCamera.m_x", "m_angClientCamera.m_y", "m_angClientCamera.m_z"},
 	)
-	if facing, ticks, fields, present := e.vector3([]string{"m_angEyeAngles"}, []string{
+	if facing, ticks, fields, present := e.vector3([]string{
+		"m_angEyeAngles", "CBodyComponent.m_skeletonInstance.m_angRotation",
+	}, []string{
 		"m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z",
 	}); present[0] || present[1] || present[2] {
 		s.FacingX, s.FacingY, s.FacingZ = facing[0], facing[1], facing[2]
