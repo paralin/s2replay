@@ -89,6 +89,8 @@ type RunbackFacts struct {
 // observed network tick with their provenance. Values are populated only from observed source data;
 // no default or assumed rate is ever reported as present.
 type RunbackTickProvenance struct {
+	// MatchClockSeconds is elapsed match time after recorded starts and pauses.
+	MatchClockSeconds RunbackFloat `json:"match_clock_seconds"`
 	// TickIntervalSeconds is the seconds-per-tick reported by
 	// CSVCMsg_ServerInfo. It is present only when the server message was
 	// decoded; the parser's internal placeholder is never reported.
@@ -191,10 +193,17 @@ type RunbackHero struct {
 
 // RunbackWorldEntity is one non-hero world entity observed at the tick.
 type RunbackWorldEntity struct {
-	EntityID     int32  `json:"entity_id"`
-	EntitySerial int32  `json:"entity_serial"`
-	ClassID      int32  `json:"class_id"`
-	ClassName    string `json:"class_name"`
+	// SubclassID selects the native NPC definition before spawning.
+	SubclassID RunbackUint `json:"subclass_id"`
+	// Lane is the recorded trooper lane; absent on entities without that field.
+	Lane *uint32 `json:"lane,omitempty"`
+	// Facing and Velocity preserve the entity's motion at the selected tick.
+	Facing       [3]RunbackFloat `json:"facing"`
+	Velocity     [3]RunbackFloat `json:"velocity"`
+	EntityID     int32           `json:"entity_id"`
+	EntitySerial int32           `json:"entity_serial"`
+	ClassID      int32           `json:"class_id"`
+	ClassName    string          `json:"class_name"`
 
 	Team     RunbackInt      `json:"team"`
 	Position [3]RunbackFloat `json:"position"`
@@ -436,6 +445,17 @@ func extractRunbackFactsWithBuild(ctx context.Context, demo []byte, request Runb
 	}
 	clock := snapshotParser.Clock()
 	provenance := RunbackTickProvenance{}
+	provenance.MatchClockSeconds = RunbackFloat{MissingReason: "match_clock_not_observed"}
+	for _, sample := range samples {
+		if sample.ClassName != "CCitadelGameRulesProxy" {
+			continue
+		}
+		seconds, clockErr := s2replay.MatchClock(snapshotParser.FindEntity(sample.Entity), clock)
+		if clockErr == nil {
+			provenance.MatchClockSeconds = runbackFloat(float32(seconds), request.Tick, true, request.Tick, RunbackMissingNotInSample)
+		}
+		break
+	}
 	serverTick, sourceTick, known := clock.ServerTick()
 	provenance.ServerTick = runbackUint(serverTick, sourceTick, known, request.Tick, "no_network_tick")
 	provenance.TickIntervalSeconds = RunbackFloat{MissingReason: RunbackMissingNoServerInfo}
@@ -452,7 +472,7 @@ func extractRunbackFactsWithBuild(ctx context.Context, demo []byte, request Runb
 	// parser owns the server world at the requested tick. Do not invent a
 	// world identity when that message is absent.
 	game, mapName := snapshotParser.ServerWorld()
-	return buildRunbackFacts(samples, timelines, ReplaySourceIdentity{
+	facts, err := buildRunbackFacts(samples, timelines, ReplaySourceIdentity{
 		SHA256:         sha256Hex(demo),
 		Game:           game,
 		Map:            mapName,
@@ -461,6 +481,19 @@ func extractRunbackFactsWithBuild(ctx context.Context, demo []byte, request Runb
 		ParserRevision: s2replay.ParserSourceDigest,
 		VCSRevision:    revision,
 	}, request, provenance, events)
+	if err != nil {
+		return RunbackFacts{}, err
+	}
+
+	// Preserve NPC lane identity from the same owned world snapshot.
+	for i := range facts.WorldEntities {
+		row := &facts.WorldEntities[i]
+		entity := snapshotParser.FindEntity(row.EntityID)
+		if lane, present := entity.UInt32("m_iLane"); present {
+			row.Lane = &lane
+		}
+	}
+	return facts, nil
 }
 
 // buildRunbackFacts assembles deterministic facts from the snapshot and timelines.
@@ -589,7 +622,10 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			continue
 		}
 		out.WorldEntities = append(out.WorldEntities, RunbackWorldEntity{
-			EntityID: sample.Entity, EntitySerial: sample.EntitySerial, ClassID: sample.ClassID, ClassName: sample.ClassName,
+			SubclassID: runbackUint(sample.SubclassID, sample.SubclassIDTick, sample.HasSubclassID, tick, RunbackMissingNotInSample),
+			Facing:     runbackVector3(sample.FacingX, sample.FacingY, sample.FacingZ, sample.FacingXTick, sample.FacingYTick, sample.FacingZTick, sample.HasFacingX, sample.HasFacingY, sample.HasFacingZ, tick, RunbackMissingNotInSample),
+			Velocity:   runbackVector3(sample.VelocityX, sample.VelocityY, sample.VelocityZ, sample.VelocityXTick, sample.VelocityYTick, sample.VelocityZTick, sample.HasVelocityX, sample.HasVelocityY, sample.HasVelocityZ, tick, RunbackMissingNotInSample),
+			EntityID:   sample.Entity, EntitySerial: sample.EntitySerial, ClassID: sample.ClassID, ClassName: sample.ClassName,
 			Team:      runbackInt(sample.Team, sample.TeamTick, sample.HasTeam, tick, RunbackMissingNotInSample),
 			Position:  runbackPosition(sample, tick),
 			Health:    runbackFloat(sample.Health, sample.HealthTick, sample.HasHealth, tick, RunbackMissingNotInSample),

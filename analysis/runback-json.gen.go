@@ -1211,6 +1211,56 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis5(in *jlexer.Lexer, o
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
 		switch key {
+		case "subclass_id":
+			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis15(in, &out.SubclassID)
+		case "lane":
+			if in.IsNull() {
+				in.Skip()
+				out.Lane = nil
+			} else {
+				if out.Lane == nil {
+					out.Lane = new(uint32)
+				}
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.Lane = uint32(in.Uint32())
+				}
+			}
+		case "facing":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('[')
+				v29 := 0
+				for !in.IsDelim(']') {
+					if v29 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Facing)[v29])
+						v29++
+					} else {
+						in.SkipRecursive()
+					}
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "velocity":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('[')
+				v30 := 0
+				for !in.IsDelim(']') {
+					if v30 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Velocity)[v30])
+						v30++
+					} else {
+						in.SkipRecursive()
+					}
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
 		case "entity_id":
 			if in.IsNull() {
 				in.Skip()
@@ -1242,11 +1292,11 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis5(in *jlexer.Lexer, o
 				in.Skip()
 			} else {
 				in.Delim('[')
-				v29 := 0
+				v31 := 0
 				for !in.IsDelim(']') {
-					if v29 < 3 {
-						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Position)[v29])
-						v29++
+					if v31 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Position)[v31])
+						v31++
 					} else {
 						in.SkipRecursive()
 					}
@@ -1277,8 +1327,42 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis5(out *jwriter.Writer
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"entity_id\":"
+		const prefix string = ",\"subclass_id\":"
 		out.RawString(prefix[1:])
+		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis15(out, in.SubclassID)
+	}
+	if in.Lane != nil {
+		const prefix string = ",\"lane\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(*in.Lane))
+	}
+	{
+		const prefix string = ",\"facing\":"
+		out.RawString(prefix)
+		out.RawByte('[')
+		for v32 := range in.Facing {
+			if v32 > 0 {
+				out.RawByte(',')
+			}
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Facing)[v32])
+		}
+		out.RawByte(']')
+	}
+	{
+		const prefix string = ",\"velocity\":"
+		out.RawString(prefix)
+		out.RawByte('[')
+		for v33 := range in.Velocity {
+			if v33 > 0 {
+				out.RawByte(',')
+			}
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Velocity)[v33])
+		}
+		out.RawByte(']')
+	}
+	{
+		const prefix string = ",\"entity_id\":"
+		out.RawString(prefix)
 		out.Int32(int32(in.EntityID))
 	}
 	{
@@ -1305,11 +1389,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis5(out *jwriter.Writer
 		const prefix string = ",\"position\":"
 		out.RawString(prefix)
 		out.RawByte('[')
-		for v30 := range in.Position {
-			if v30 > 0 {
+		for v34 := range in.Position {
+			if v34 > 0 {
 				out.RawByte(',')
 			}
-			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Position)[v30])
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Position)[v34])
 		}
 		out.RawByte(']')
 	}
@@ -1335,6 +1419,91 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis5(out *jwriter.Writer
 	}
 	out.RawByte('}')
 }
+func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis15(in *jlexer.Lexer, out *RunbackUint) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		switch key {
+		case "value":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Value = uint32(in.Uint32())
+			}
+		case "present":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Present = bool(in.Bool())
+			}
+		case "source_tick":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceTick = uint32(in.Uint32())
+			}
+		case "freshness_ticks":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.FreshnessTicks = uint32(in.Uint32())
+			}
+		case "missing_reason":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.MissingReason = string(in.String())
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis15(out *jwriter.Writer, in RunbackUint) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"value\":"
+		out.RawString(prefix[1:])
+		out.Uint32(uint32(in.Value))
+	}
+	{
+		const prefix string = ",\"present\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Present))
+	}
+	{
+		const prefix string = ",\"source_tick\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.SourceTick))
+	}
+	{
+		const prefix string = ",\"freshness_ticks\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.FreshnessTicks))
+	}
+	if in.MissingReason != "" {
+		const prefix string = ",\"missing_reason\":"
+		out.RawString(prefix)
+		out.String(string(in.MissingReason))
+	}
+	out.RawByte('}')
+}
 func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, out *RunbackHero) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
@@ -1354,11 +1523,11 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 				in.Skip()
 			} else {
 				in.Delim('[')
-				v31 := 0
+				v35 := 0
 				for !in.IsDelim(']') {
-					if v31 < 3 {
-						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.CameraAngles)[v31])
-						v31++
+					if v35 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.CameraAngles)[v35])
+						v35++
 					} else {
 						in.SkipRecursive()
 					}
@@ -1409,11 +1578,11 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 				in.Skip()
 			} else {
 				in.Delim('[')
-				v32 := 0
+				v36 := 0
 				for !in.IsDelim(']') {
-					if v32 < 3 {
-						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Position)[v32])
-						v32++
+					if v36 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Position)[v36])
+						v36++
 					} else {
 						in.SkipRecursive()
 					}
@@ -1426,11 +1595,11 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 				in.Skip()
 			} else {
 				in.Delim('[')
-				v33 := 0
+				v37 := 0
 				for !in.IsDelim(']') {
-					if v33 < 3 {
-						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Facing)[v33])
-						v33++
+					if v37 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Facing)[v37])
+						v37++
 					} else {
 						in.SkipRecursive()
 					}
@@ -1443,11 +1612,11 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 				in.Skip()
 			} else {
 				in.Delim('[')
-				v34 := 0
+				v38 := 0
 				for !in.IsDelim(']') {
-					if v34 < 3 {
-						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Velocity)[v34])
-						v34++
+					if v38 < 3 {
+						easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &(out.Velocity)[v38])
+						v38++
 					} else {
 						in.SkipRecursive()
 					}
@@ -1481,9 +1650,9 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 					out.Items = (out.Items)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v35 RunbackItem
-					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis16(in, &v35)
-					out.Items = append(out.Items, v35)
+					var v39 RunbackItem
+					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis16(in, &v39)
+					out.Items = append(out.Items, v39)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1504,9 +1673,9 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 					out.Abilities = (out.Abilities)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v36 RunbackAbility
-					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis17(in, &v36)
-					out.Abilities = append(out.Abilities, v36)
+					var v40 RunbackAbility
+					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis17(in, &v40)
+					out.Abilities = append(out.Abilities, v40)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1527,9 +1696,9 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 					out.Modifiers = (out.Modifiers)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v37 RunbackModifier
-					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis18(in, &v37)
-					out.Modifiers = append(out.Modifiers, v37)
+					var v41 RunbackModifier
+					easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis18(in, &v41)
+					out.Modifiers = append(out.Modifiers, v41)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1556,11 +1725,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 		const prefix string = ",\"camera_angles\":"
 		out.RawString(prefix[1:])
 		out.RawByte('[')
-		for v38 := range in.CameraAngles {
-			if v38 > 0 {
+		for v42 := range in.CameraAngles {
+			if v42 > 0 {
 				out.RawByte(',')
 			}
-			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.CameraAngles)[v38])
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.CameraAngles)[v42])
 		}
 		out.RawByte(']')
 	}
@@ -1613,11 +1782,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 		const prefix string = ",\"position\":"
 		out.RawString(prefix)
 		out.RawByte('[')
-		for v39 := range in.Position {
-			if v39 > 0 {
+		for v43 := range in.Position {
+			if v43 > 0 {
 				out.RawByte(',')
 			}
-			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Position)[v39])
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Position)[v43])
 		}
 		out.RawByte(']')
 	}
@@ -1625,11 +1794,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 		const prefix string = ",\"facing\":"
 		out.RawString(prefix)
 		out.RawByte('[')
-		for v40 := range in.Facing {
-			if v40 > 0 {
+		for v44 := range in.Facing {
+			if v44 > 0 {
 				out.RawByte(',')
 			}
-			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Facing)[v40])
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Facing)[v44])
 		}
 		out.RawByte(']')
 	}
@@ -1637,11 +1806,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 		const prefix string = ",\"velocity\":"
 		out.RawString(prefix)
 		out.RawByte('[')
-		for v41 := range in.Velocity {
-			if v41 > 0 {
+		for v45 := range in.Velocity {
+			if v45 > 0 {
 				out.RawByte(',')
 			}
-			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Velocity)[v41])
+			easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, (in.Velocity)[v45])
 		}
 		out.RawByte(']')
 	}
@@ -1677,11 +1846,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v42, v43 := range in.Items {
-				if v42 > 0 {
+			for v46, v47 := range in.Items {
+				if v46 > 0 {
 					out.RawByte(',')
 				}
-				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis16(out, v43)
+				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis16(out, v47)
 			}
 			out.RawByte(']')
 		}
@@ -1693,11 +1862,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v44, v45 := range in.Abilities {
-				if v44 > 0 {
+			for v48, v49 := range in.Abilities {
+				if v48 > 0 {
 					out.RawByte(',')
 				}
-				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis17(out, v45)
+				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis17(out, v49)
 			}
 			out.RawByte(']')
 		}
@@ -1709,11 +1878,11 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v46, v47 := range in.Modifiers {
-				if v46 > 0 {
+			for v50, v51 := range in.Modifiers {
+				if v50 > 0 {
 					out.RawByte(',')
 				}
-				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis18(out, v47)
+				easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis18(out, v51)
 			}
 			out.RawByte(']')
 		}
@@ -2268,91 +2437,6 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis16(out *jwriter.Write
 	}
 	out.RawByte('}')
 }
-func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis15(in *jlexer.Lexer, out *RunbackUint) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		switch key {
-		case "value":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.Value = uint32(in.Uint32())
-			}
-		case "present":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.Present = bool(in.Bool())
-			}
-		case "source_tick":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.SourceTick = uint32(in.Uint32())
-			}
-		case "freshness_ticks":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.FreshnessTicks = uint32(in.Uint32())
-			}
-		case "missing_reason":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.MissingReason = string(in.String())
-			}
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis15(out *jwriter.Writer, in RunbackUint) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"value\":"
-		out.RawString(prefix[1:])
-		out.Uint32(uint32(in.Value))
-	}
-	{
-		const prefix string = ",\"present\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.Present))
-	}
-	{
-		const prefix string = ",\"source_tick\":"
-		out.RawString(prefix)
-		out.Uint32(uint32(in.SourceTick))
-	}
-	{
-		const prefix string = ",\"freshness_ticks\":"
-		out.RawString(prefix)
-		out.Uint32(uint32(in.FreshnessTicks))
-	}
-	if in.MissingReason != "" {
-		const prefix string = ",\"missing_reason\":"
-		out.RawString(prefix)
-		out.String(string(in.MissingReason))
-	}
-	out.RawByte('}')
-}
 func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis3(in *jlexer.Lexer, out *RunbackTickProvenance) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
@@ -2367,6 +2451,8 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis3(in *jlexer.Lexer, o
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
 		switch key {
+		case "match_clock_seconds":
+			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &out.MatchClockSeconds)
 		case "tick_interval_seconds":
 			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis12(in, &out.TickIntervalSeconds)
 		case "server_start_tick":
@@ -2388,8 +2474,13 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis3(out *jwriter.Writer
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"tick_interval_seconds\":"
+		const prefix string = ",\"match_clock_seconds\":"
 		out.RawString(prefix[1:])
+		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, in.MatchClockSeconds)
+	}
+	{
+		const prefix string = ",\"tick_interval_seconds\":"
+		out.RawString(prefix)
 		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis12(out, in.TickIntervalSeconds)
 	}
 	{

@@ -230,7 +230,7 @@ func TestStringTableRelativeIndices(t *testing.T) {
 	var wire []byte
 	bit := 0
 	put := func(value uint64, width int) {
-		for i := 0; i < width; i++ {
+		for i := range width {
 			if bit/8 == len(wire) {
 				wire = append(wire, 0)
 			}
