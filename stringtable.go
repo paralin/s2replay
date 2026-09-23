@@ -16,8 +16,11 @@ const (
 	maxStringTableIndex = maxStringTableUpdates - 1
 	// maxStringTableKeyBytes limits a reconstructed network-string key.
 	maxStringTableKeyBytes = 1 << 10
-	// maxStringTableUserDataBytes bounds each raw or decompressed entry value.
-	maxStringTableUserDataBytes = 1 << 14
+	// maxStringTableUserDataBytes is the largest raw entry value a 17-bit
+	// byte count can declare.
+	maxStringTableUserDataBytes = 1<<17 - 1
+	// maxStringTableDecodedBytes bounds a decompressed entry value.
+	maxStringTableDecodedBytes = 1 << 20
 	// maxStringTableDataBytes bounds expansion of a compressed table payload.
 	maxStringTableDataBytes = 1 << 24
 )
@@ -401,7 +404,7 @@ func parseStringTable(buf []byte, numUpdates int32, userDataFixed bool, userData
 				if err != nil {
 					return nil, err
 				}
-				if decodedLen > maxStringTableUserDataBytes {
+				if decodedLen > maxStringTableDecodedBytes {
 					return nil, errStringTableUserDataTooLarge
 				}
 				value, err = snappy.Decode(nil, value)

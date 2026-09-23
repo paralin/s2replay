@@ -181,11 +181,28 @@ func TestParseStringTableRejectsOversizedKey(t *testing.T) {
 // TestParseStringTableRejectsOversizedSnappyExpansion checks the decoded-size
 // limit for a compressed value before decompression allocates.
 func TestParseStringTableRejectsOversizedSnappyExpansion(t *testing.T) {
-	compressed := snappy.Encode(nil, make([]byte, maxStringTableUserDataBytes+1))
+	compressed := snappy.Encode(nil, make([]byte, maxStringTableDecodedBytes+1))
 	buf := stringTableValue(compressed, uint32(len(compressed)), true, true)
 	_, err := parseStringTable(buf, 1, false, 0, 1, true)
 	if !errors.Is(err, errStringTableUserDataTooLarge) {
 		t.Fatalf("parseStringTable() error = %v, want %v", err, errStringTableUserDataTooLarge)
+	}
+}
+
+// TestParseStringTableAcceptsLargeValues checks that a value longer than 16
+// KiB, which current match demos carry, parses raw and compressed.
+func TestParseStringTableAcceptsLargeValues(t *testing.T) {
+	value := bytes.Repeat([]byte{7}, 17<<10)
+	buf := stringTableValue(value, uint32(len(value)), true, false)
+	items, err := parseStringTable(buf, 1, false, 0, 0, true)
+	if err != nil || len(items) != 1 || !bytes.Equal(items[0].value, value) {
+		t.Fatalf("raw parseStringTable() = %d items, %v", len(items), err)
+	}
+	compressed := snappy.Encode(nil, value)
+	buf = stringTableValue(compressed, uint32(len(compressed)), true, true)
+	items, err = parseStringTable(buf, 1, false, 0, 1, true)
+	if err != nil || len(items) != 1 || !bytes.Equal(items[0].value, value) {
+		t.Fatalf("compressed parseStringTable() = %d items, %v", len(items), err)
 	}
 }
 
