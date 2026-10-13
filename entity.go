@@ -153,6 +153,11 @@ type EntitySample struct {
 	NetWorthTick uint32 `json:"net_worth_tick,omitempty"`
 	HasNetWorth  bool   `json:"has_net_worth,omitempty"`
 
+	// Souls is the controller's unspent souls.
+	Souls     int32  `json:"souls,omitempty"`
+	SoulsTick uint32 `json:"souls_tick,omitempty"`
+	HasSouls  bool   `json:"has_souls,omitempty"`
+
 	// RemainingCharges is the ability charge count.
 	RemainingCharges     int32  `json:"remaining_charges,omitempty"`
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
@@ -507,6 +512,9 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGoldNetWorth"); ok {
 		s.NetWorth, s.NetWorthTick, s.HasNetWorth = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGold"); ok {
+		s.Souls, s.SoulsTick, s.HasSouls = value, valueTick, true
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
 		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true

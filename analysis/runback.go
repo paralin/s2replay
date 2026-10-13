@@ -188,8 +188,10 @@ type RunbackHero struct {
 	Abilities []RunbackAbility  `json:"abilities"`
 	Modifiers []RunbackModifier `json:"modifiers"`
 
-	NetWorth RunbackInt    `json:"net_worth"`
-	Scores   RunbackScores `json:"scores"`
+	NetWorth RunbackInt `json:"net_worth"`
+	// Souls is the hero's unspent souls, which a restore gives back.
+	Souls  RunbackInt    `json:"souls"`
+	Scores RunbackScores `json:"scores"`
 }
 
 // RunbackWorldEntity is one non-hero world entity observed at the tick.
@@ -594,6 +596,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		}
 		if controller := controllerByPawn[sample.Entity]; controller != nil {
 			hero.NetWorth = runbackInt(controller.NetWorth, controller.NetWorthTick, controller.HasNetWorth, tick, RunbackMissingNotInSample)
+			hero.Souls = runbackInt(controller.Souls, controller.SoulsTick, controller.HasSouls, tick, RunbackMissingNotInSample)
 			hero.Scores = RunbackScores{
 				Deaths:     runbackInt(controller.Deaths, controller.DeathsTick, controller.HasDeaths, tick, RunbackMissingNotInSample),
 				LastHits:   runbackInt(controller.LastHits, controller.LastHitsTick, controller.HasLastHits, tick, RunbackMissingNotInSample),
@@ -603,6 +606,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 			}
 		} else {
 			hero.NetWorth = missingRunbackInt(tick, RunbackMissingNoEntity)
+			hero.Souls = missingRunbackInt(tick, RunbackMissingNoEntity)
 			hero.Scores = RunbackScores{
 				Deaths: missingRunbackInt(tick, RunbackMissingNoEntity), LastHits: missingRunbackInt(tick, RunbackMissingNoEntity),
 				Denies: missingRunbackInt(tick, RunbackMissingNoEntity), KillStreak: missingRunbackInt(tick, RunbackMissingNoEntity),

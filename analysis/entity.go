@@ -99,6 +99,9 @@ type EntitySample struct {
 	NetWorth             int32  `json:"net_worth,omitempty"`
 	NetWorthTick         uint32 `json:"net_worth_tick,omitempty"`
 	HasNetWorth          bool   `json:"has_net_worth,omitempty"`
+	Souls                int32  `json:"souls,omitempty"`
+	SoulsTick            uint32 `json:"souls_tick,omitempty"`
+	HasSouls             bool   `json:"has_souls,omitempty"`
 	RemainingCharges     int32  `json:"remaining_charges,omitempty"`
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
 	HasRemainingCharges  bool   `json:"has_remaining_charges,omitempty"`
@@ -248,6 +251,9 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		NetWorth:                 ev.EntitySample.NetWorth,
 		NetWorthTick:             ev.EntitySample.NetWorthTick,
 		HasNetWorth:              ev.EntitySample.HasNetWorth,
+		Souls:                    ev.EntitySample.Souls,
+		SoulsTick:                ev.EntitySample.SoulsTick,
+		HasSouls:                 ev.EntitySample.HasSouls,
 		RemainingCharges:         ev.EntitySample.RemainingCharges,
 		RemainingChargesTick:     ev.EntitySample.RemainingChargesTick,
 		HasRemainingCharges:      ev.EntitySample.HasRemainingCharges,
