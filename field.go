@@ -283,6 +283,14 @@ func padFieldIndex(i int) string {
 }
 
 func findFieldDecoder(f *field) fieldDecoder {
+	if f.encoder == "fixed8" {
+		switch f.fieldType.baseType {
+		case "int8", "int16", "int32", "int64":
+			return fixed8SignedDecoder
+		default:
+			return fixed8Decoder
+		}
+	}
 	switch f.fieldType.baseType {
 	case "float32":
 		return floatDecoder(f)
@@ -305,6 +313,8 @@ func findFieldDecoder(f *field) fieldDecoder {
 		return boolDecoder
 	case "char", "CUtlString", "CUtlSymbolLarge":
 		return stringDecoder
+	case "CUtlBinaryBlock":
+		return binaryBlockDecoder
 	case "int8", "int16", "int32", "int64":
 		return intDecoder
 	case "uint8", "uint16", "uint32", "color32", "BloodType", "CUtlStringToken", "CHandle", "CEntityHandle", "CGameSceneNodeHandle":
@@ -472,6 +482,16 @@ func stringDecoder(r *packetReader) (any, error) {
 	return r.readString()
 }
 
+// binaryBlockDecoder reads a CUtlBinaryBlock: a uvarint32 byte length followed
+// by that many raw bytes.
+func binaryBlockDecoder(r *packetReader) (any, error) {
+	n, err := r.readUvarint32()
+	if err != nil {
+		return nil, err
+	}
+	return r.readBytes(int(n))
+}
+
 // abilitySlotDecoder reads the signed-varint wire encoding of EAbilitySlots_t.
 // Its engine storage is uint16; the signed invalid sentinel maps to 0xffff.
 func abilitySlotDecoder(r *packetReader) (any, error) {
@@ -487,6 +507,19 @@ func abilitySlotDecoder(r *packetReader) (any, error) {
 
 func uintDecoder(r *packetReader) (any, error) {
 	return r.readUvarint32()
+}
+
+// fixed8Decoder reads a field tagged with the "fixed8" encoder: exactly eight
+// bits, low bit first, rather than a variable-length varint. Build 10932 moved
+// most small integer and enum fields to this encoder.
+func fixed8Decoder(r *packetReader) (any, error) {
+	return r.readBits(8)
+}
+
+// fixed8SignedDecoder reads a signed fixed8 field, sign-extending the byte.
+func fixed8SignedDecoder(r *packetReader) (any, error) {
+	v, err := r.readBits(8)
+	return int32(int8(v)), err
 }
 
 func uint64Decoder(r *packetReader) (any, error) {

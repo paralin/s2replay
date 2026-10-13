@@ -9,7 +9,7 @@ import (
 //go:generate go run ./scripts/parserdigest -write
 
 // ParserSourceDigest identifies the canonical parser source and module inputs.
-const ParserSourceDigest = "063ec21fa51a946058028595d433a50ec142d8c326a0616e16873d49ae283512"
+const ParserSourceDigest = "98d07917bc0306a44a8bef598f1e9b9e62b91cfcb95d4511c90bce000c818662"
 
 // BuildRevision identifies the parser source in the running binary. Standalone
 // builds require clean VCS metadata; dependencies require a checksummed module
