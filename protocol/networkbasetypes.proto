@@ -233,6 +233,7 @@ message CSVCMsg_GameSessionConfiguration {
 	optional bool is_transition = 16;
 	optional string previouslevel = 17;
 	optional string landmarkname = 18;
+	optional float max_coord = 21;
 }
 
 message CNETMsg_DebugOverlay {

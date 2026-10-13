@@ -1073,25 +1073,26 @@ func (x *CNETMsg_SpawnGroup_LoadCompleted) GetSpawngrouphandle() uint32 {
 
 type CSVCMsg_GameSessionConfiguration struct {
 	unknownFields   []byte
-	IsMultiplayer   *bool   `protobuf:"varint,1,opt,name=is_multiplayer,json=isMultiplayer" json:"isMultiplayer,omitempty"`
-	IsLoadsavegame  *bool   `protobuf:"varint,2,opt,name=is_loadsavegame,json=isLoadsavegame" json:"isLoadsavegame,omitempty"`
-	IsBackgroundMap *bool   `protobuf:"varint,3,opt,name=is_background_map,json=isBackgroundMap" json:"isBackgroundMap,omitempty"`
-	IsHeadless      *bool   `protobuf:"varint,4,opt,name=is_headless,json=isHeadless" json:"isHeadless,omitempty"`
-	MinClientLimit  *uint32 `protobuf:"varint,5,opt,name=min_client_limit,json=minClientLimit" json:"minClientLimit,omitempty"`
-	MaxClientLimit  *uint32 `protobuf:"varint,6,opt,name=max_client_limit,json=maxClientLimit" json:"maxClientLimit,omitempty"`
-	MaxClients      *uint32 `protobuf:"varint,7,opt,name=max_clients,json=maxClients" json:"maxClients,omitempty"`
-	TickInterval    *uint32 `protobuf:"fixed32,8,opt,name=tick_interval,json=tickInterval" json:"tickInterval,omitempty"`
-	Hostname        *string `protobuf:"bytes,9,opt,name=hostname" json:"hostname,omitempty"`
-	Savegamename    *string `protobuf:"bytes,10,opt,name=savegamename" json:"savegamename,omitempty"`
-	S1Mapname       *string `protobuf:"bytes,11,opt,name=s1_mapname,json=s1Mapname" json:"s1Mapname,omitempty"`
-	Gamemode        *string `protobuf:"bytes,12,opt,name=gamemode" json:"gamemode,omitempty"`
-	ServerIpAddress *string `protobuf:"bytes,13,opt,name=server_ip_address,json=serverIpAddress" json:"serverIpAddress,omitempty"`
-	Data            []byte  `protobuf:"bytes,14,opt,name=data" json:"data,omitempty"`
-	IsLocalonly     *bool   `protobuf:"varint,15,opt,name=is_localonly,json=isLocalonly" json:"isLocalonly,omitempty"`
-	NoSteamServer   *bool   `protobuf:"varint,19,opt,name=no_steam_server,json=noSteamServer" json:"noSteamServer,omitempty"`
-	IsTransition    *bool   `protobuf:"varint,16,opt,name=is_transition,json=isTransition" json:"isTransition,omitempty"`
-	Previouslevel   *string `protobuf:"bytes,17,opt,name=previouslevel" json:"previouslevel,omitempty"`
-	Landmarkname    *string `protobuf:"bytes,18,opt,name=landmarkname" json:"landmarkname,omitempty"`
+	IsMultiplayer   *bool    `protobuf:"varint,1,opt,name=is_multiplayer,json=isMultiplayer" json:"isMultiplayer,omitempty"`
+	IsLoadsavegame  *bool    `protobuf:"varint,2,opt,name=is_loadsavegame,json=isLoadsavegame" json:"isLoadsavegame,omitempty"`
+	IsBackgroundMap *bool    `protobuf:"varint,3,opt,name=is_background_map,json=isBackgroundMap" json:"isBackgroundMap,omitempty"`
+	IsHeadless      *bool    `protobuf:"varint,4,opt,name=is_headless,json=isHeadless" json:"isHeadless,omitempty"`
+	MinClientLimit  *uint32  `protobuf:"varint,5,opt,name=min_client_limit,json=minClientLimit" json:"minClientLimit,omitempty"`
+	MaxClientLimit  *uint32  `protobuf:"varint,6,opt,name=max_client_limit,json=maxClientLimit" json:"maxClientLimit,omitempty"`
+	MaxClients      *uint32  `protobuf:"varint,7,opt,name=max_clients,json=maxClients" json:"maxClients,omitempty"`
+	TickInterval    *uint32  `protobuf:"fixed32,8,opt,name=tick_interval,json=tickInterval" json:"tickInterval,omitempty"`
+	Hostname        *string  `protobuf:"bytes,9,opt,name=hostname" json:"hostname,omitempty"`
+	Savegamename    *string  `protobuf:"bytes,10,opt,name=savegamename" json:"savegamename,omitempty"`
+	S1Mapname       *string  `protobuf:"bytes,11,opt,name=s1_mapname,json=s1Mapname" json:"s1Mapname,omitempty"`
+	Gamemode        *string  `protobuf:"bytes,12,opt,name=gamemode" json:"gamemode,omitempty"`
+	ServerIpAddress *string  `protobuf:"bytes,13,opt,name=server_ip_address,json=serverIpAddress" json:"serverIpAddress,omitempty"`
+	Data            []byte   `protobuf:"bytes,14,opt,name=data" json:"data,omitempty"`
+	IsLocalonly     *bool    `protobuf:"varint,15,opt,name=is_localonly,json=isLocalonly" json:"isLocalonly,omitempty"`
+	NoSteamServer   *bool    `protobuf:"varint,19,opt,name=no_steam_server,json=noSteamServer" json:"noSteamServer,omitempty"`
+	IsTransition    *bool    `protobuf:"varint,16,opt,name=is_transition,json=isTransition" json:"isTransition,omitempty"`
+	Previouslevel   *string  `protobuf:"bytes,17,opt,name=previouslevel" json:"previouslevel,omitempty"`
+	Landmarkname    *string  `protobuf:"bytes,18,opt,name=landmarkname" json:"landmarkname,omitempty"`
+	MaxCoord        *float32 `protobuf:"fixed32,21,opt,name=max_coord,json=maxCoord" json:"maxCoord,omitempty"`
 }
 
 func (x *CSVCMsg_GameSessionConfiguration) Reset() {
@@ -1231,6 +1232,13 @@ func (x *CSVCMsg_GameSessionConfiguration) GetLandmarkname() string {
 		return *x.Landmarkname
 	}
 	return ""
+}
+
+func (x *CSVCMsg_GameSessionConfiguration) GetMaxCoord() float32 {
+	if x != nil && x.MaxCoord != nil {
+		return *x.MaxCoord
+	}
+	return 0
 }
 
 type CNETMsg_DebugOverlay struct {
@@ -2249,6 +2257,10 @@ func (m *CSVCMsg_GameSessionConfiguration) CloneVT() *CSVCMsg_GameSessionConfigu
 		tmpVal := *rhs
 		r.Landmarkname = &tmpVal
 	}
+	if rhs := m.MaxCoord; rhs != nil {
+		tmpVal := *rhs
+		r.MaxCoord = &tmpVal
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -3118,6 +3130,9 @@ func (this *CSVCMsg_GameSessionConfiguration) EqualVT(that *CSVCMsg_GameSessionC
 		return false
 	}
 	if p, q := this.Landmarkname, that.Landmarkname; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
+		return false
+	}
+	if p, q := this.MaxCoord, that.MaxCoord; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
 		return false
 	}
 	if p, q := this.NoSteamServer, that.NoSteamServer; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
@@ -4708,6 +4723,14 @@ func (m *CSVCMsg_GameSessionConfiguration) MarshalToSizedBufferVT(dAtA []byte) (
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.MaxCoord != nil {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(*m.MaxCoord))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xad
+	}
 	if m.NoSteamServer != nil {
 		i--
 		if *m.NoSteamServer {
@@ -5612,6 +5635,9 @@ func (m *CSVCMsg_GameSessionConfiguration) SizeVT() (n int) {
 	}
 	if m.NoSteamServer != nil {
 		n += 3
+	}
+	if m.MaxCoord != nil {
+		n += 6
 	}
 	n += len(m.unknownFields)
 	return n
@@ -6786,6 +6812,13 @@ func (x *CSVCMsg_GameSessionConfiguration) MarshalProtoText() string {
 		}
 		sb.WriteString("no_steam_server: ")
 		sb.WriteString(strconv.FormatBool(*x.NoSteamServer))
+	}
+	if x.MaxCoord != nil {
+		if sb.Len() > 34 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("max_coord: ")
+		sb.WriteString(strconv.FormatFloat(float64(*x.MaxCoord), 'g', -1, 32))
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -9744,6 +9777,19 @@ func (m *CSVCMsg_GameSessionConfiguration) UnmarshalVT(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.NoSteamServer = &b
+		case 21:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxCoord", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			v2 := float32(math.Float32frombits(v))
+			m.MaxCoord = &v2
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

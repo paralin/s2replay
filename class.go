@@ -69,6 +69,9 @@ func (p *Parser) applyServerInfo(msg *protocol.CSVCMsg_ServerInfo) {
 	p.clock.SetInterval(float64(msg.GetTickInterval()))
 	p.serverGame = msg.GetGameDir()
 	p.serverMap = msg.GetMapName()
+	if cfg := msg.GetGameSessionConfig(); cfg != nil && cfg.GetMaxCoord() > 0 {
+		p.maxCoord = cfg.GetMaxCoord()
+	}
 	if maxClasses := msg.GetMaxClasses(); maxClasses > 0 {
 		p.classIDBits = bitsForClassLimit(maxClasses)
 	}

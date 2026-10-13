@@ -383,7 +383,7 @@ func (e *Entity) Int32(name string) (int32, bool) {
 }
 
 // sample builds a typed snapshot of the entity's current state at a tick.
-func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
+func (e *Entity) sample(tick uint32, gameTime float64, maxCoord float32) (EntitySample, bool) {
 	s := EntitySample{
 		Tick:         tick,
 		GameTime:     gameTime,
@@ -483,9 +483,9 @@ func (e *Entity) sample(tick uint32, gameTime float64) (EntitySample, bool) {
 	vy, vyTick, vyField, vyOK := firstFloat32At(e, vecNames("Y")...)
 	vz, vzTick, vzField, vzOK := firstFloat32At(e, vecNames("Z")...)
 	if okX && okY && okZ && vxOK && vyOK && vzOK {
-		s.PositionX = deadlockCoordFromCell(x, vx)
-		s.PositionY = deadlockCoordFromCell(y, vy)
-		s.PositionZ = deadlockCoordFromCell(z, vz)
+		s.PositionX = deadlockCoordFromCell(x, vx, maxCoord)
+		s.PositionY = deadlockCoordFromCell(y, vy, maxCoord)
+		s.PositionZ = deadlockCoordFromCell(z, vz, maxCoord)
 		s.PositionXTick = minTick(xTick, vxTick)
 		s.PositionYTick = minTick(yTick, vyTick)
 		s.PositionZTick = minTick(zTick, vzTick)
@@ -673,9 +673,14 @@ func firstInt32AtAny(e *Entity, names ...string) (int32, uint32, bool) {
 	return 0, 0, false
 }
 
-// deadlockCoordFromCell converts a cell plus local offset into world coordinates.
-func deadlockCoordFromCell(cell, vec float32) float32 {
-	return float32(int32(cell)*512-16384) + vec
+// deadlockDefaultMaxCoord is the world coordinate bound used when a replay
+// predates the server-announced value.
+const deadlockDefaultMaxCoord float32 = 16384
+
+// deadlockCoordFromCell converts a cell plus local offset into world
+// coordinates, offset by the server-announced coordinate bound.
+func deadlockCoordFromCell(cell, vec, maxCoord float32) float32 {
+	return float32(int32(cell)*512-int32(maxCoord)) + vec
 }
 
 // FindEntity returns the current parser state for an entity index, or nil when absent.
@@ -976,7 +981,7 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	if !isLikelyHeroClass(e.class.name) {
 		return
 	}
-	if sample, ok := e.sample(tick, p.clock.GameTime()); ok {
+	if sample, ok := e.sample(tick, p.clock.GameTime(), p.maxCoord); ok {
 		if !p.eventOnly {
 			p.pendingSamples = append(p.pendingSamples, sample)
 		}
@@ -1225,7 +1230,7 @@ func (p *Parser) activeWorldEntitySamples(tick uint32) ([]EntitySample, error) {
 		if entity == nil || !entity.active || entity.class == nil {
 			continue
 		}
-		sample, _ := entity.sample(tick, float64(tick)*p.clock.TickInterval())
+		sample, _ := entity.sample(tick, float64(tick)*p.clock.TickInterval(), p.maxCoord)
 		if err := validateWorldEntitySample(sample); err != nil {
 			return nil, err
 		}

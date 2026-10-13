@@ -71,6 +71,11 @@ type Parser struct {
 
 	// classIDBits is the bit width used to encode entity class ids.
 	classIDBits uint8
+	// maxCoord is the world coordinate bound the server announces in
+	// ServerInfo's GameSessionConfiguration. Deadlock moved it from 16384 to
+	// 32768 in a later build, which moves the cell origin; world coordinates
+	// are reconstructed relative to it.
+	maxCoord float32
 	// classesByID maps class ids to their class records.
 	classesByID map[int32]*entityClass
 	// classesByName maps class names to their class records.
@@ -123,6 +128,7 @@ func NewParser(demo []byte) (*Parser, error) {
 		classesByID:          make(map[int32]*entityClass),
 		classesByName:        make(map[string]*entityClass),
 		classBaselines:       make(map[int32][]byte),
+		maxCoord:             deadlockDefaultMaxCoord,
 		serializers:          make(map[string]*serializer),
 		entities:             make(map[int32]*Entity),
 		modifiers:            make(map[int32]modifierState),

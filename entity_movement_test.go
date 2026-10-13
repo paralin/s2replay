@@ -25,7 +25,7 @@ func TestEntitySampleProjectsMovementState(t *testing.T) {
 	crouchPath.path[1] = 0
 	entity.state.set(crouchPath, true)
 
-	sample, ok := entity.sample(64, 1)
+	sample, ok := entity.sample(64, 1, deadlockDefaultMaxCoord)
 	if !ok || !sample.HasGrounded || !sample.Grounded || !sample.HasCrouching || !sample.Crouching {
 		t.Fatalf("true movement state missing: %+v", sample)
 	}
@@ -33,7 +33,7 @@ func TestEntitySampleProjectsMovementState(t *testing.T) {
 	entity.state.set(crouchPath, false)
 	for _, handle := range []uint32{invalidEntityHandle, ^uint32(0)} {
 		entity.state.set(groundPath, handle)
-		sample, ok = entity.sample(65, 2)
+		sample, ok = entity.sample(65, 2, deadlockDefaultMaxCoord)
 		if !ok || !sample.HasGrounded || sample.Grounded || !sample.HasCrouching || sample.Crouching {
 			t.Fatalf("false movement state missing for handle %x: %+v", handle, sample)
 		}
