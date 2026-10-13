@@ -46,6 +46,9 @@ func runbackController(tick uint32, entity, pawn int32) s2replay.EntitySample {
 	sample.Souls = int32(300 + entity)
 	sample.SoulsTick = tick
 	sample.HasSouls = true
+	sample.Lane = 4
+	sample.LaneTick = tick
+	sample.HasLane = true
 	sample.Deaths = 3
 	sample.DeathsTick = tick
 	sample.HasDeaths = true
@@ -74,6 +77,9 @@ func TestBuildRunbackFactsAttributesHeroSlotsFromPawns(t *testing.T) {
 	}
 	if got.Heroes[0].Souls.Value != 307 || !got.Heroes[0].Souls.Present {
 		t.Fatalf("souls: %+v", got.Heroes[0].Souls)
+	}
+	if got.Heroes[0].Lane.Value != 4 || !got.Heroes[0].Lane.Present {
+		t.Fatalf("lane: %+v", got.Heroes[0].Lane)
 	}
 	if got.Heroes[0].Scores.Deaths.Value != 3 || !got.Heroes[0].Scores.Deaths.Present {
 		t.Fatalf("scores: %+v", got.Heroes[0].Scores)

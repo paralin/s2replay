@@ -190,7 +190,9 @@ type RunbackHero struct {
 
 	NetWorth RunbackInt `json:"net_worth"`
 	// Souls is the hero's unspent souls, which a restore gives back.
-	Souls  RunbackInt    `json:"souls"`
+	Souls RunbackInt `json:"souls"`
+	// Lane is the hero's assigned lane, numbered as a trooper's lane.
+	Lane   RunbackInt    `json:"lane"`
 	Scores RunbackScores `json:"scores"`
 }
 
@@ -597,6 +599,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		if controller := controllerByPawn[sample.Entity]; controller != nil {
 			hero.NetWorth = runbackInt(controller.NetWorth, controller.NetWorthTick, controller.HasNetWorth, tick, RunbackMissingNotInSample)
 			hero.Souls = runbackInt(controller.Souls, controller.SoulsTick, controller.HasSouls, tick, RunbackMissingNotInSample)
+			hero.Lane = runbackInt(controller.Lane, controller.LaneTick, controller.HasLane, tick, RunbackMissingNotInSample)
 			hero.Scores = RunbackScores{
 				Deaths:     runbackInt(controller.Deaths, controller.DeathsTick, controller.HasDeaths, tick, RunbackMissingNotInSample),
 				LastHits:   runbackInt(controller.LastHits, controller.LastHitsTick, controller.HasLastHits, tick, RunbackMissingNotInSample),
@@ -607,6 +610,7 @@ func buildRunbackFacts(samples []s2replay.EntitySample, timelines Result, source
 		} else {
 			hero.NetWorth = missingRunbackInt(tick, RunbackMissingNoEntity)
 			hero.Souls = missingRunbackInt(tick, RunbackMissingNoEntity)
+			hero.Lane = missingRunbackInt(tick, RunbackMissingNoEntity)
 			hero.Scores = RunbackScores{
 				Deaths: missingRunbackInt(tick, RunbackMissingNoEntity), LastHits: missingRunbackInt(tick, RunbackMissingNoEntity),
 				Denies: missingRunbackInt(tick, RunbackMissingNoEntity), KillStreak: missingRunbackInt(tick, RunbackMissingNoEntity),

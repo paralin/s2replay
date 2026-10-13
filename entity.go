@@ -158,6 +158,11 @@ type EntitySample struct {
 	SoulsTick uint32 `json:"souls_tick,omitempty"`
 	HasSouls  bool   `json:"has_souls,omitempty"`
 
+	// Lane is the controller's assigned lane, numbered as troopers' m_iLane.
+	Lane     int32  `json:"lane,omitempty"`
+	LaneTick uint32 `json:"lane_tick,omitempty"`
+	HasLane  bool   `json:"has_lane,omitempty"`
+
 	// RemainingCharges is the ability charge count.
 	RemainingCharges     int32  `json:"remaining_charges,omitempty"`
 	RemainingChargesTick uint32 `json:"remaining_charges_tick,omitempty"`
@@ -515,6 +520,9 @@ func (e *Entity) sample(tick uint32, gameTime float64, maxCoord float32) (Entity
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGold"); ok {
 		s.Souls, s.SoulsTick, s.HasSouls = value, valueTick, true
+	}
+	if value, valueTick, ok := firstInt32AtAny(e, "m_nAssignedLane"); ok {
+		s.Lane, s.LaneTick, s.HasLane = value, valueTick, true
 	}
 	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
 		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true
