@@ -27,10 +27,6 @@ type Entity struct {
 	active bool
 	// state holds the decoded field values.
 	state *fieldState
-	// paths caches resolved field paths by name.
-	paths map[string]fieldPath
-	// misses caches field names known to be absent from the class.
-	misses map[string]bool
 	// fieldTicks records the tick at which each field path was last updated.
 	fieldTicks map[fieldPath]uint32
 }
@@ -274,8 +270,6 @@ func newEntity(index, serial int32, class *entityClass) *Entity {
 		class:      class,
 		active:     true,
 		state:      newFieldState(),
-		paths:      make(map[string]fieldPath),
-		misses:     make(map[string]bool),
 		fieldTicks: make(map[fieldPath]uint32),
 	}
 }
@@ -291,18 +285,13 @@ func (e *Entity) ClassName() string { return e.class.name }
 
 // Get returns the current decoded field value for name.
 func (e *Entity) Get(name string) any {
-	if fp, ok := e.paths[name]; ok {
-		return e.state.get(fp)
-	}
-	if e.misses[name] || e.class == nil {
+	if e.class == nil {
 		return nil
 	}
 	fp, ok := e.class.pathForName(name)
 	if !ok {
-		e.misses[name] = true
 		return nil
 	}
-	e.paths[name] = fp
 	return e.state.get(fp)
 }
 
@@ -779,11 +768,11 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 				e := newEntity(index, int32(serial), class)
 				p.entities[index] = e
 				if baseline := p.classBaselines[int32(classID)]; len(baseline) != 0 {
-					if err := e.readFields(newPacketReader(baseline), 0); err != nil {
+					if err := p.readFields(e, newPacketReader(baseline), 0); err != nil {
 						return err
 					}
 				}
-				if err := e.readFields(r, tick); err != nil {
+				if err := p.readFields(e, r, tick); err != nil {
 					return err
 				}
 				p.appendEntitySample(tick, e)
@@ -797,7 +786,7 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 			if !e.active {
 				e.active = true
 			}
-			if err := e.readFields(r, tick); err != nil {
+			if err := p.readFields(e, r, tick); err != nil {
 				return err
 			}
 			p.appendEntitySample(tick, e)
@@ -821,12 +810,14 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 	return nil
 }
 
-// readFields decodes field paths from the reader and stores values with their tick.
-func (e *Entity) readFields(r *packetReader, tick uint32) error {
-	paths, err := readFieldPaths(r)
+// readFields decodes field paths from the reader and stores e's values with
+// their tick. The paths decode into p.fieldPaths, which every update reuses.
+func (p *Parser) readFields(e *Entity, r *packetReader, tick uint32) error {
+	paths, err := readFieldPaths(r, p.fieldPaths)
 	if err != nil {
 		return entityDecodeError{entity: e, err: err}
 	}
+	p.fieldPaths = paths
 	for _, fp := range paths {
 		d := e.class.decoder(fp)
 		if d == nil {

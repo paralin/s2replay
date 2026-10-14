@@ -80,6 +80,8 @@ type Parser struct {
 	classesByID map[int32]*entityClass
 	// classesByName maps class names to their class records.
 	classesByName map[string]*entityClass
+	// fieldPaths is the scratch buffer readFields decodes each update's paths into.
+	fieldPaths []fieldPath
 	// classBaselines maps class ids to their serialized baseline state.
 	classBaselines map[int32][]byte
 	// serializers maps serializer names to their field layout.

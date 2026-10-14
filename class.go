@@ -12,20 +12,32 @@ type entityClass struct {
 	name string
 	// serializer defines the class's fields; nil before SendTables arrive.
 	serializer *serializer
+	// paths caches pathForName, which depends only on the name and the
+	// serializer's fixed layout. Entity reads resolve the same few names on
+	// every update.
+	paths map[string]namedPath
+}
+
+// namedPath is one cached pathForName result.
+type namedPath struct {
+	path  fieldPath
+	found bool
 }
 
 // pathForName resolves a dotted field name to its field path, reporting
 // whether the class's serializer contains it.
 func (c *entityClass) pathForName(name string) (fieldPath, bool) {
+	if cached, ok := c.paths[name]; ok {
+		return cached.path, cached.found
+	}
 	var fp fieldPath
 	fp.path = [fieldPathMaxDepth]int{-1}
-	if c.serializer == nil {
-		return fp, false
+	found := c.serializer != nil && c.serializer.findPath(splitFieldName(name), &fp, 0)
+	if c.paths == nil {
+		c.paths = make(map[string]namedPath)
 	}
-	if c.serializer.findPath(splitFieldName(name), &fp, 0) {
-		return fp, true
-	}
-	return fp, false
+	c.paths[name] = namedPath{path: fp, found: found}
+	return fp, found
 }
 
 // fieldName joins a field path back into its dotted field name.

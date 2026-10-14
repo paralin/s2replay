@@ -5,13 +5,13 @@ import "testing"
 // TestMatchClockUsesRulesAndPauseTicks distinguishes HUD time from demo duration.
 func TestMatchClockUsesRulesAndPauseTicks(t *testing.T) {
 	// Model recorded rules with an actual start, a prior pause, and a live pause.
-	rules := newEntity(1, 1, &entityClass{name: "CCitadelGameRulesProxy"})
+	rules := newEntity(1, 1, &entityClass{name: "CCitadelGameRulesProxy", paths: map[string]namedPath{}})
 	fields := []string{"m_flGameStartTime", "m_nTotalPausedTicks", "m_bGamePaused", "m_nPauseStartTick"}
 	values := []any{float32(58.140625), uint32(64), false, uint32(63735)}
 	for i, name := range fields {
 		path := fieldPath{last: 0}
 		path.path[0] = i
-		rules.paths["m_pGameRules."+name] = path
+		rules.class.paths["m_pGameRules."+name] = namedPath{path: path, found: true}
 		rules.state.set(path, values[i])
 	}
 	clock := newClock()
@@ -21,7 +21,7 @@ func TestMatchClockUsesRulesAndPauseTicks(t *testing.T) {
 
 	// A prior pause reduces elapsed time; a current pause freezes it at its start.
 	for _, paused := range []bool{false, true} {
-		rules.state.set(rules.paths["m_pGameRules.m_bGamePaused"], paused)
+		rules.state.set(rules.class.paths["m_pGameRules.m_bGamePaused"].path, paused)
 		got, err := MatchClock(rules, clock)
 		if err != nil {
 			t.Fatal(err)

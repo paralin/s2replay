@@ -7,7 +7,10 @@ import (
 
 var fieldPathTree = newFieldPathTree()
 
-const fieldPathMaxDepth = 64
+// fieldPathMaxDepth bounds a field path. Source 2 nests fields at most seven
+// deep; the eighth slot is margin. Paths are map keys and are copied on every
+// entity update, so their size matters.
+const fieldPathMaxDepth = 8
 
 type fieldPath struct {
 	path [fieldPathMaxDepth]int
@@ -305,16 +308,17 @@ func (fp *fieldPath) nonTopo(r *packetReader, bits uint8) error {
 	return nil
 }
 
-func readFieldPaths(r *packetReader) (paths []fieldPath, err error) {
+// readFieldPaths decodes one entity update's field paths, appending them to
+// paths[:0] so the caller can reuse its buffer across updates.
+func readFieldPaths(r *packetReader, paths []fieldPath) (_ []fieldPath, err error) {
 	defer func() {
 		if recover() != nil {
-			paths = nil
 			err = errUnknownFieldPath
 		}
 	}()
 	fp := fieldPath{path: [fieldPathMaxDepth]int{-1}}
 	node := fieldPathTree
-	paths = make([]fieldPath, 0, 8)
+	paths = paths[:0]
 	for !fp.done {
 		bit, err := r.readBits(1)
 		if err != nil {

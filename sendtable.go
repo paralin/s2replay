@@ -63,7 +63,7 @@ func (p *Parser) applyFlattenedSerializers(buf []byte) error {
 		}
 		p.serializers[s.name] = s
 		if c := p.classesByName[s.name]; c != nil {
-			c.serializer = s
+			c.serializer, c.paths = s, nil
 		}
 	}
 	return nil

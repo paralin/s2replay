@@ -6,12 +6,12 @@ import (
 )
 
 func jumpTestEntity(index, serial int32, values map[string]any) *Entity {
-	e := newEntity(index, serial, &entityClass{id: 1, name: "CCitadel_Ability_Jump"})
+	e := newEntity(index, serial, &entityClass{id: 1, name: "CCitadel_Ability_Jump", paths: map[string]namedPath{}})
 	i := 0
 	for name, value := range values {
 		fp := fieldPath{last: 0}
 		fp.path[0] = i
-		e.paths[name] = fp
+		e.class.paths[name] = namedPath{path: fp, found: true}
 		e.state.set(fp, value)
 		i++
 	}
@@ -72,7 +72,7 @@ func TestAppendJumpStateEventTracksChangesAndPresence(t *testing.T) {
 		t.Fatalf("unchanged sample emitted: %d", len(p.pendingEvents))
 	}
 
-	fp := jump.paths["m_nConsecutiveWallJumps"]
+	fp := jump.class.paths["m_nConsecutiveWallJumps"].path
 	jump.state.set(fp, int32(1))
 	p.appendJumpStateEvent(12, jump)
 	changed := p.pendingEvents[1].JumpState
