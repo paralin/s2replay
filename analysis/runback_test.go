@@ -695,3 +695,35 @@ func TestBuildRunbackFactsRejectsReusedOwnershipGenerations(t *testing.T) {
 		t.Fatalf("unattributed item lost: %+v", facts.Objectives.Transients)
 	}
 }
+
+// TestOptInPinnedTickAtMatchClock finds the pinned moment again by its match
+// time.
+func TestOptInPinnedTickAtMatchClock(t *testing.T) {
+	path := os.Getenv("S2REPLAY_PINNED_DEMO")
+	if path == "" {
+		t.Skip("set S2REPLAY_PINNED_DEMO to find the pinned moment by match time")
+	}
+	demo, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := extractRunbackFactsWithBuild(t.Context(), demo, RunbackRequest{Tick: 63280}, "fixture", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := facts.TickProvenance.MatchClockSeconds
+	if !clock.Present {
+		t.Fatal("pinned moment has no match clock")
+	}
+	parser, err := s2replay.NewParser(demo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tick, err := parser.TickAtMatchClock(float64(clock.Value))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tick > 63280 || tick < 63280-64 {
+		t.Fatalf("tick at match clock %g: got %d, want the pinned tick 63280 or just before it", clock.Value, tick)
+	}
+}
