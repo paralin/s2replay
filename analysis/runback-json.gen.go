@@ -1705,6 +1705,10 @@ func easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis4(in *jlexer.Lexer, o
 			}
 		case "net_worth":
 			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis11(in, &out.NetWorth)
+		case "souls":
+			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis11(in, &out.Souls)
+		case "lane":
+			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis11(in, &out.Lane)
 		case "scores":
 			easyjson2e0e899cDecodeGithubComParalinS2replayAnalysis19(in, &out.Scores)
 		default:
@@ -1891,6 +1895,16 @@ func easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis4(out *jwriter.Writer
 		const prefix string = ",\"net_worth\":"
 		out.RawString(prefix)
 		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis11(out, in.NetWorth)
+	}
+	{
+		const prefix string = ",\"souls\":"
+		out.RawString(prefix)
+		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis11(out, in.Souls)
+	}
+	{
+		const prefix string = ",\"lane\":"
+		out.RawString(prefix)
+		easyjson2e0e899cEncodeGithubComParalinS2replayAnalysis11(out, in.Lane)
 	}
 	{
 		const prefix string = ",\"scores\":"

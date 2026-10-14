@@ -52,7 +52,7 @@ func (p *Parser) TickAtMatchClock(seconds float64) (uint32, error) {
 	// Walk commands as a snapshot does, retaining no samples or events.
 	p.worldSnapshotMode = true
 	defer func() { p.worldSnapshotMode = false }()
-	var rules *Entity
+	rules := int32(-1)
 	for {
 		command, err := p.Next()
 		if err == io.EOF {
@@ -74,14 +74,16 @@ func (p *Parser) TickAtMatchClock(seconds float64) (uint32, error) {
 			continue
 		}
 
-		// Read the clock from the game rules once they exist.
-		if rules == nil || !rules.active {
-			rules = p.gameRules()
+		// Read the clock from the game rules once they exist. A full update
+		// replaces the entity, so look it up by index on every command.
+		entity := p.FindEntity(rules)
+		if entity == nil || !entity.active {
+			if entity = p.gameRules(); entity == nil {
+				continue
+			}
+			rules = entity.index
 		}
-		if rules == nil {
-			continue
-		}
-		if clock, err := MatchClock(rules, p.clock); err == nil && clock >= seconds {
+		if clock, err := MatchClock(entity, p.clock); err == nil && clock >= seconds {
 			return command.Tick, nil
 		}
 	}
