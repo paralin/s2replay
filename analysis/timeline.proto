@@ -1,0 +1,195 @@
+syntax = "proto3";
+package analysis;
+
+// MatchTimeline is a whole match reduced for coaching: every hero sampled at a
+// fixed step, hero to hero damage, ability casts, purchases, objective events
+// and the map objects' positions and health. Sample k is at game time
+// k * step_seconds; every player's columns have one entry per sample from the
+// first, so the columns of all players align by index.
+message MatchTimeline {
+  // DurationSeconds is the game time of the last event.
+  double duration_seconds = 1;
+  // StepSeconds is the game time between samples.
+  double step_seconds = 2;
+  // WinningTeam is the winner's team number, numbered as the players' teams
+  // are, or 0 when the replay ends before the post-match details.
+  int32 winning_team = 3;
+  // Players lists the players who controlled a hero, in order of first
+  // appearance. Other records name a player by index in this list.
+  repeated TimelinePlayer players = 4;
+  // Hits lists hero to hero damage between enemies, in time order.
+  repeated TimelineHit hits = 5;
+  // Casts lists the abilities the game announces as important, in time order.
+  repeated TimelineCast casts = 6;
+  // Purchases lists item buys and sells, in time order.
+  repeated TimelinePurchase purchases = 7;
+  // Objectives lists boss kills and Rejuvenator events, in time order.
+  repeated TimelineObjective objectives = 8;
+  // Objects lists the tracked map objects, in order of first sighting.
+  repeated TimelineObject objects = 9;
+}
+
+// TimelinePlayer is one player and their hero's state at every sample. Before
+// the hero first appears, its columns repeat its first observed state.
+message TimelinePlayer {
+  // Slot is the player's slot, or -1 when the replay never names it.
+  int32 slot = 1;
+  // AccountId is the player's Steam account ID.
+  uint32 account_id = 2;
+  // Name is the player's name in the match.
+  string name = 3;
+  // HeroId is the hero's ID.
+  uint32 hero_id = 4;
+  // Team is the player's entity team number, 2 or 3; the post-match record
+  // and match metadata number the same teams 0 and 1.
+  int32 team = 5;
+  // X is the hero's world X position at each sample.
+  repeated float x = 6;
+  // Y is the hero's world Y position at each sample.
+  repeated float y = 7;
+  // Z is the hero's world Z position at each sample.
+  repeated float z = 8;
+  // Health is the hero's health at each sample.
+  repeated float health = 9;
+  // MaxHealth is the hero's maximum health at each sample, including items.
+  repeated float max_health = 10;
+  // Alive is whether the game's life state shows the hero alive at each
+  // sample. Some deaths the game reverses within about 3 seconds show here
+  // but not in the match's death count.
+  repeated bool alive = 11;
+  // Yaw is the camera's yaw in degrees at each sample.
+  repeated float yaw = 12;
+  // NetWorth is the player's net worth in souls at each sample.
+  repeated int32 net_worth = 13;
+  // Speed is the hero's horizontal speed in units per second at each sample.
+  repeated float speed = 14;
+  // FarmDamage is the damage the hero dealt to troopers and neutral camps
+  // during each sample's step.
+  repeated int32 farm_damage = 15;
+  // ObjectiveDamage is the damage the hero dealt to Guardians, Walkers, Base
+  // Guardians, Shrines and the Patron during each sample's step.
+  repeated int32 objective_damage = 16;
+  // MidBossDamage is the damage the hero dealt to the Mid-Boss during each
+  // sample's step.
+  repeated int32 mid_boss_damage = 17;
+}
+
+// TimelineHit is one instance of hero to hero damage.
+message TimelineHit {
+  // Seconds is the game time of the hit.
+  double seconds = 1;
+  // Attacker is the attacking player's index.
+  uint32 attacker = 2;
+  // Victim is the damaged player's index.
+  uint32 victim = 3;
+  // Amount is the health lost plus the damage absorbed.
+  int32 amount = 4;
+  // AbilityId is the ability that dealt the damage, or 0 for none.
+  uint32 ability_id = 5;
+}
+
+// TimelineCast is one important ability use.
+message TimelineCast {
+  // Seconds is the game time of the cast.
+  double seconds = 1;
+  // Player is the caster's index.
+  uint32 player = 2;
+  // Ability is the ability's name.
+  string ability = 3;
+}
+
+// TimelinePurchase is one item buy or sell.
+message TimelinePurchase {
+  // Seconds is the game time of the purchase.
+  double seconds = 1;
+  // Player is the buyer's index.
+  uint32 player = 2;
+  // ItemId is the item's ability ID.
+  uint32 item_id = 3;
+  // Sell is whether the item was sold.
+  bool sell = 4;
+}
+
+// TimelineObjectiveKind is the kind of an objective event.
+enum TimelineObjectiveKind {
+  // TIMELINE_OBJECTIVE_KIND_UNKNOWN is never written.
+  TIMELINE_OBJECTIVE_KIND_UNKNOWN = 0;
+  // TIMELINE_OBJECTIVE_KIND_BOSS_KILLED is a Guardian, Walker, Base Guardian,
+  // Shrine, Patron or Mid-Boss killed.
+  TIMELINE_OBJECTIVE_KIND_BOSS_KILLED = 1;
+  // TIMELINE_OBJECTIVE_KIND_MID_BOSS_SPAWNED is the Mid-Boss spawning.
+  TIMELINE_OBJECTIVE_KIND_MID_BOSS_SPAWNED = 2;
+  // TIMELINE_OBJECTIVE_KIND_REJUVENATOR is a change to the Rejuvenator.
+  TIMELINE_OBJECTIVE_KIND_REJUVENATOR = 3;
+}
+
+// TimelineObjective is one objective event.
+message TimelineObjective {
+  // Seconds is the game time of the event.
+  double seconds = 1;
+  // Kind is the kind of event.
+  TimelineObjectiveKind kind = 2;
+  // Team is the team the event concerns: the objective's owner for a boss
+  // kill and the team that took it for the Rejuvenator.
+  int32 team = 3;
+  // Detail is the game's own code for the event: the objective mask change
+  // for a boss kill and the event type for the Rejuvenator.
+  int32 detail = 4;
+}
+
+// TimelineObjectKind is the kind of a tracked map object.
+enum TimelineObjectKind {
+  // TIMELINE_OBJECT_KIND_UNKNOWN is never written.
+  TIMELINE_OBJECT_KIND_UNKNOWN = 0;
+  // TIMELINE_OBJECT_KIND_GUARDIAN is a lane's first objective.
+  TIMELINE_OBJECT_KIND_GUARDIAN = 1;
+  // TIMELINE_OBJECT_KIND_WALKER is a lane's second objective.
+  TIMELINE_OBJECT_KIND_WALKER = 2;
+  // TIMELINE_OBJECT_KIND_BASE_GUARDIAN guards a lane's barracks.
+  TIMELINE_OBJECT_KIND_BASE_GUARDIAN = 3;
+  // TIMELINE_OBJECT_KIND_SHRINE shields the Patron.
+  TIMELINE_OBJECT_KIND_SHRINE = 4;
+  // TIMELINE_OBJECT_KIND_PATRON is a team's final objective.
+  TIMELINE_OBJECT_KIND_PATRON = 5;
+  // TIMELINE_OBJECT_KIND_MID_BOSS is the Mid-Boss.
+  TIMELINE_OBJECT_KIND_MID_BOSS = 6;
+  // TIMELINE_OBJECT_KIND_SINNERS_SACRIFICE is a Sinner's Sacrifice camp.
+  TIMELINE_OBJECT_KIND_SINNERS_SACRIFICE = 7;
+  // TIMELINE_OBJECT_KIND_URN is the Soul Urn.
+  TIMELINE_OBJECT_KIND_URN = 8;
+  // TIMELINE_OBJECT_KIND_URN_RETURN is where a team cashes in the Soul Urn.
+  TIMELINE_OBJECT_KIND_URN_RETURN = 9;
+}
+
+// TimelineObject is one map object over its lifetime. Health and path list
+// changes only, each at a sample index.
+message TimelineObject {
+  // Kind is the kind of object.
+  TimelineObjectKind kind = 1;
+  // Team is the object's team number.
+  int32 team = 2;
+  // X is the object's world X position when first seen.
+  float x = 3;
+  // Y is the object's world Y position when first seen.
+  float y = 4;
+  // Z is the object's world Z position when first seen.
+  float z = 5;
+  // MaxHealth is the object's maximum health when first seen.
+  float max_health = 6;
+  // FirstSample is the sample at which the object was first seen. Objects are
+  // looked for every 20 samples.
+  uint32 first_sample = 7;
+  // GoneSample is the sample at which the object was first missing or dead,
+  // or 0 when it lasted to the end.
+  uint32 gone_sample = 8;
+  // HealthSamples is the sample of each health change.
+  repeated uint32 health_samples = 9;
+  // Health is the object's health from each change on.
+  repeated float health = 10;
+  // PathSamples is the sample of each move of more than 100 units.
+  repeated uint32 path_samples = 11;
+  // PathX is the object's world X position from each move on.
+  repeated float path_x = 12;
+  // PathY is the object's world Y position from each move on.
+  repeated float path_y = 13;
+}

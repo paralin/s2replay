@@ -1,10 +1,19 @@
 {
   "version": 2,
-  "protocFlagsHash": "b852b2db72d785bd591e69382ecf76af27563493490611dc72ab9850c91fc796",
+  "protocFlagsHash": "949871a87d33d791e2e2c85355e594b56cee2f116b46e75a114d09434058d6cd",
   "toolVersions": "protoc=embedded,protobuf-go-lite=v0.14.0,starpc=v0.49.18",
   "packages": {
+    "github.com/paralin/s2replay/analysis": {
+      "hash": "7e3333dd090e57cdf6d7fd17a87337ce79ccc301c967c93c573d58d6512a41d7",
+      "generatedFiles": [
+        "analysis/timeline.pb.go"
+      ],
+      "protoFiles": [
+        "analysis/timeline.proto"
+      ]
+    },
     "github.com/paralin/s2replay/protocol": {
-      "hash": "af345843698a040b9d0144a631b3832e6918e703b6b4986d29ea2f14ab3603f6",
+      "hash": "c5c7fc75dff43a93e09deb67c307321ec4e65efc67b3c41ce4b247f95080b306",
       "generatedFiles": [
         "protocol/base_modifier.pb.go",
         "protocol/citadel_gameevents.pb.go",
