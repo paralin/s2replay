@@ -38,10 +38,10 @@ message MatchTimeline {
 }
 
 // TimelineClock is the match clock at one sample, recorded at the first
-// sample that sees the game rules and wherever the clock stops advancing with
-// the samples. The timeline reads the clock every 20 samples, so a pause is
-// placed within 10 seconds, and each read during a pause adds an entry.
-// Samples before the first entry extend it backward.
+// sample that sees the game rules and at every sample where the clock has not
+// advanced with the samples, so each paused sample has an entry. The last
+// entry at or before a match second places it to within one sample. Samples
+// before the first entry extend it backward.
 message TimelineClock {
   // Sample is the sample index.
   uint32 sample = 1;

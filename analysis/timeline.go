@@ -382,10 +382,10 @@ func (b *timelineBuilder) sampleClock(k int) {
 	b.out.Clock = append(clock, &TimelineClock{Sample: uint32(k), MatchSeconds: match})
 }
 
-// sampleObjects records each tracked object's changes at sample k, and every
-// objectScanSamples looks for objects that appeared.
+// sampleObjects records each tracked object's changes and the match clock at
+// sample k, and every objectScanSamples looks for objects that appeared.
 func (b *timelineBuilder) sampleObjects(k int) {
-	// Look for new objects and the game rules, and read the match clock.
+	// Look for new objects and the game rules.
 	if k%objectScanSamples == 0 {
 		for e := range int32(maxEntities) {
 			if b.objects[e] != nil {
@@ -412,8 +412,10 @@ func (b *timelineBuilder) sampleObjects(k int) {
 			b.objects[e] = o
 			b.allObjects = append(b.allObjects, o)
 		}
-		b.sampleClock(k)
 	}
+
+	// Read the match clock.
+	b.sampleClock(k)
 
 	// Record each live object's health and moves, and retire the gone.
 	for e, o := range b.objects {
