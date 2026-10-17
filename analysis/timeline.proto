@@ -27,6 +27,26 @@ message MatchTimeline {
   repeated TimelineObjective objectives = 8;
   // Objects lists the tracked map objects, in order of first sighting.
   repeated TimelineObject objects = 9;
+  // TickInterval is the replay's seconds per tick: sample k is at demo tick
+  // k * step_seconds / tick_interval.
+  double tick_interval = 10;
+  // Clock maps samples to the match clock, which starts at the match start
+  // and stops while the game is paused. From each entry's sample to the next
+  // entry's, the match clock advances one step per sample from the entry's
+  // match seconds. It is empty when the replay never shows the game rules.
+  repeated TimelineClock clock = 11;
+}
+
+// TimelineClock is the match clock at one sample, recorded at the first
+// sample that sees the game rules and wherever the clock stops advancing with
+// the samples. The timeline reads the clock every 20 samples, so a pause is
+// placed within 10 seconds, and each read during a pause adds an entry.
+// Samples before the first entry extend it backward.
+message TimelineClock {
+  // Sample is the sample index.
+  uint32 sample = 1;
+  // MatchSeconds is the match clock at the sample.
+  double match_seconds = 2;
 }
 
 // TimelinePlayer is one player and their hero's state at every sample. Before

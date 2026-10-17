@@ -157,6 +157,14 @@ type MatchTimeline struct {
 	Objectives []*TimelineObjective `protobuf:"bytes,8,rep,name=objectives,proto3" json:"objectives,omitempty"`
 	// Objects lists the tracked map objects, in order of first sighting.
 	Objects []*TimelineObject `protobuf:"bytes,9,rep,name=objects,proto3" json:"objects,omitempty"`
+	// TickInterval is the replay's seconds per tick: sample k is at demo tick
+	// k * step_seconds / tick_interval.
+	TickInterval float64 `protobuf:"fixed64,10,opt,name=tick_interval,json=tickInterval,proto3" json:"tickInterval,omitempty"`
+	// Clock maps samples to the match clock, which starts at the match start
+	// and stops while the game is paused. From each entry's sample to the next
+	// entry's, the match clock advances one step per sample from the entry's
+	// match seconds. It is empty when the replay never shows the game rules.
+	Clock []*TimelineClock `protobuf:"bytes,11,rep,name=clock,proto3" json:"clock,omitempty"`
 }
 
 func (x *MatchTimeline) Reset() {
@@ -226,6 +234,53 @@ func (x *MatchTimeline) GetObjects() []*TimelineObject {
 		return x.Objects
 	}
 	return nil
+}
+
+func (x *MatchTimeline) GetTickInterval() float64 {
+	if x != nil {
+		return x.TickInterval
+	}
+	return 0
+}
+
+func (x *MatchTimeline) GetClock() []*TimelineClock {
+	if x != nil {
+		return x.Clock
+	}
+	return nil
+}
+
+// TimelineClock is the match clock at one sample, recorded at the first
+// sample that sees the game rules and wherever the clock stops advancing with
+// the samples. The timeline reads the clock every 20 samples, so a pause is
+// placed within 10 seconds, and each read during a pause adds an entry.
+// Samples before the first entry extend it backward.
+type TimelineClock struct {
+	unknownFields []byte
+	// Sample is the sample index.
+	Sample uint32 `protobuf:"varint,1,opt,name=sample,proto3" json:"sample,omitempty"`
+	// MatchSeconds is the match clock at the sample.
+	MatchSeconds float64 `protobuf:"fixed64,2,opt,name=match_seconds,json=matchSeconds,proto3" json:"matchSeconds,omitempty"`
+}
+
+func (x *TimelineClock) Reset() {
+	*x = TimelineClock{}
+}
+
+func (*TimelineClock) ProtoMessage() {}
+
+func (x *TimelineClock) GetSample() uint32 {
+	if x != nil {
+		return x.Sample
+	}
+	return 0
+}
+
+func (x *TimelineClock) GetMatchSeconds() float64 {
+	if x != nil {
+		return x.MatchSeconds
+	}
+	return 0
 }
 
 // TimelinePlayer is one player and their hero's state at every sample. Before
@@ -728,6 +783,7 @@ func (m *MatchTimeline) CloneVT() *MatchTimeline {
 	r.DurationSeconds = m.DurationSeconds
 	r.StepSeconds = m.StepSeconds
 	r.WinningTeam = m.WinningTeam
+	r.TickInterval = m.TickInterval
 	if rhs := m.Players; rhs != nil {
 		r.Players = make([]*TimelinePlayer, len(rhs))
 		for k, v := range rhs {
@@ -764,6 +820,12 @@ func (m *MatchTimeline) CloneVT() *MatchTimeline {
 			r.Objects[k] = v.CloneVT()
 		}
 	}
+	if rhs := m.Clock; rhs != nil {
+		r.Clock = make([]*TimelineClock, len(rhs))
+		for k, v := range rhs {
+			r.Clock[k] = v.CloneVT()
+		}
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -771,6 +833,23 @@ func (m *MatchTimeline) CloneVT() *MatchTimeline {
 }
 
 func (m *MatchTimeline) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *TimelineClock) CloneVT() *TimelineClock {
+	if m == nil {
+		return (*TimelineClock)(nil)
+	}
+	r := new(TimelineClock)
+	r.Sample = m.Sample
+	r.MatchSeconds = m.MatchSeconds
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *TimelineClock) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
@@ -1061,11 +1140,54 @@ func (this *MatchTimeline) EqualVT(that *MatchTimeline) bool {
 			}
 		}
 	}
+	if this.TickInterval != that.TickInterval {
+		return false
+	}
+	if len(this.Clock) != len(that.Clock) {
+		return false
+	}
+	for i, vx := range this.Clock {
+		vy := that.Clock[i]
+		if p, q := vx, vy; p != q {
+			if p == nil {
+				p = &TimelineClock{}
+			}
+			if q == nil {
+				q = &TimelineClock{}
+			}
+			if !p.EqualVT(q) {
+				return false
+			}
+		}
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
 func (this *MatchTimeline) EqualMessageVT(thatMsg any) bool {
 	that, ok := thatMsg.(*MatchTimeline)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *TimelineClock) EqualVT(that *TimelineClock) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Sample != that.Sample {
+		return false
+	}
+	if this.MatchSeconds != that.MatchSeconds {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *TimelineClock) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*TimelineClock)
 	if !ok {
 		return false
 	}
@@ -1583,6 +1705,22 @@ func (x *MatchTimeline) MarshalProtoJSON(s *json.MarshalState) {
 		}
 		s.WriteArrayEnd()
 	}
+	if x.TickInterval != 0 || s.HasField("tickInterval") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tickInterval")
+		s.WriteFloat64(x.TickInterval)
+	}
+	if len(x.Clock) > 0 || s.HasField("clock") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("clock")
+		s.WriteArrayStart()
+		var wroteElement bool
+		for _, element := range x.Clock {
+			s.WriteMoreIf(&wroteElement)
+			element.MarshalProtoJSON(s.WithField("clock"))
+		}
+		s.WriteArrayEnd()
+	}
 	s.WriteObjectEnd()
 }
 
@@ -1717,12 +1855,83 @@ func (x *MatchTimeline) UnmarshalProtoJSON(s *json.UnmarshalState) {
 				}
 				x.Objects = append(x.Objects, v)
 			})
+		case "tick_interval", "tickInterval":
+			s.AddField("tick_interval")
+			x.TickInterval = s.ReadFloat64()
+		case "clock":
+			s.AddField("clock")
+			if s.ReadNil() {
+				x.Clock = nil
+				return
+			}
+			s.ReadArray(func() {
+				if s.ReadNil() {
+					x.Clock = append(x.Clock, nil)
+					return
+				}
+				v := &TimelineClock{}
+				v.UnmarshalProtoJSON(s.WithField("clock", false))
+				if s.Err() != nil {
+					return
+				}
+				x.Clock = append(x.Clock, v)
+			})
 		}
 	})
 }
 
 // UnmarshalJSON unmarshals the MatchTimeline from JSON.
 func (x *MatchTimeline) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the TimelineClock message to JSON.
+func (x *TimelineClock) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Sample != 0 || s.HasField("sample") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("sample")
+		s.WriteUint32(x.Sample)
+	}
+	if x.MatchSeconds != 0 || s.HasField("matchSeconds") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("matchSeconds")
+		s.WriteFloat64(x.MatchSeconds)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the TimelineClock to JSON.
+func (x *TimelineClock) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the TimelineClock message from JSON.
+func (x *TimelineClock) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "sample":
+			s.AddField("sample")
+			x.Sample = s.ReadUint32()
+		case "match_seconds", "matchSeconds":
+			s.AddField("match_seconds")
+			x.MatchSeconds = s.ReadFloat64()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the TimelineClock from JSON.
+func (x *TimelineClock) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
@@ -2396,6 +2605,24 @@ func (m *MatchTimeline) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.Clock) > 0 {
+		for iNdEx := len(m.Clock) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Clock[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x5a
+		}
+	}
+	if m.TickInterval != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.TickInterval))))
+		i--
+		dAtA[i] = 0x51
+	}
 	if len(m.Objects) > 0 {
 		for iNdEx := len(m.Objects) - 1; iNdEx >= 0; iNdEx-- {
 			size, err := m.Objects[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
@@ -2484,6 +2711,50 @@ func (m *MatchTimeline) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.DurationSeconds))))
 		i--
 		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TimelineClock) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TimelineClock) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *TimelineClock) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.MatchSeconds != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.MatchSeconds))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Sample != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Sample))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -3140,6 +3411,31 @@ func (m *MatchTimeline) SizeVT() (n int) {
 			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 		}
 	}
+	if m.TickInterval != 0 {
+		n += 9
+	}
+	if len(m.Clock) > 0 {
+		for _, e := range m.Clock {
+			l = e.SizeVT()
+			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+		}
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *TimelineClock) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Sample != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Sample))
+	}
+	if m.MatchSeconds != 0 {
+		n += 9
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -3502,11 +3798,60 @@ func (x *MatchTimeline) MarshalProtoText() string {
 		}
 		sb.WriteString("]")
 	}
+	if x.TickInterval != 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick_interval: ")
+		sb.WriteString(strconv.FormatFloat(x.TickInterval, 'g', -1, 64))
+	}
+	if len(x.Clock) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("clock: [")
+		for i, v := range x.Clock {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if v == nil {
+				sb.WriteString((&TimelineClock{}).MarshalProtoText())
+			} else {
+				sb.WriteString(v.MarshalProtoText())
+			}
+		}
+		sb.WriteString("]")
+	}
 	sb.WriteString("}")
 	return sb.String()
 }
 
 func (x *MatchTimeline) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *TimelineClock) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("TimelineClock {")
+	if x.Sample != 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("sample: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Sample), 10))
+	}
+	if x.MatchSeconds != 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("match_seconds: ")
+		sb.WriteString(strconv.FormatFloat(x.MatchSeconds, 'g', -1, 64))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *TimelineClock) String() string {
 	return x.MarshalProtoText()
 }
 
@@ -4213,6 +4558,108 @@ func (m *MatchTimeline) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 10:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TickInterval", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.TickInterval = float64(math.Float64frombits(v))
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Clock", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Clock = append(m.Clock, &TimelineClock{})
+			if err := m.Clock[len(m.Clock)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *TimelineClock) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TimelineClock: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TimelineClock: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sample", wireType)
+			}
+			m.Sample = 0
+			m.Sample, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MatchSeconds", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.MatchSeconds = float64(math.Float64frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

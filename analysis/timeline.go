@@ -15,6 +15,10 @@ const timelineStep = 0.5
 // for map objects that appeared since the last scan.
 const objectScanSamples = 20
 
+// clockDriftSeconds is how far the match clock may drift from the samples
+// before the timeline records a new clock entry.
+const clockDriftSeconds = 0.25
+
 // objectPathUnits is how far an object moves before its path records it.
 const objectPathUnits = 100
 
@@ -108,6 +112,7 @@ func newTimelineBuilder(p *s2replay.Parser) *timelineBuilder {
 		byCtrl:  make(map[int32]*timelinePlayer),
 		byPawn:  make(map[int32]*timelinePlayer),
 		objects: make(map[int32]*timelineObject),
+		rules:   -1,
 	}
 }
 
@@ -128,6 +133,8 @@ type timelineBuilder struct {
 	allObjects []*timelineObject
 	// samples is the number of samples taken.
 	samples int
+	// rules is the game rules entity, or -1 until a scan finds it.
+	rules int32
 	// hits, casts and purchases hold events by player until the player list
 	// is final.
 	hits      []timelineHit
@@ -354,10 +361,31 @@ func (pl *timelinePlayer) appendFrame() {
 	r.Speed = append(r.Speed, f.speed)
 }
 
+// sampleClock records the match clock at sample k when it has drifted from
+// the last entry, as it does at the match start and through a pause.
+func (b *timelineBuilder) sampleClock(k int) {
+	if b.rules < 0 {
+		return
+	}
+	match, err := s2replay.MatchClock(b.parser.FindEntity(b.rules), b.parser.Clock())
+	if err != nil {
+		return
+	}
+	clock := b.out.Clock
+	if n := len(clock); n != 0 {
+		last := clock[n-1]
+		predicted := last.GetMatchSeconds() + float64(k-int(last.GetSample()))*b.out.GetStepSeconds()
+		if math.Abs(predicted-match) <= clockDriftSeconds {
+			return
+		}
+	}
+	b.out.Clock = append(clock, &TimelineClock{Sample: uint32(k), MatchSeconds: match})
+}
+
 // sampleObjects records each tracked object's changes at sample k, and every
 // objectScanSamples looks for objects that appeared.
 func (b *timelineBuilder) sampleObjects(k int) {
-	// Look for new objects.
+	// Look for new objects and the game rules, and read the match clock.
 	if k%objectScanSamples == 0 {
 		for e := range int32(maxEntities) {
 			if b.objects[e] != nil {
@@ -366,6 +394,9 @@ func (b *timelineBuilder) sampleObjects(k int) {
 			en := b.parser.FindEntity(e)
 			if en == nil {
 				continue
+			}
+			if b.rules < 0 && en.ClassName() == "CCitadelGameRulesProxy" {
+				b.rules = e
 			}
 			kind, ok := timelineObjectKinds[en.ClassName()]
 			if !ok {
@@ -381,6 +412,7 @@ func (b *timelineBuilder) sampleObjects(k int) {
 			b.objects[e] = o
 			b.allObjects = append(b.allObjects, o)
 		}
+		b.sampleClock(k)
 	}
 
 	// Record each live object's health and moves, and retire the gone.
@@ -415,6 +447,7 @@ func (b *timelineBuilder) sampleObjects(k int) {
 func (b *timelineBuilder) finish() *MatchTimeline {
 	// Keep the hero players and align their columns.
 	out := b.out
+	out.TickInterval = b.parser.Clock().TickInterval()
 	kept := func(pl *timelinePlayer) bool {
 		return pl.row.GetHeroId() != 0 && pl.seen
 	}

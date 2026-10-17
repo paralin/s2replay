@@ -98,5 +98,15 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 			t.Errorf("player %d died %d times, post-match %d", rec.AccountID, deaths, rec.Deaths)
 		}
 	}
+	// The match clock reaches the record's duration by the end of the replay.
+	clock := tl.GetClock()
+	if tl.GetTickInterval() <= 0 || len(clock) == 0 {
+		t.Fatalf("tick interval %v and %d clock entries, want both", tl.GetTickInterval(), len(clock))
+	}
+	last := clock[len(clock)-1]
+	if end := last.GetMatchSeconds() + float64(samples-1-int(last.GetSample()))*tl.GetStepSeconds(); end < float64(post.DurationS) {
+		t.Errorf("match clock ends at %.1f s, before the record's %d s", end, post.DurationS)
+	}
+	t.Logf("tick interval %v, clock %v", tl.GetTickInterval(), clock)
 	t.Logf("%d players, %d samples, %d hits, %d objects", len(tl.GetPlayers()), samples, len(tl.GetHits()), len(tl.GetObjects()))
 }
