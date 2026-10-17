@@ -688,6 +688,17 @@ func (p *Parser) FindEntity(index int32) *Entity {
 	return p.entities[index]
 }
 
+// SampleEntity samples e at the parser's current tick, with the same fields
+// and world coordinates as an entity sample event. Event streams emit samples
+// only for heroes; this reads any entity, such as an objective, on demand. It
+// reports false when e is nil, inactive, or has no class.
+func (p *Parser) SampleEntity(e *Entity) (EntitySample, bool) {
+	if e == nil || !e.active || e.class == nil {
+		return EntitySample{}, false
+	}
+	return e.sample(p.clock.Tick(), p.clock.GameTime(), p.maxCoord)
+}
+
 // validEntityHandle rejects both Source 2 invalid-handle sentinels.
 func validEntityHandle(handle uint32) bool {
 	return handle != invalidEntityHandle && handle != ^uint32(0)
