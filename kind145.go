@@ -104,29 +104,8 @@ func (p *Parser) applyKind145(tick uint32, buf []byte) {
 	if err != nil {
 		return
 	}
-	k145Seen++
 	sub, ok := pbFnum(outer, 1)
-	if !ok {
-		return
-	}
-	if sub.varint == 5 {
-		if eidF5, okE := pbFnum(outer, 2); okE {
-			if bodyF, okB := pbFnum(outer, 12); okB && bodyF.wire == 2 {
-				body, errB := walkRawPB(bodyF.data)
-				if errB == nil {
-					k145Sub5Total++
-					if sidF, okS := pbFnum(body, 2); okS && sidF.wire == 0 {
-						k145Sub5Ids[sidF.varint]++
-					}
-					if e5 := p.FindEntity(int32(eidF5.varint)); e5 != nil && e5.class != nil {
-						k145Sub5Classes[e5.class.name]++
-					}
-				}
-			}
-		}
-		return
-	}
-	if sub.varint != 27 {
+	if !ok || sub.varint != 27 {
 		return
 	}
 	eidF, ok := pbFnum(outer, 2)
@@ -153,7 +132,6 @@ func (p *Parser) applyKind145(tick uint32, buf []byte) {
 	if e == nil {
 		return
 	}
-	k145EntityFound++
 	p.appendKind145Sample(tick, e, origin)
 }
 
@@ -163,8 +141,6 @@ func (p *Parser) appendKind145Sample(tick uint32, e *Entity, origin [3]float32) 
 	if e.class == nil || !e.active || !isLikelyHeroClass(e.class.name) {
 		return
 	}
-	k145HeroSamples++
-	k145Classes[e.class.name]++
 	sample := EntitySample{
 		Tick:        tick,
 		GameTime:    p.clock.GameTime(),
@@ -189,23 +165,4 @@ func (p *Parser) appendKind145Sample(tick uint32, e *Entity, origin [3]float32) 
 		PlayerSlot:   slot,
 		EntitySample: &sample,
 	})
-}
-
-// Kind145 debug counters, exported for tooling under K145_DEBUG.
-var (
-	k145Seen        int
-	k145EntityFound int
-	k145HeroSamples int
-	k145Classes     = map[string]int{}
-	k145Sub5Total   int
-	k145Sub5Ids     = map[uint64]int{}
-	k145Sub5Classes = map[string]int{}
-)
-
-// Kind145DebugStats reports kind-145 counters collected so far.
-func Kind145DebugStats() (seen, found, heroes int, classes map[string]int,
-	sub5Total int, sub5Ids map[uint64]int, sub5Classes map[string]int,
-) {
-	return k145Seen, k145EntityFound, k145HeroSamples, k145Classes,
-		k145Sub5Total, k145Sub5Ids, k145Sub5Classes
 }
