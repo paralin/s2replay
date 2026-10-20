@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/paralin/s2replay"
+	"github.com/paralin/s2replay/protocol"
 )
 
 // timelineStep is the game time between timeline samples, in seconds.
@@ -209,13 +210,7 @@ func (b *timelineBuilder) accept(ev s2replay.Event) {
 			b.casts = append(b.casts, timelineCast{pl, &TimelineCast{Seconds: t, Ability: u.AbilityName}})
 		}
 	case s2replay.EventPurchase:
-		// Attribute the purchase to the player in its slot.
-		pu := ev.Purchase
-		for _, pl := range b.players {
-			if pu.PlayerSlot >= 0 && pl.row.GetSlot() == pu.PlayerSlot {
-				b.purchases = append(b.purchases, timelinePurchase{pl, &TimelinePurchase{Seconds: t, ItemId: pu.AbilityID, Sell: pu.Sell}})
-			}
-		}
+		b.acceptPurchase(t, ev.Purchase)
 	case s2replay.EventObjective:
 		o := ev.Objective
 		if kind, ok := timelineObjectiveKinds[o.Kind]; ok {
@@ -257,6 +252,21 @@ func (b *timelineBuilder) acceptController(ev s2replay.Event) {
 		pl.row.Slot = ev.PlayerSlot
 	}
 	pl.netWorth = c.NetWorth
+}
+
+// acceptPurchase records an item bought or sold. Each trade arrives twice,
+// as an abilities change and as a purchase notification, so only the
+// abilities change counts; its other kinds, such as an ability upgrade, are
+// not trades. Both messages name the buyer by engine player slot, the
+// controller's entity index minus one, not by lobby slot.
+func (b *timelineBuilder) acceptPurchase(t float64, pu *s2replay.PurchaseEvent) {
+	sell := pu.Change == protocol.CCitadelUserMsg_AbilitiesChanged_ESold.String()
+	if pu.Source != "abilities_changed" || (!sell && pu.Change != protocol.CCitadelUserMsg_AbilitiesChanged_EPurchased.String()) {
+		return
+	}
+	if pl := b.byCtrl[pu.PlayerSlot+1]; pl != nil && pu.PlayerSlot >= 0 {
+		b.purchases = append(b.purchases, timelinePurchase{pl, &TimelinePurchase{Seconds: t, ItemId: pu.AbilityID, Sell: sell}})
+	}
 }
 
 // acceptPawn records a hero's latest state.
