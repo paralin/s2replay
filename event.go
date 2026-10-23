@@ -339,8 +339,14 @@ type DamageSummaryEvent struct {
 }
 
 // NextEvent returns the next unified typed event produced while walking the
-// demo stream.
+// demo stream. Calling it declares an event consumer: entity samples then
+// arrive only as events and are not also queued for NextEntitySample, so the
+// parser holds no sample nobody reads.
 func (p *Parser) NextEvent() (Event, error) {
+	if !p.eventOnly {
+		p.eventOnly = true
+		p.pendingSamples = nil
+	}
 	for len(p.pendingEvents) == 0 {
 		if _, err := p.NextMessage(); err != nil {
 			return Event{}, err

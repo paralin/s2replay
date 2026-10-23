@@ -152,7 +152,9 @@ func (p *Parser) appendKind145Sample(tick uint32, e *Entity, origin [3]float32) 
 		PositionZ:   origin[2],
 		HasPosition: true,
 	}
-	p.pendingSamples = append(p.pendingSamples, sample)
+	if !p.eventOnly {
+		p.pendingSamples = append(p.pendingSamples, sample)
+	}
 	slot, ok := p.entityPlayerSlots[sample.Entity]
 	if !ok {
 		slot = -1

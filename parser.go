@@ -1,7 +1,11 @@
 package s2replay
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/binary"
+	"errors"
 	"io"
 
 	"github.com/klauspost/compress/snappy"
@@ -38,8 +42,8 @@ type Parser struct {
 	// ctx bounds this parser's lifetime when constructed with a context.
 	// Cancellation is observed between outer commands; Parser remains single-threaded.
 	ctx context.Context
-	// r is the underlying byte reader over the demo stream.
-	r reader
+	// src is the outer command stream, read one command at a time.
+	src *bufio.Reader
 	// clock tracks the parser's current tick and derived game time.
 	clock *Clock
 	// serverMap is the map name reported by ServerInfo.
@@ -123,13 +127,34 @@ type Parser struct {
 }
 
 // NewParser validates the PBDEMS2 header and returns a Parser positioned at the
-// first command. The demo slice is retained; command payloads alias it.
+// first command. It reads demo as a stream; see NewParserFromReader.
 func NewParser(demo []byte) (*Parser, error) {
-	if len(demo) < demoHeaderSize || string(demo[:len(demoMagic)]) != demoMagic {
+	return NewParserFromReader(context.Background(), bytes.NewReader(demo))
+}
+
+// NewParserWithContext constructs a parser whose command reads stop on context
+// cancellation. It retains ctx for its lifetime. A command already being
+// decoded finishes before the next read observes cancellation.
+func NewParserWithContext(ctx context.Context, demo []byte) (*Parser, error) {
+	return NewParserFromReader(ctx, bytes.NewReader(demo))
+}
+
+// NewParserFromReader validates the PBDEMS2 header and returns a Parser that
+// reads the command stream from src one command at a time, so memory use does
+// not grow with the size of the replay. The parser consumes src until it
+// reports io.EOF and does not close it.
+func NewParserFromReader(ctx context.Context, src io.Reader) (*Parser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	br := bufio.NewReaderSize(src, 1<<20)
+	header := make([]byte, demoHeaderSize)
+	if _, err := io.ReadFull(br, header); err != nil || string(header[:len(demoMagic)]) != demoMagic {
 		return nil, errBadMagic
 	}
 	return &Parser{
-		r:                    reader{buf: demo[demoHeaderSize:]},
+		ctx:                  ctx,
+		src:                  br,
 		clock:                newClock(),
 		classesByID:          make(map[int32]*entityClass),
 		classesByName:        make(map[string]*entityClass),
@@ -151,19 +176,39 @@ func NewParser(demo []byte) (*Parser, error) {
 	}, nil
 }
 
-// NewParserWithContext constructs a parser whose command reads stop on context
-// cancellation. It retains ctx and demo for its lifetime. A command already
-// being decoded finishes before the next read observes cancellation.
-func NewParserWithContext(ctx context.Context, demo []byte) (*Parser, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
+// readUvarint reads one varint of the command envelope. A stream that ends
+// before the first byte reports io.EOF; one that ends inside the varint
+// reports a malformed varint.
+func (p *Parser) readUvarint() (uint64, error) {
+	v, err := binary.ReadUvarint(p.src)
+	if err == io.EOF {
+		return 0, io.EOF
 	}
-	p, err := NewParser(demo)
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return 0, errInvalidVarint
+	}
+	return v, err
+}
+
+// readPayload reads the next size bytes of the command stream into a fresh
+// buffer, which the command owns. The buffer grows with the bytes that arrive,
+// so a corrupt size cannot reserve memory the stream does not supply.
+func (p *Parser) readPayload(size uint64) ([]byte, error) {
+	if size <= 1<<20 {
+		payload := make([]byte, size)
+		if _, err := io.ReadFull(p.src, payload); err != nil {
+			return nil, errShortRead
+		}
+		return payload, nil
+	}
+	payload, err := io.ReadAll(io.LimitReader(p.src, int64(size)))
 	if err != nil {
 		return nil, err
 	}
-	p.ctx = ctx
-	return p, nil
+	if uint64(len(payload)) != size {
+		return nil, errShortRead
+	}
+	return payload, nil
 }
 
 // Clock returns the game-time clock advanced by Next.
@@ -196,12 +241,13 @@ func (p *Parser) Next() (*Command, error) {
 		}
 		return command, nil
 	}
-	if p.r.remaining() == 0 {
+	// A zero Parser has no stream.
+	if p.src == nil {
 		return nil, io.EOF
 	}
 
 	// Decode the command envelope before interpreting its payload.
-	rawKind, err := p.r.readUvarint()
+	rawKind, err := p.readUvarint()
 	if err != nil {
 		return nil, err
 	}
@@ -210,15 +256,15 @@ func (p *Parser) Next() (*Command, error) {
 	kind &^= demoIsCompressed
 
 	// Read the selected tick and its bounded command payload.
-	tick, err := p.r.readUvarint()
+	tick, err := p.readUvarint()
 	if err != nil {
 		return nil, err
 	}
-	size, err := p.r.readUvarint()
+	size, err := p.readUvarint()
 	if err != nil {
 		return nil, err
 	}
-	payload, err := p.r.readBytes(int(size))
+	payload, err := p.readPayload(size)
 	if err != nil {
 		return nil, err
 	}
