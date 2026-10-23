@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"math"
+	"slices"
+	"strings"
 
 	"github.com/paralin/s2replay"
 	"github.com/paralin/s2replay/protocol"
@@ -138,9 +140,11 @@ type timelineBuilder struct {
 	rules int32
 	// hits, casts and purchases hold events by player until the player list
 	// is final.
-	hits      []timelineHit
-	casts     []timelineCast
-	purchases []timelinePurchase
+	hits  []timelineHit
+	casts []timelineCast
+	// abilityCasts hold every ability use until the player list is final.
+	abilityCasts []timelineAbilityCast
+	purchases    []timelinePurchase
 }
 
 // timelinePlayer is a controller and its hero's latest state.
@@ -179,6 +183,11 @@ type timelineCast struct {
 	cast   *TimelineCast
 }
 
+type timelineAbilityCast struct {
+	player *timelinePlayer
+	cast   *TimelineAbilityCast
+}
+
 type timelinePurchase struct {
 	player   *timelinePlayer
 	purchase *TimelinePurchase
@@ -209,6 +218,10 @@ func (b *timelineBuilder) accept(ev s2replay.Event) {
 		if pl := b.byPawn[int32(u.Caster&0x3fff)]; pl != nil {
 			b.casts = append(b.casts, timelineCast{pl, &TimelineCast{Seconds: t, Ability: u.AbilityName}})
 		}
+	case s2replay.EventAbilityCast:
+		b.acceptAbilityCast(t, ev.AbilityCast)
+	case s2replay.EventTrooperSample:
+		b.acceptTrooper(t, ev.EntitySample)
 	case s2replay.EventPurchase:
 		b.acceptPurchase(t, ev.Purchase)
 	case s2replay.EventObjective:
@@ -254,6 +267,29 @@ func (b *timelineBuilder) acceptController(ev s2replay.Event) {
 	pl.netWorth = c.NetWorth
 }
 
+// quietAbilityClasses are the parts of the class names of abilities every
+// hero has for movement and melee, which the ability casts leave out.
+var quietAbilityClasses = []string{"Jump", "Dash", "Slide", "Melee", "ClimbRope", "Mantle", "ZipLine", "Sprint"}
+
+// acceptAbilityCast records an ability or item use by the hero that owns it.
+func (b *timelineBuilder) acceptAbilityCast(t float64, c *s2replay.AbilityCastEvent) {
+	pl := b.byPawn[c.OwnerEntity]
+	if pl == nil || slices.ContainsFunc(quietAbilityClasses, func(part string) bool { return strings.Contains(c.ClassName, part) }) {
+		return
+	}
+	b.abilityCasts = append(b.abilityCasts, timelineAbilityCast{pl, &TimelineAbilityCast{Seconds: t, ClassName: c.ClassName, AbilityId: c.SubclassID}})
+}
+
+// acceptTrooper records a lane trooper's position.
+func (b *timelineBuilder) acceptTrooper(t float64, s *s2replay.EntitySample) {
+	if s == nil || !s.HasPosition {
+		return
+	}
+	b.out.Troopers = append(b.out.Troopers, &TimelineTrooper{
+		Seconds: t, Entity: uint32(s.Entity), Serial: s.EntitySerial, Team: s.Team, X: s.PositionX, Y: s.PositionY,
+	})
+}
+
 // acceptPurchase records an item bought or sold. Each trade arrives twice,
 // as an abilities change and as a purchase notification, so only the
 // abilities change counts; its other kinds, such as an ability upgrade, are
@@ -294,7 +330,9 @@ func (b *timelineBuilder) acceptPawn(s *s2replay.EntitySample) {
 		f.health, f.maxHealth = s.Health, max(s.MaxHealth, pl.damagedMaxHealth, s.Health)
 	}
 	f.alive = !s.HasLifeState || s.LifeState == 0
-	if s.HasCameraAngles[1] {
+	if s.HasFacing {
+		f.yaw = s.FacingY
+	} else if s.HasCameraAngles[1] {
 		f.yaw = s.CameraAngles[1]
 	}
 	if s.HasVelocity {
@@ -489,6 +527,12 @@ func (b *timelineBuilder) finish() *MatchTimeline {
 		if kept(c.player) {
 			c.cast.Player = c.player.index
 			out.Casts = append(out.Casts, c.cast)
+		}
+	}
+	for _, c := range b.abilityCasts {
+		if kept(c.player) {
+			c.cast.Player = c.player.index
+			out.AbilityCasts = append(out.AbilityCasts, c.cast)
 		}
 	}
 	for _, pu := range b.purchases {

@@ -165,6 +165,13 @@ type MatchTimeline struct {
 	// entry's, the match clock advances one step per sample from the entry's
 	// match seconds. It is empty when the replay never shows the game rules.
 	Clock []*TimelineClock `protobuf:"bytes,11,rep,name=clock,proto3" json:"clock,omitempty"`
+	// AbilityCasts lists every ability and item use of the heroes, in time
+	// order, except movement and melee. Casts lists only the abilities the game
+	// announces as important.
+	AbilityCasts []*TimelineAbilityCast `protobuf:"bytes,12,rep,name=ability_casts,json=abilityCasts,proto3" json:"abilityCasts,omitempty"`
+	// Troopers lists samples of the lane troopers' positions, in time order, up
+	// to four a second for each trooper.
+	Troopers []*TimelineTrooper `protobuf:"bytes,13,rep,name=troopers,proto3" json:"troopers,omitempty"`
 }
 
 func (x *MatchTimeline) Reset() {
@@ -246,6 +253,20 @@ func (x *MatchTimeline) GetTickInterval() float64 {
 func (x *MatchTimeline) GetClock() []*TimelineClock {
 	if x != nil {
 		return x.Clock
+	}
+	return nil
+}
+
+func (x *MatchTimeline) GetAbilityCasts() []*TimelineAbilityCast {
+	if x != nil {
+		return x.AbilityCasts
+	}
+	return nil
+}
+
+func (x *MatchTimeline) GetTroopers() []*TimelineTrooper {
+	if x != nil {
+		return x.Troopers
 	}
 	return nil
 }
@@ -548,6 +569,117 @@ func (x *TimelineCast) GetAbility() string {
 	return ""
 }
 
+// TimelineAbilityCast is one use of an ability or item.
+type TimelineAbilityCast struct {
+	unknownFields []byte
+	// Seconds is the game time of the use.
+	Seconds float64 `protobuf:"fixed64,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Player is the user's index.
+	Player uint32 `protobuf:"varint,2,opt,name=player,proto3" json:"player,omitempty"`
+	// ClassName is the ability entity's class.
+	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"className,omitempty"`
+	// AbilityId is the ability's subclass ID, or 0 when the entity has none.
+	AbilityId uint32 `protobuf:"varint,4,opt,name=ability_id,json=abilityId,proto3" json:"abilityId,omitempty"`
+}
+
+func (x *TimelineAbilityCast) Reset() {
+	*x = TimelineAbilityCast{}
+}
+
+func (*TimelineAbilityCast) ProtoMessage() {}
+
+func (x *TimelineAbilityCast) GetSeconds() float64 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+func (x *TimelineAbilityCast) GetPlayer() uint32 {
+	if x != nil {
+		return x.Player
+	}
+	return 0
+}
+
+func (x *TimelineAbilityCast) GetClassName() string {
+	if x != nil {
+		return x.ClassName
+	}
+	return ""
+}
+
+func (x *TimelineAbilityCast) GetAbilityId() uint32 {
+	if x != nil {
+		return x.AbilityId
+	}
+	return 0
+}
+
+// TimelineTrooper is a lane trooper's position at one time.
+type TimelineTrooper struct {
+	unknownFields []byte
+	// Seconds is the game time of the sample.
+	Seconds float64 `protobuf:"fixed64,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Entity and Serial identify the trooper: an entity index is reused, but
+	// not with the same serial.
+	Entity uint32 `protobuf:"varint,2,opt,name=entity,proto3" json:"entity,omitempty"`
+	Serial int32  `protobuf:"varint,3,opt,name=serial,proto3" json:"serial,omitempty"`
+	// Team is the trooper's team, numbered as the players' teams are.
+	Team int32 `protobuf:"varint,4,opt,name=team,proto3" json:"team,omitempty"`
+	// X and Y are the position in world units.
+	X float32 `protobuf:"fixed32,5,opt,name=x,proto3" json:"x,omitempty"`
+	Y float32 `protobuf:"fixed32,6,opt,name=y,proto3" json:"y,omitempty"`
+}
+
+func (x *TimelineTrooper) Reset() {
+	*x = TimelineTrooper{}
+}
+
+func (*TimelineTrooper) ProtoMessage() {}
+
+func (x *TimelineTrooper) GetSeconds() float64 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+func (x *TimelineTrooper) GetEntity() uint32 {
+	if x != nil {
+		return x.Entity
+	}
+	return 0
+}
+
+func (x *TimelineTrooper) GetSerial() int32 {
+	if x != nil {
+		return x.Serial
+	}
+	return 0
+}
+
+func (x *TimelineTrooper) GetTeam() int32 {
+	if x != nil {
+		return x.Team
+	}
+	return 0
+}
+
+func (x *TimelineTrooper) GetX() float32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *TimelineTrooper) GetY() float32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
 // TimelinePurchase is one item buy or sell.
 type TimelinePurchase struct {
 	unknownFields []byte
@@ -826,6 +958,18 @@ func (m *MatchTimeline) CloneVT() *MatchTimeline {
 			r.Clock[k] = v.CloneVT()
 		}
 	}
+	if rhs := m.AbilityCasts; rhs != nil {
+		r.AbilityCasts = make([]*TimelineAbilityCast, len(rhs))
+		for k, v := range rhs {
+			r.AbilityCasts[k] = v.CloneVT()
+		}
+	}
+	if rhs := m.Troopers; rhs != nil {
+		r.Troopers = make([]*TimelineTrooper, len(rhs))
+		for k, v := range rhs {
+			r.Troopers[k] = v.CloneVT()
+		}
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -944,6 +1088,46 @@ func (m *TimelineCast) CloneVT() *TimelineCast {
 }
 
 func (m *TimelineCast) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *TimelineAbilityCast) CloneVT() *TimelineAbilityCast {
+	if m == nil {
+		return (*TimelineAbilityCast)(nil)
+	}
+	r := new(TimelineAbilityCast)
+	r.Seconds = m.Seconds
+	r.Player = m.Player
+	r.ClassName = m.ClassName
+	r.AbilityId = m.AbilityId
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *TimelineAbilityCast) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *TimelineTrooper) CloneVT() *TimelineTrooper {
+	if m == nil {
+		return (*TimelineTrooper)(nil)
+	}
+	r := new(TimelineTrooper)
+	r.Seconds = m.Seconds
+	r.Entity = m.Entity
+	r.Serial = m.Serial
+	r.Team = m.Team
+	r.X = m.X
+	r.Y = m.Y
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *TimelineTrooper) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
@@ -1154,6 +1338,40 @@ func (this *MatchTimeline) EqualVT(that *MatchTimeline) bool {
 			}
 			if q == nil {
 				q = &TimelineClock{}
+			}
+			if !p.EqualVT(q) {
+				return false
+			}
+		}
+	}
+	if len(this.AbilityCasts) != len(that.AbilityCasts) {
+		return false
+	}
+	for i, vx := range this.AbilityCasts {
+		vy := that.AbilityCasts[i]
+		if p, q := vx, vy; p != q {
+			if p == nil {
+				p = &TimelineAbilityCast{}
+			}
+			if q == nil {
+				q = &TimelineAbilityCast{}
+			}
+			if !p.EqualVT(q) {
+				return false
+			}
+		}
+	}
+	if len(this.Troopers) != len(that.Troopers) {
+		return false
+	}
+	for i, vx := range this.Troopers {
+		vy := that.Troopers[i]
+		if p, q := vx, vy; p != q {
+			if p == nil {
+				p = &TimelineTrooper{}
+			}
+			if q == nil {
+				q = &TimelineTrooper{}
 			}
 			if !p.EqualVT(q) {
 				return false
@@ -1386,6 +1604,70 @@ func (this *TimelineCast) EqualVT(that *TimelineCast) bool {
 
 func (this *TimelineCast) EqualMessageVT(thatMsg any) bool {
 	that, ok := thatMsg.(*TimelineCast)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *TimelineAbilityCast) EqualVT(that *TimelineAbilityCast) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Seconds != that.Seconds {
+		return false
+	}
+	if this.Player != that.Player {
+		return false
+	}
+	if this.ClassName != that.ClassName {
+		return false
+	}
+	if this.AbilityId != that.AbilityId {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *TimelineAbilityCast) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*TimelineAbilityCast)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *TimelineTrooper) EqualVT(that *TimelineTrooper) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Seconds != that.Seconds {
+		return false
+	}
+	if this.Entity != that.Entity {
+		return false
+	}
+	if this.Serial != that.Serial {
+		return false
+	}
+	if this.Team != that.Team {
+		return false
+	}
+	if this.X != that.X {
+		return false
+	}
+	if this.Y != that.Y {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *TimelineTrooper) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*TimelineTrooper)
 	if !ok {
 		return false
 	}
@@ -1721,6 +2003,28 @@ func (x *MatchTimeline) MarshalProtoJSON(s *json.MarshalState) {
 		}
 		s.WriteArrayEnd()
 	}
+	if len(x.AbilityCasts) > 0 || s.HasField("abilityCasts") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityCasts")
+		s.WriteArrayStart()
+		var wroteElement bool
+		for _, element := range x.AbilityCasts {
+			s.WriteMoreIf(&wroteElement)
+			element.MarshalProtoJSON(s.WithField("abilityCasts"))
+		}
+		s.WriteArrayEnd()
+	}
+	if len(x.Troopers) > 0 || s.HasField("troopers") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("troopers")
+		s.WriteArrayStart()
+		var wroteElement bool
+		for _, element := range x.Troopers {
+			s.WriteMoreIf(&wroteElement)
+			element.MarshalProtoJSON(s.WithField("troopers"))
+		}
+		s.WriteArrayEnd()
+	}
 	s.WriteObjectEnd()
 }
 
@@ -1875,6 +2179,42 @@ func (x *MatchTimeline) UnmarshalProtoJSON(s *json.UnmarshalState) {
 					return
 				}
 				x.Clock = append(x.Clock, v)
+			})
+		case "ability_casts", "abilityCasts":
+			s.AddField("ability_casts")
+			if s.ReadNil() {
+				x.AbilityCasts = nil
+				return
+			}
+			s.ReadArray(func() {
+				if s.ReadNil() {
+					x.AbilityCasts = append(x.AbilityCasts, nil)
+					return
+				}
+				v := &TimelineAbilityCast{}
+				v.UnmarshalProtoJSON(s.WithField("ability_casts", false))
+				if s.Err() != nil {
+					return
+				}
+				x.AbilityCasts = append(x.AbilityCasts, v)
+			})
+		case "troopers":
+			s.AddField("troopers")
+			if s.ReadNil() {
+				x.Troopers = nil
+				return
+			}
+			s.ReadArray(func() {
+				if s.ReadNil() {
+					x.Troopers = append(x.Troopers, nil)
+					return
+				}
+				v := &TimelineTrooper{}
+				v.UnmarshalProtoJSON(s.WithField("troopers", false))
+				if s.Err() != nil {
+					return
+				}
+				x.Troopers = append(x.Troopers, v)
 			})
 		}
 	})
@@ -2285,6 +2625,154 @@ func (x *TimelineCast) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
+// MarshalProtoJSON marshals the TimelineAbilityCast message to JSON.
+func (x *TimelineAbilityCast) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Seconds != 0 || s.HasField("seconds") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("seconds")
+		s.WriteFloat64(x.Seconds)
+	}
+	if x.Player != 0 || s.HasField("player") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("player")
+		s.WriteUint32(x.Player)
+	}
+	if x.ClassName != "" || s.HasField("className") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("className")
+		s.WriteString(x.ClassName)
+	}
+	if x.AbilityId != 0 || s.HasField("abilityId") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityId")
+		s.WriteUint32(x.AbilityId)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the TimelineAbilityCast to JSON.
+func (x *TimelineAbilityCast) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the TimelineAbilityCast message from JSON.
+func (x *TimelineAbilityCast) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "seconds":
+			s.AddField("seconds")
+			x.Seconds = s.ReadFloat64()
+		case "player":
+			s.AddField("player")
+			x.Player = s.ReadUint32()
+		case "class_name", "className":
+			s.AddField("class_name")
+			x.ClassName = s.ReadString()
+		case "ability_id", "abilityId":
+			s.AddField("ability_id")
+			x.AbilityId = s.ReadUint32()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the TimelineAbilityCast from JSON.
+func (x *TimelineAbilityCast) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the TimelineTrooper message to JSON.
+func (x *TimelineTrooper) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Seconds != 0 || s.HasField("seconds") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("seconds")
+		s.WriteFloat64(x.Seconds)
+	}
+	if x.Entity != 0 || s.HasField("entity") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("entity")
+		s.WriteUint32(x.Entity)
+	}
+	if x.Serial != 0 || s.HasField("serial") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("serial")
+		s.WriteInt32(x.Serial)
+	}
+	if x.Team != 0 || s.HasField("team") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("team")
+		s.WriteInt32(x.Team)
+	}
+	if x.X != 0 || s.HasField("x") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("x")
+		s.WriteFloat32(x.X)
+	}
+	if x.Y != 0 || s.HasField("y") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("y")
+		s.WriteFloat32(x.Y)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the TimelineTrooper to JSON.
+func (x *TimelineTrooper) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the TimelineTrooper message from JSON.
+func (x *TimelineTrooper) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "seconds":
+			s.AddField("seconds")
+			x.Seconds = s.ReadFloat64()
+		case "entity":
+			s.AddField("entity")
+			x.Entity = s.ReadUint32()
+		case "serial":
+			s.AddField("serial")
+			x.Serial = s.ReadInt32()
+		case "team":
+			s.AddField("team")
+			x.Team = s.ReadInt32()
+		case "x":
+			s.AddField("x")
+			x.X = s.ReadFloat32()
+		case "y":
+			s.AddField("y")
+			x.Y = s.ReadFloat32()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the TimelineTrooper from JSON.
+func (x *TimelineTrooper) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
 // MarshalProtoJSON marshals the TimelinePurchase message to JSON.
 func (x *TimelinePurchase) MarshalProtoJSON(s *json.MarshalState) {
 	if x == nil {
@@ -2604,6 +3092,30 @@ func (m *MatchTimeline) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if len(m.Troopers) > 0 {
+		for iNdEx := len(m.Troopers) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Troopers[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x6a
+		}
+	}
+	if len(m.AbilityCasts) > 0 {
+		for iNdEx := len(m.AbilityCasts) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.AbilityCasts[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x62
+		}
 	}
 	if len(m.Clock) > 0 {
 		for iNdEx := len(m.Clock) - 1; iNdEx >= 0; iNdEx-- {
@@ -3100,6 +3612,128 @@ func (m *TimelineCast) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *TimelineAbilityCast) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TimelineAbilityCast) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *TimelineAbilityCast) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.AbilityId != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.AbilityId))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.ClassName) > 0 {
+		i -= len(m.ClassName)
+		copy(dAtA[i:], m.ClassName)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.ClassName)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.Player != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Player))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Seconds != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Seconds))))
+		i--
+		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TimelineTrooper) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TimelineTrooper) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *TimelineTrooper) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.Y != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Y))))
+		i--
+		dAtA[i] = 0x35
+	}
+	if m.X != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.X))))
+		i--
+		dAtA[i] = 0x2d
+	}
+	if m.Team != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Team))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Serial != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Serial))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Entity != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Entity))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Seconds != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Seconds))))
+		i--
+		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *TimelinePurchase) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -3420,6 +4054,18 @@ func (m *MatchTimeline) SizeVT() (n int) {
 			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 		}
 	}
+	if len(m.AbilityCasts) > 0 {
+		for _, e := range m.AbilityCasts {
+			l = e.SizeVT()
+			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+		}
+	}
+	if len(m.Troopers) > 0 {
+		for _, e := range m.Troopers {
+			l = e.SizeVT()
+			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+		}
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -3558,6 +4204,57 @@ func (m *TimelineCast) SizeVT() (n int) {
 	l = len(m.Ability)
 	if l > 0 {
 		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *TimelineAbilityCast) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Seconds != 0 {
+		n += 9
+	}
+	if m.Player != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Player))
+	}
+	l = len(m.ClassName)
+	if l > 0 {
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.AbilityId != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.AbilityId))
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *TimelineTrooper) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Seconds != 0 {
+		n += 9
+	}
+	if m.Entity != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Entity))
+	}
+	if m.Serial != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Serial))
+	}
+	if m.Team != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Team))
+	}
+	if m.X != 0 {
+		n += 5
+	}
+	if m.Y != 0 {
+		n += 5
 	}
 	n += len(m.unknownFields)
 	return n
@@ -3816,6 +4513,40 @@ func (x *MatchTimeline) MarshalProtoText() string {
 			}
 			if v == nil {
 				sb.WriteString((&TimelineClock{}).MarshalProtoText())
+			} else {
+				sb.WriteString(v.MarshalProtoText())
+			}
+		}
+		sb.WriteString("]")
+	}
+	if len(x.AbilityCasts) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_casts: [")
+		for i, v := range x.AbilityCasts {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if v == nil {
+				sb.WriteString((&TimelineAbilityCast{}).MarshalProtoText())
+			} else {
+				sb.WriteString(v.MarshalProtoText())
+			}
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Troopers) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("troopers: [")
+		for i, v := range x.Troopers {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if v == nil {
+				sb.WriteString((&TimelineTrooper{}).MarshalProtoText())
 			} else {
 				sb.WriteString(v.MarshalProtoText())
 			}
@@ -4132,6 +4863,98 @@ func (x *TimelineCast) MarshalProtoText() string {
 }
 
 func (x *TimelineCast) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *TimelineAbilityCast) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("TimelineAbilityCast {")
+	if x.Seconds != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("seconds: ")
+		sb.WriteString(strconv.FormatFloat(x.Seconds, 'g', -1, 64))
+	}
+	if x.Player != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("player: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Player), 10))
+	}
+	if x.ClassName != "" {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("class_name: ")
+		sb.WriteString(strconv.Quote(x.ClassName))
+	}
+	if x.AbilityId != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_id: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.AbilityId), 10))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *TimelineAbilityCast) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *TimelineTrooper) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("TimelineTrooper {")
+	if x.Seconds != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("seconds: ")
+		sb.WriteString(strconv.FormatFloat(x.Seconds, 'g', -1, 64))
+	}
+	if x.Entity != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("entity: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Entity), 10))
+	}
+	if x.Serial != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("serial: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Serial), 10))
+	}
+	if x.Team != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("team: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Team), 10))
+	}
+	if x.X != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("x: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.X), 'g', -1, 32))
+	}
+	if x.Y != 0 {
+		if sb.Len() > 17 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("y: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.Y), 'g', -1, 32))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *TimelineTrooper) String() string {
 	return x.MarshalProtoText()
 }
 
@@ -4593,6 +5416,58 @@ func (m *MatchTimeline) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Clock = append(m.Clock, &TimelineClock{})
 			if err := m.Clock[len(m.Clock)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityCasts", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AbilityCasts = append(m.AbilityCasts, &TimelineAbilityCast{})
+			if err := m.AbilityCasts[len(m.AbilityCasts)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Troopers", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Troopers = append(m.Troopers, &TimelineTrooper{})
+			if err := m.Troopers[len(m.Troopers)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -5512,6 +6387,207 @@ func (m *TimelineCast) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Ability = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *TimelineAbilityCast) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TimelineAbilityCast: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TimelineAbilityCast: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Seconds", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.Seconds = float64(math.Float64frombits(v))
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Player", wireType)
+			}
+			m.Player = 0
+			m.Player, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClassName", wireType)
+			}
+			var stringLen uint64
+			stringLen, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClassName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityId", wireType)
+			}
+			m.AbilityId = 0
+			m.AbilityId, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *TimelineTrooper) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TimelineTrooper: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TimelineTrooper: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Seconds", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.Seconds = float64(math.Float64frombits(v))
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Entity", wireType)
+			}
+			m.Entity = 0
+			m.Entity, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Serial", wireType)
+			}
+			m.Serial = 0
+			m.Serial, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Team", wireType)
+			}
+			m.Team = 0
+			m.Team, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 5:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field X", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.X = float32(math.Float32frombits(v))
+		case 6:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Y", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.Y = float32(math.Float32frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

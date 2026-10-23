@@ -35,6 +35,13 @@ message MatchTimeline {
   // entry's, the match clock advances one step per sample from the entry's
   // match seconds. It is empty when the replay never shows the game rules.
   repeated TimelineClock clock = 11;
+  // AbilityCasts lists every ability and item use of the heroes, in time
+  // order, except movement and melee. Casts lists only the abilities the game
+  // announces as important.
+  repeated TimelineAbilityCast ability_casts = 12;
+  // Troopers lists samples of the lane troopers' positions, in time order, up
+  // to four a second for each trooper.
+  repeated TimelineTrooper troopers = 13;
 }
 
 // TimelineClock is the match clock at one sample, recorded at the first
@@ -116,6 +123,33 @@ message TimelineCast {
   uint32 player = 2;
   // Ability is the ability's name.
   string ability = 3;
+}
+
+// TimelineAbilityCast is one use of an ability or item.
+message TimelineAbilityCast {
+  // Seconds is the game time of the use.
+  double seconds = 1;
+  // Player is the user's index.
+  uint32 player = 2;
+  // ClassName is the ability entity's class.
+  string class_name = 3;
+  // AbilityId is the ability's subclass ID, or 0 when the entity has none.
+  uint32 ability_id = 4;
+}
+
+// TimelineTrooper is a lane trooper's position at one time.
+message TimelineTrooper {
+  // Seconds is the game time of the sample.
+  double seconds = 1;
+  // Entity and Serial identify the trooper: an entity index is reused, but
+  // not with the same serial.
+  uint32 entity = 2;
+  int32 serial = 3;
+  // Team is the trooper's team, numbered as the players' teams are.
+  int32 team = 4;
+  // X and Y are the position in world units.
+  float x = 5;
+  float y = 6;
 }
 
 // TimelinePurchase is one item buy or sell.
