@@ -985,10 +985,16 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 	if e.class.name == "CCitadel_Ability_Jump" {
 		p.appendJumpStateEvent(tick, e)
 		p.appendAbilityChargeEvent(tick, e)
+		p.appendAbilityCastEvent(tick, e)
 		return
 	}
 	if strings.Contains(e.class.name, "Ability") {
 		p.appendAbilityChargeEvent(tick, e)
+		p.appendAbilityCastEvent(tick, e)
+		return
+	}
+	if e.class.name == laneTrooperClass {
+		p.appendTrooperSample(tick, e)
 		return
 	}
 	if !isLikelyHeroClass(e.class.name) {
@@ -1012,6 +1018,37 @@ func (p *Parser) appendEntitySample(tick uint32, e *Entity) {
 			EntitySample: &sample,
 		})
 	}
+}
+
+// laneTrooperClass is the class of the troopers that walk the lanes.
+const laneTrooperClass = "CNPC_Trooper"
+
+// trooperSampleTicks is the minimum tick gap between samples of one trooper:
+// four samples a second of game time at the 64 Hz tick rate.
+const trooperSampleTicks = 16
+
+// appendTrooperSample emits a throttled position sample for a lane trooper as
+// a trooper_sample event, so a consumer can draw each wave without the per-tick
+// stream that heroes get.
+func (p *Parser) appendTrooperSample(tick uint32, e *Entity) {
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	if last, ok := p.trooperLastSample[epoch]; ok && tick-last < trooperSampleTicks {
+		return
+	}
+	sample, ok := e.sample(tick, p.clock.GameTime(), p.maxCoord)
+	if !ok || !sample.HasPosition {
+		return
+	}
+	p.trooperLastSample[epoch] = tick
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:         EventTrooperSample,
+		Tick:         sample.Tick,
+		GameTime:     sample.GameTime,
+		Entity:       sample.Entity,
+		EntitySerial: sample.EntitySerial,
+		PlayerSlot:   -1,
+		EntitySample: &sample,
+	})
 }
 
 // entityEpoch identifies one entity incarnation across index reuse.
@@ -1130,6 +1167,67 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 			RemainingCharges: charges,
 		},
 	})
+}
+
+// appendAbilityCastEvent emits one event each time an ability or item entity
+// starts a new cooldown, which is when its owner used it. Cooldown start is the
+// game time of the use, so a stale value on the entity's first observation is
+// ignored and a repeat of the same value is not a second cast.
+func (p *Parser) appendAbilityCastEvent(tick uint32, e *Entity) {
+	start, ok := e.Float32("m_flCooldownStart")
+	if !ok || start <= 0 {
+		return
+	}
+	epoch := entityEpoch{index: e.index, serial: e.serial}
+	last, seen := p.castLastSeen[epoch]
+	if seen && last == start {
+		return
+	}
+	p.castLastSeen[epoch] = start
+	now := p.clock.GameTime()
+	if !seen && !p.cooldownStartIsRecent(start) {
+		return
+	}
+
+	cast := &AbilityCastEvent{
+		Tick:          normalizedTick(tick),
+		GameTime:      now,
+		ClassName:     e.class.name,
+		CooldownStart: start,
+		OwnerEntity:   -1,
+	}
+	cast.CooldownEnd, _ = e.Float32("m_flCooldownEnd")
+	cast.CastCompletedTime, _ = e.Float32("m_flCastCompletedTime")
+	cast.AbilitySlot, cast.HasAbilitySlot = e.UInt32("m_eAbilitySlot")
+	cast.SubclassID, cast.HasSubclassID = e.UInt32("m_nSubclassID")
+	slot := int32(-1)
+	if handle, ok := e.UInt32("m_hOwnerEntity"); ok {
+		if owner := p.FindEntityByHandle(uint64(handle)); owner != nil && owner.active {
+			cast.OwnerEntity = owner.index
+			if mapped, mappedOk := p.entityPlayerSlots[owner.index]; mappedOk {
+				slot = mapped
+			}
+		}
+	}
+	p.pendingEvents = append(p.pendingEvents, Event{
+		Type:        EventAbilityCast,
+		Tick:        cast.Tick,
+		GameTime:    cast.GameTime,
+		Entity:      e.index,
+		PlayerSlot:  slot,
+		AbilityCast: cast,
+	})
+}
+
+// cooldownStartIsRecent reports whether a cooldown start, which is in server
+// time, falls within two seconds of the latest observed server tick. Without an
+// observed network tick it accepts the value.
+func (p *Parser) cooldownStartIsRecent(start float32) bool {
+	serverTick, _, known := p.clock.ServerTick()
+	if !known || !p.clock.TickIntervalKnown() {
+		return true
+	}
+	return math.Abs(float64(serverTick)*p.clock.TickInterval()-float64(start)) <= 2
 }
 
 // updateEntityPlayerSlot maps an entity index to a player slot when the entity carries slot fields.

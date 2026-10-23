@@ -120,6 +120,10 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 			HasPosition: es.HasPosition,
 			HasHeroId:   es.HasHeroID,
 			HasTeam:     es.HasTeam,
+			FacingX:     es.FacingX,
+			FacingY:     es.FacingY,
+			FacingZ:     es.FacingZ,
+			HasFacing:   es.HasFacing,
 		}
 	}
 	if e.DamageSummary != nil {
@@ -327,6 +331,16 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 			Tick: iau.Tick, GameTime: iau.GameTime, Player: iau.Player,
 			Caster: iau.Caster, AbilityName: iau.AbilityName,
 			HasPlayer: iau.HasPlayer, HasCaster: iau.HasCaster, HasAbilityName: iau.HasAbilityName,
+		}
+	}
+	if e.AbilityCast != nil {
+		ac := e.AbilityCast
+		out.AbilityCast = &protocol.ReplayAbilityCast{
+			Tick: ac.Tick, GameTime: ac.GameTime, ClassName: ac.ClassName,
+			OwnerEntity: ac.OwnerEntity, CooldownStart: ac.CooldownStart,
+			CooldownEnd: ac.CooldownEnd, CastCompletedTime: ac.CastCompletedTime,
+			AbilitySlot: ac.AbilitySlot, HasAbilitySlot: ac.HasAbilitySlot,
+			SubclassId: ac.SubclassID, HasSubclassId: ac.HasSubclassID,
 		}
 	}
 	if e.Objective != nil {

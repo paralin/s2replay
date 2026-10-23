@@ -30,6 +30,9 @@ message ReplayEvent {
   ReplayAbilityNotify ability_notify = 20;
   // JumpState contains a measured CCitadel_Ability_Jump state observation.
   ReplayJumpState jump_state = 21;
+  // AbilityCast contains one ability or item use, observed as a new cooldown
+  // start on the ability entity.
+  ReplayAbilityCast ability_cast = 23;
 }
 
 message ReplayDamage {
@@ -132,6 +135,12 @@ message ReplayEntitySample {
   bool has_position = 17;
   bool has_hero_id = 18;
   bool has_team = 19;
+  // FacingX, FacingY and FacingZ are the eye angles in degrees: pitch, yaw and
+  // roll. NPCs report their body rotation instead. Present when has_facing.
+  float facing_x = 20;
+  float facing_y = 21;
+  float facing_z = 22;
+  bool has_facing = 23;
 }
 
 message ReplayDamageSummaryRecord {
@@ -423,4 +432,28 @@ message ReplayPostMatch {
   sint32 match_mode = 6;
   repeated ReplayPostMatchPlayer players = 7;
   repeated ReplayPostMatchObjective objectives = 8;
+}
+
+// ReplayAbilityCast is one use of an ability or item. The enclosing event's
+// entity is the ability entity.
+message ReplayAbilityCast {
+  // Tick identifies the normalized server tick of the observation.
+  uint32 tick = 1;
+  // GameTime is the parser clock time in seconds at the observation.
+  double game_time = 2;
+  // ClassName identifies the ability entity class.
+  string class_name = 3;
+  // OwnerEntity is the entity index of the hero pawn holding the ability, or
+  // -1 when it is not resolved.
+  sint32 owner_entity = 4;
+  // CooldownStart and CooldownEnd are the ability's cooldown window in game
+  // seconds.
+  float cooldown_start = 5;
+  float cooldown_end = 6;
+  // CastCompletedTime is the game time the cast finished, in seconds.
+  float cast_completed_time = 7;
+  uint32 ability_slot = 8;
+  bool has_ability_slot = 9;
+  uint32 subclass_id = 10;
+  bool has_subclass_id = 11;
 }

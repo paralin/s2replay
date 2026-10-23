@@ -23,7 +23,20 @@ and game time:
 - Modifier add/remove/refresh with duration, caster, parent entity, and stack
   count.
 - Item purchase events tying an item to its owner at a game time.
-- Per-tick entity samples for hero health, shield, and position.
+- Per-tick entity samples for hero health, shield, position, and facing. Every
+  hero pawn is sampled at each tick it is updated, which in a ranked replay is
+  every tick for all 12 heroes. Facing is the eye angles in degrees
+  (`facing_x` pitch, `facing_y` yaw, `facing_z` roll, with `has_facing`); when a
+  component is zero, the JSON omits it.
+- Ability casts (`ability_cast`): one event each time an ability or item entity
+  starts a new cooldown. `entity` is the ability entity and `owner_entity` the
+  hero pawn that holds it, with the class name, slot, subclass id and the
+  cooldown window in server seconds. Movement abilities (jump, dash, slide,
+  zipline, mantle, melee) cast too; filter by class name. It covers every
+  `important_ability_used` the game sends and many more.
+- Lane trooper samples (`trooper_sample`): the same entity sample payload for
+  `CNPC_Trooper` entities, at most four a second per trooper, so a consumer can
+  draw each wave. A trooper that stops sampling has died or left sight.
 
 These streams let a consumer cluster events into fights and build per-item
 behavior profiles.
@@ -46,7 +59,7 @@ the common keys below:
 | key | type | meaning |
 | --- | --- | --- |
 | `schema_version` | integer | Event schema version. Current value: `1`. |
-| `type` | string | One of `damage`, `modifier`, `purchase`, `entity_sample`. |
+| `type` | string | One of `damage`, `modifier`, `purchase`, `entity_sample`, `trooper_sample`, `ability_cast`, and the other game-authored types. |
 | `tick` | integer | Demo tick, with pre-game sentinel ticks normalized to `0`. |
 | `game_time` | number | Parser game time in seconds. |
 | `entity` | integer | Primary entity index, or `-1` when the event is not entity-owned. |
@@ -59,7 +72,9 @@ Type-specific payloads live under a key matching the event type:
 - `modifier`: modifier lifecycle details from `ActiveModifiers`.
 - `purchase`: `player_slot`, `user_id`, `ability_id`, `change`, `sell`,
   `quickbuy`, and `source`.
-- `entity_sample`: hero health, shield, and position sample fields.
+- `entity_sample`: hero health, shield, position, and facing sample fields.
+- `trooper_sample`: an `entity_sample` payload for a lane trooper.
+- `ability_cast`: the ability use described above.
 
 ## Analysis primitives
 

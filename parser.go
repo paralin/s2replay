@@ -60,6 +60,10 @@ type Parser struct {
 	pendingEvents []Event
 	// chargeLastSeen remembers the last charge count per ability entity.
 	chargeLastSeen map[entityEpoch]int32
+	// castLastSeen remembers the last cooldown start per ability entity.
+	castLastSeen map[entityEpoch]float32
+	// trooperLastSample remembers the tick of each trooper's last sample.
+	trooperLastSample map[entityEpoch]uint32
 	// jumpLastSeen retains observed jump state for each entity generation.
 	jumpLastSeen map[entityEpoch]jumpState
 	// stopped makes the next Next call report io.EOF once set.
@@ -137,6 +141,8 @@ func NewParser(demo []byte) (*Parser, error) {
 		playerItems:          make(map[int32]map[uint32]struct{}),
 		entityPlayerSlots:    make(map[int32]int32),
 		chargeLastSeen:       make(map[entityEpoch]int32),
+		castLastSeen:         make(map[entityEpoch]float32),
+		trooperLastSample:    make(map[entityEpoch]uint32),
 		jumpLastSeen:         make(map[entityEpoch]jumpState),
 		stringTables:         newStringTables(),
 		entityStateErrors:    make(map[string]int),

@@ -49,6 +49,9 @@ type ReplayEvent struct {
 	AbilityNotify *ReplayAbilityNotify `protobuf:"bytes,20,opt,name=ability_notify,json=abilityNotify,proto3" json:"abilityNotify,omitempty"`
 	// JumpState contains a measured CCitadel_Ability_Jump state observation.
 	JumpState *ReplayJumpState `protobuf:"bytes,21,opt,name=jump_state,json=jumpState,proto3" json:"jumpState,omitempty"`
+	// AbilityCast contains one ability or item use, observed as a new cooldown
+	// start on the ability entity.
+	AbilityCast *ReplayAbilityCast `protobuf:"bytes,23,opt,name=ability_cast,json=abilityCast,proto3" json:"abilityCast,omitempty"`
 }
 
 func (x *ReplayEvent) Reset() {
@@ -200,6 +203,13 @@ func (x *ReplayEvent) GetAbilityNotify() *ReplayAbilityNotify {
 func (x *ReplayEvent) GetJumpState() *ReplayJumpState {
 	if x != nil {
 		return x.JumpState
+	}
+	return nil
+}
+
+func (x *ReplayEvent) GetAbilityCast() *ReplayAbilityCast {
+	if x != nil {
+		return x.AbilityCast
 	}
 	return nil
 }
@@ -788,6 +798,12 @@ type ReplayEntitySample struct {
 	HasPosition   bool    `protobuf:"varint,17,opt,name=has_position,json=hasPosition,proto3" json:"hasPosition,omitempty"`
 	HasHeroId     bool    `protobuf:"varint,18,opt,name=has_hero_id,json=hasHeroId,proto3" json:"hasHeroId,omitempty"`
 	HasTeam       bool    `protobuf:"varint,19,opt,name=has_team,json=hasTeam,proto3" json:"hasTeam,omitempty"`
+	// FacingX, FacingY and FacingZ are the eye angles in degrees: pitch, yaw and
+	// roll. NPCs report their body rotation instead. Present when has_facing.
+	FacingX   float32 `protobuf:"fixed32,20,opt,name=facing_x,json=facingX,proto3" json:"facingX,omitempty"`
+	FacingY   float32 `protobuf:"fixed32,21,opt,name=facing_y,json=facingY,proto3" json:"facingY,omitempty"`
+	FacingZ   float32 `protobuf:"fixed32,22,opt,name=facing_z,json=facingZ,proto3" json:"facingZ,omitempty"`
+	HasFacing bool    `protobuf:"varint,23,opt,name=has_facing,json=hasFacing,proto3" json:"hasFacing,omitempty"`
 }
 
 func (x *ReplayEntitySample) Reset() {
@@ -925,6 +941,34 @@ func (x *ReplayEntitySample) GetHasHeroId() bool {
 func (x *ReplayEntitySample) GetHasTeam() bool {
 	if x != nil {
 		return x.HasTeam
+	}
+	return false
+}
+
+func (x *ReplayEntitySample) GetFacingX() float32 {
+	if x != nil {
+		return x.FacingX
+	}
+	return 0
+}
+
+func (x *ReplayEntitySample) GetFacingY() float32 {
+	if x != nil {
+		return x.FacingY
+	}
+	return 0
+}
+
+func (x *ReplayEntitySample) GetFacingZ() float32 {
+	if x != nil {
+		return x.FacingZ
+	}
+	return 0
+}
+
+func (x *ReplayEntitySample) GetHasFacing() bool {
+	if x != nil {
+		return x.HasFacing
 	}
 	return false
 }
@@ -2571,6 +2615,114 @@ func (x *ReplayPostMatch) GetObjectives() []*ReplayPostMatchObjective {
 	return nil
 }
 
+// ReplayAbilityCast is one use of an ability or item. The enclosing event's
+// entity is the ability entity.
+type ReplayAbilityCast struct {
+	unknownFields []byte
+	// Tick identifies the normalized server tick of the observation.
+	Tick uint32 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	// GameTime is the parser clock time in seconds at the observation.
+	GameTime float64 `protobuf:"fixed64,2,opt,name=game_time,json=gameTime,proto3" json:"gameTime,omitempty"`
+	// ClassName identifies the ability entity class.
+	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"className,omitempty"`
+	// OwnerEntity is the entity index of the hero pawn holding the ability, or
+	// -1 when it is not resolved.
+	OwnerEntity int32 `protobuf:"zigzag32,4,opt,name=owner_entity,json=ownerEntity,proto3" json:"ownerEntity,omitempty"`
+	// CooldownStart and CooldownEnd are the ability's cooldown window in game
+	// seconds.
+	CooldownStart float32 `protobuf:"fixed32,5,opt,name=cooldown_start,json=cooldownStart,proto3" json:"cooldownStart,omitempty"`
+	CooldownEnd   float32 `protobuf:"fixed32,6,opt,name=cooldown_end,json=cooldownEnd,proto3" json:"cooldownEnd,omitempty"`
+	// CastCompletedTime is the game time the cast finished, in seconds.
+	CastCompletedTime float32 `protobuf:"fixed32,7,opt,name=cast_completed_time,json=castCompletedTime,proto3" json:"castCompletedTime,omitempty"`
+	AbilitySlot       uint32  `protobuf:"varint,8,opt,name=ability_slot,json=abilitySlot,proto3" json:"abilitySlot,omitempty"`
+	HasAbilitySlot    bool    `protobuf:"varint,9,opt,name=has_ability_slot,json=hasAbilitySlot,proto3" json:"hasAbilitySlot,omitempty"`
+	SubclassId        uint32  `protobuf:"varint,10,opt,name=subclass_id,json=subclassId,proto3" json:"subclassId,omitempty"`
+	HasSubclassId     bool    `protobuf:"varint,11,opt,name=has_subclass_id,json=hasSubclassId,proto3" json:"hasSubclassId,omitempty"`
+}
+
+func (x *ReplayAbilityCast) Reset() {
+	*x = ReplayAbilityCast{}
+}
+
+func (*ReplayAbilityCast) ProtoMessage() {}
+
+func (x *ReplayAbilityCast) GetTick() uint32 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetGameTime() float64 {
+	if x != nil {
+		return x.GameTime
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetClassName() string {
+	if x != nil {
+		return x.ClassName
+	}
+	return ""
+}
+
+func (x *ReplayAbilityCast) GetOwnerEntity() int32 {
+	if x != nil {
+		return x.OwnerEntity
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetCooldownStart() float32 {
+	if x != nil {
+		return x.CooldownStart
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetCooldownEnd() float32 {
+	if x != nil {
+		return x.CooldownEnd
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetCastCompletedTime() float32 {
+	if x != nil {
+		return x.CastCompletedTime
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetAbilitySlot() uint32 {
+	if x != nil {
+		return x.AbilitySlot
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetHasAbilitySlot() bool {
+	if x != nil {
+		return x.HasAbilitySlot
+	}
+	return false
+}
+
+func (x *ReplayAbilityCast) GetSubclassId() uint32 {
+	if x != nil {
+		return x.SubclassId
+	}
+	return 0
+}
+
+func (x *ReplayAbilityCast) GetHasSubclassId() bool {
+	if x != nil {
+		return x.HasSubclassId
+	}
+	return false
+}
+
 func (m *ReplayEvent) CloneVT() *ReplayEvent {
 	if m == nil {
 		return (*ReplayEvent)(nil)
@@ -2596,6 +2748,7 @@ func (m *ReplayEvent) CloneVT() *ReplayEvent {
 	r.ImportantAbilityUsed = m.ImportantAbilityUsed.CloneVT()
 	r.AbilityNotify = m.AbilityNotify.CloneVT()
 	r.JumpState = m.JumpState.CloneVT()
+	r.AbilityCast = m.AbilityCast.CloneVT()
 	if rhs := m.OwnedItems; rhs != nil {
 		r.OwnedItems = slices.Clone(rhs)
 	}
@@ -2746,6 +2899,10 @@ func (m *ReplayEntitySample) CloneVT() *ReplayEntitySample {
 	r.HasPosition = m.HasPosition
 	r.HasHeroId = m.HasHeroId
 	r.HasTeam = m.HasTeam
+	r.FacingX = m.FacingX
+	r.FacingY = m.FacingY
+	r.FacingZ = m.FacingZ
+	r.HasFacing = m.HasFacing
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -3203,6 +3360,32 @@ func (m *ReplayPostMatch) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
+func (m *ReplayAbilityCast) CloneVT() *ReplayAbilityCast {
+	if m == nil {
+		return (*ReplayAbilityCast)(nil)
+	}
+	r := new(ReplayAbilityCast)
+	r.Tick = m.Tick
+	r.GameTime = m.GameTime
+	r.ClassName = m.ClassName
+	r.OwnerEntity = m.OwnerEntity
+	r.CooldownStart = m.CooldownStart
+	r.CooldownEnd = m.CooldownEnd
+	r.CastCompletedTime = m.CastCompletedTime
+	r.AbilitySlot = m.AbilitySlot
+	r.HasAbilitySlot = m.HasAbilitySlot
+	r.SubclassId = m.SubclassId
+	r.HasSubclassId = m.HasSubclassId
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *ReplayAbilityCast) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
 func (this *ReplayEvent) EqualVT(that *ReplayEvent) bool {
 	if this == that {
 		return true
@@ -3276,6 +3459,9 @@ func (this *ReplayEvent) EqualVT(that *ReplayEvent) bool {
 		return false
 	}
 	if !this.JumpState.EqualVT(that.JumpState) {
+		return false
+	}
+	if !this.AbilityCast.EqualVT(that.AbilityCast) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -3599,6 +3785,18 @@ func (this *ReplayEntitySample) EqualVT(that *ReplayEntitySample) bool {
 		return false
 	}
 	if this.HasTeam != that.HasTeam {
+		return false
+	}
+	if this.FacingX != that.FacingX {
+		return false
+	}
+	if this.FacingY != that.FacingY {
+		return false
+	}
+	if this.FacingZ != that.FacingZ {
+		return false
+	}
+	if this.HasFacing != that.HasFacing {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -4499,6 +4697,56 @@ func (this *ReplayPostMatch) EqualMessageVT(thatMsg any) bool {
 	return this.EqualVT(that)
 }
 
+func (this *ReplayAbilityCast) EqualVT(that *ReplayAbilityCast) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if this.Tick != that.Tick {
+		return false
+	}
+	if this.GameTime != that.GameTime {
+		return false
+	}
+	if this.ClassName != that.ClassName {
+		return false
+	}
+	if this.OwnerEntity != that.OwnerEntity {
+		return false
+	}
+	if this.CooldownStart != that.CooldownStart {
+		return false
+	}
+	if this.CooldownEnd != that.CooldownEnd {
+		return false
+	}
+	if this.CastCompletedTime != that.CastCompletedTime {
+		return false
+	}
+	if this.AbilitySlot != that.AbilitySlot {
+		return false
+	}
+	if this.HasAbilitySlot != that.HasAbilitySlot {
+		return false
+	}
+	if this.SubclassId != that.SubclassId {
+		return false
+	}
+	if this.HasSubclassId != that.HasSubclassId {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *ReplayAbilityCast) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*ReplayAbilityCast)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
 // MarshalProtoJSON marshals the ReplayEvent message to JSON.
 func (x *ReplayEvent) MarshalProtoJSON(s *json.MarshalState) {
 	if x == nil {
@@ -4611,6 +4859,11 @@ func (x *ReplayEvent) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteMoreIf(&wroteField)
 		s.WriteObjectField("jumpState")
 		x.JumpState.MarshalProtoJSON(s.WithField("jumpState"))
+	}
+	if x.AbilityCast != nil || s.HasField("abilityCast") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilityCast")
+		x.AbilityCast.MarshalProtoJSON(s.WithField("abilityCast"))
 	}
 	s.WriteObjectEnd()
 }
@@ -4752,6 +5005,13 @@ func (x *ReplayEvent) UnmarshalProtoJSON(s *json.UnmarshalState) {
 			}
 			x.JumpState = &ReplayJumpState{}
 			x.JumpState.UnmarshalProtoJSON(s.WithField("jump_state", true))
+		case "ability_cast", "abilityCast":
+			if s.ReadNil() {
+				x.AbilityCast = nil
+				return
+			}
+			x.AbilityCast = &ReplayAbilityCast{}
+			x.AbilityCast.UnmarshalProtoJSON(s.WithField("ability_cast", true))
 		}
 	})
 }
@@ -5494,6 +5754,26 @@ func (x *ReplayEntitySample) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("hasTeam")
 		s.WriteBool(x.HasTeam)
 	}
+	if x.FacingX != 0 || s.HasField("facingX") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("facingX")
+		s.WriteFloat32(x.FacingX)
+	}
+	if x.FacingY != 0 || s.HasField("facingY") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("facingY")
+		s.WriteFloat32(x.FacingY)
+	}
+	if x.FacingZ != 0 || s.HasField("facingZ") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("facingZ")
+		s.WriteFloat32(x.FacingZ)
+	}
+	if x.HasFacing || s.HasField("hasFacing") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasFacing")
+		s.WriteBool(x.HasFacing)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -5568,6 +5848,18 @@ func (x *ReplayEntitySample) UnmarshalProtoJSON(s *json.UnmarshalState) {
 		case "has_team", "hasTeam":
 			s.AddField("has_team")
 			x.HasTeam = s.ReadBool()
+		case "facing_x", "facingX":
+			s.AddField("facing_x")
+			x.FacingX = s.ReadFloat32()
+		case "facing_y", "facingY":
+			s.AddField("facing_y")
+			x.FacingY = s.ReadFloat32()
+		case "facing_z", "facingZ":
+			s.AddField("facing_z")
+			x.FacingZ = s.ReadFloat32()
+		case "has_facing", "hasFacing":
+			s.AddField("has_facing")
+			x.HasFacing = s.ReadBool()
 		}
 	})
 }
@@ -7663,6 +7955,128 @@ func (x *ReplayPostMatch) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
+// MarshalProtoJSON marshals the ReplayAbilityCast message to JSON.
+func (x *ReplayAbilityCast) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if x.Tick != 0 || s.HasField("tick") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("tick")
+		s.WriteUint32(x.Tick)
+	}
+	if x.GameTime != 0 || s.HasField("gameTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("gameTime")
+		s.WriteFloat64(x.GameTime)
+	}
+	if x.ClassName != "" || s.HasField("className") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("className")
+		s.WriteString(x.ClassName)
+	}
+	if x.OwnerEntity != 0 || s.HasField("ownerEntity") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("ownerEntity")
+		s.WriteInt32(x.OwnerEntity)
+	}
+	if x.CooldownStart != 0 || s.HasField("cooldownStart") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("cooldownStart")
+		s.WriteFloat32(x.CooldownStart)
+	}
+	if x.CooldownEnd != 0 || s.HasField("cooldownEnd") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("cooldownEnd")
+		s.WriteFloat32(x.CooldownEnd)
+	}
+	if x.CastCompletedTime != 0 || s.HasField("castCompletedTime") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("castCompletedTime")
+		s.WriteFloat32(x.CastCompletedTime)
+	}
+	if x.AbilitySlot != 0 || s.HasField("abilitySlot") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("abilitySlot")
+		s.WriteUint32(x.AbilitySlot)
+	}
+	if x.HasAbilitySlot || s.HasField("hasAbilitySlot") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasAbilitySlot")
+		s.WriteBool(x.HasAbilitySlot)
+	}
+	if x.SubclassId != 0 || s.HasField("subclassId") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("subclassId")
+		s.WriteUint32(x.SubclassId)
+	}
+	if x.HasSubclassId || s.HasField("hasSubclassId") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("hasSubclassId")
+		s.WriteBool(x.HasSubclassId)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the ReplayAbilityCast to JSON.
+func (x *ReplayAbilityCast) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the ReplayAbilityCast message from JSON.
+func (x *ReplayAbilityCast) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "tick":
+			s.AddField("tick")
+			x.Tick = s.ReadUint32()
+		case "game_time", "gameTime":
+			s.AddField("game_time")
+			x.GameTime = s.ReadFloat64()
+		case "class_name", "className":
+			s.AddField("class_name")
+			x.ClassName = s.ReadString()
+		case "owner_entity", "ownerEntity":
+			s.AddField("owner_entity")
+			x.OwnerEntity = s.ReadInt32()
+		case "cooldown_start", "cooldownStart":
+			s.AddField("cooldown_start")
+			x.CooldownStart = s.ReadFloat32()
+		case "cooldown_end", "cooldownEnd":
+			s.AddField("cooldown_end")
+			x.CooldownEnd = s.ReadFloat32()
+		case "cast_completed_time", "castCompletedTime":
+			s.AddField("cast_completed_time")
+			x.CastCompletedTime = s.ReadFloat32()
+		case "ability_slot", "abilitySlot":
+			s.AddField("ability_slot")
+			x.AbilitySlot = s.ReadUint32()
+		case "has_ability_slot", "hasAbilitySlot":
+			s.AddField("has_ability_slot")
+			x.HasAbilitySlot = s.ReadBool()
+		case "subclass_id", "subclassId":
+			s.AddField("subclass_id")
+			x.SubclassId = s.ReadUint32()
+		case "has_subclass_id", "hasSubclassId":
+			s.AddField("has_subclass_id")
+			x.HasSubclassId = s.ReadBool()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the ReplayAbilityCast from JSON.
+func (x *ReplayAbilityCast) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
 func (m *ReplayEvent) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -7692,6 +8106,18 @@ func (m *ReplayEvent) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.AbilityCast != nil {
+		size, err := m.AbilityCast.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xba
 	}
 	if m.JumpState != nil {
 		size, err := m.JumpState.MarshalToSizedBufferVT(dAtA[:i])
@@ -8476,6 +8902,42 @@ func (m *ReplayEntitySample) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.HasFacing {
+		i--
+		if m.HasFacing {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.FacingZ != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.FacingZ))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb5
+	}
+	if m.FacingY != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.FacingY))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xad
+	}
+	if m.FacingX != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.FacingX))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa5
 	}
 	if m.HasTeam {
 		i--
@@ -10320,6 +10782,110 @@ func (m *ReplayPostMatch) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ReplayAbilityCast) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ReplayAbilityCast) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ReplayAbilityCast) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.HasSubclassId {
+		i--
+		if m.HasSubclassId {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.SubclassId != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.SubclassId))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.HasAbilitySlot {
+		i--
+		if m.HasAbilitySlot {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.AbilitySlot != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.AbilitySlot))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.CastCompletedTime != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.CastCompletedTime))))
+		i--
+		dAtA[i] = 0x3d
+	}
+	if m.CooldownEnd != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.CooldownEnd))))
+		i--
+		dAtA[i] = 0x35
+	}
+	if m.CooldownStart != 0 {
+		i -= 4
+		binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.CooldownStart))))
+		i--
+		dAtA[i] = 0x2d
+	}
+	if m.OwnerEntity != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.OwnerEntity)<<1)^uint32((m.OwnerEntity>>31))))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.ClassName) > 0 {
+		i -= len(m.ClassName)
+		copy(dAtA[i:], m.ClassName)
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.ClassName)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.GameTime != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.GameTime))))
+		i--
+		dAtA[i] = 0x11
+	}
+	if m.Tick != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Tick))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ReplayEvent) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -10406,6 +10972,10 @@ func (m *ReplayEvent) SizeVT() (n int) {
 	}
 	if m.JumpState != nil {
 		l = m.JumpState.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.AbilityCast != nil {
+		l = m.AbilityCast.SizeVT()
 		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 	}
 	n += len(m.unknownFields)
@@ -10706,6 +11276,18 @@ func (m *ReplayEntitySample) SizeVT() (n int) {
 		n += 3
 	}
 	if m.HasTeam {
+		n += 3
+	}
+	if m.FacingX != 0 {
+		n += 6
+	}
+	if m.FacingY != 0 {
+		n += 6
+	}
+	if m.FacingZ != 0 {
+		n += 6
+	}
+	if m.HasFacing {
 		n += 3
 	}
 	n += len(m.unknownFields)
@@ -11427,6 +12009,50 @@ func (m *ReplayPostMatch) SizeVT() (n int) {
 	return n
 }
 
+func (m *ReplayAbilityCast) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Tick != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.Tick))
+	}
+	if m.GameTime != 0 {
+		n += 9
+	}
+	l = len(m.ClassName)
+	if l > 0 {
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	if m.OwnerEntity != 0 {
+		n += 1 + protobuf_go_lite.SizeOfZigzag(uint64(m.OwnerEntity))
+	}
+	if m.CooldownStart != 0 {
+		n += 5
+	}
+	if m.CooldownEnd != 0 {
+		n += 5
+	}
+	if m.CastCompletedTime != 0 {
+		n += 5
+	}
+	if m.AbilitySlot != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.AbilitySlot))
+	}
+	if m.HasAbilitySlot {
+		n += 2
+	}
+	if m.SubclassId != 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.SubclassId))
+	}
+	if m.HasSubclassId {
+		n += 2
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
 func (x *ReplayEvent) MarshalProtoText() string {
 	var sb strings.Builder
 	sb.WriteString("ReplayEvent {")
@@ -11582,6 +12208,13 @@ func (x *ReplayEvent) MarshalProtoText() string {
 		}
 		sb.WriteString("jump_state: ")
 		sb.WriteString(x.JumpState.MarshalProtoText())
+	}
+	if x.AbilityCast != nil {
+		if sb.Len() > 13 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_cast: ")
+		sb.WriteString(x.AbilityCast.MarshalProtoText())
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -12223,6 +12856,34 @@ func (x *ReplayEntitySample) MarshalProtoText() string {
 		}
 		sb.WriteString("has_team: ")
 		sb.WriteString(strconv.FormatBool(x.HasTeam))
+	}
+	if x.FacingX != 0 {
+		if sb.Len() > 20 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("facing_x: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.FacingX), 'g', -1, 32))
+	}
+	if x.FacingY != 0 {
+		if sb.Len() > 20 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("facing_y: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.FacingY), 'g', -1, 32))
+	}
+	if x.FacingZ != 0 {
+		if sb.Len() > 20 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("facing_z: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.FacingZ), 'g', -1, 32))
+	}
+	if x.HasFacing != false {
+		if sb.Len() > 20 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_facing: ")
+		sb.WriteString(strconv.FormatBool(x.HasFacing))
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -13707,6 +14368,94 @@ func (x *ReplayPostMatch) String() string {
 	return x.MarshalProtoText()
 }
 
+func (x *ReplayAbilityCast) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("ReplayAbilityCast {")
+	if x.Tick != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("tick: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.Tick), 10))
+	}
+	if x.GameTime != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("game_time: ")
+		sb.WriteString(strconv.FormatFloat(x.GameTime, 'g', -1, 64))
+	}
+	if x.ClassName != "" {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("class_name: ")
+		sb.WriteString(strconv.Quote(x.ClassName))
+	}
+	if x.OwnerEntity != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("owner_entity: ")
+		sb.WriteString(strconv.FormatInt(int64(x.OwnerEntity), 10))
+	}
+	if x.CooldownStart != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("cooldown_start: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.CooldownStart), 'g', -1, 32))
+	}
+	if x.CooldownEnd != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("cooldown_end: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.CooldownEnd), 'g', -1, 32))
+	}
+	if x.CastCompletedTime != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("cast_completed_time: ")
+		sb.WriteString(strconv.FormatFloat(float64(x.CastCompletedTime), 'g', -1, 32))
+	}
+	if x.AbilitySlot != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ability_slot: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.AbilitySlot), 10))
+	}
+	if x.HasAbilitySlot != false {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_ability_slot: ")
+		sb.WriteString(strconv.FormatBool(x.HasAbilitySlot))
+	}
+	if x.SubclassId != 0 {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("subclass_id: ")
+		sb.WriteString(strconv.FormatUint(uint64(x.SubclassId), 10))
+	}
+	if x.HasSubclassId != false {
+		if sb.Len() > 19 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("has_subclass_id: ")
+		sb.WriteString(strconv.FormatBool(x.HasSubclassId))
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *ReplayAbilityCast) String() string {
+	return x.MarshalProtoText()
+}
+
 func (m *ReplayEvent) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -14238,6 +14987,34 @@ func (m *ReplayEvent) UnmarshalVT(dAtA []byte) error {
 				m.JumpState = &ReplayJumpState{}
 			}
 			if err := m.JumpState.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 23:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilityCast", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.AbilityCast == nil {
+				m.AbilityCast = &ReplayAbilityCast{}
+			}
+			if err := m.AbilityCast.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -15363,6 +16140,54 @@ func (m *ReplayEntitySample) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			m.HasTeam = bool(v != 0)
+		case 20:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FacingX", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.FacingX = float32(math.Float32frombits(v))
+		case 21:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FacingY", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.FacingY = float32(math.Float32frombits(v))
+		case 22:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FacingZ", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.FacingZ = float32(math.Float32frombits(v))
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasFacing", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasFacing = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
@@ -18063,6 +18888,181 @@ func (m *ReplayPostMatch) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *ReplayAbilityCast) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ReplayAbilityCast: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ReplayAbilityCast: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+			}
+			m.Tick = 0
+			m.Tick, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 2:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GameTime", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.GameTime = float64(math.Float64frombits(v))
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClassName", wireType)
+			}
+			var stringLen uint64
+			stringLen, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClassName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OwnerEntity", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.OwnerEntity = v
+		case 5:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CooldownStart", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.CooldownStart = float32(math.Float32frombits(v))
+		case 6:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CooldownEnd", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.CooldownEnd = float32(math.Float32frombits(v))
+		case 7:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CastCompletedTime", wireType)
+			}
+			var v uint32
+			var _v32 uint32
+			_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint32(_v32)
+			m.CastCompletedTime = float32(math.Float32frombits(v))
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AbilitySlot", wireType)
+			}
+			m.AbilitySlot = 0
+			m.AbilitySlot, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasAbilitySlot", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasAbilitySlot = bool(v != 0)
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SubclassId", wireType)
+			}
+			m.SubclassId = 0
+			m.SubclassId, iNdEx, err = protobuf_go_lite.DecodeVarintUint32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasSubclassId", wireType)
+			}
+			var v int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			v = int(_v)
+			if err != nil {
+				return err
+			}
+			m.HasSubclassId = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

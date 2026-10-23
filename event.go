@@ -46,6 +46,12 @@ const (
 	// EventAbilityCharges identifies an ability charge-count change from the
 	// entity stream.
 	EventAbilityCharges EventType = "ability_charges"
+	// EventTrooperSample identifies a throttled lane trooper state sample; it
+	// carries an EntitySample.
+	EventTrooperSample EventType = "trooper_sample"
+	// EventAbilityCast identifies an ability or item use, observed as a new
+	// cooldown start on the ability entity.
+	EventAbilityCast EventType = "ability_cast"
 	// EventObjective identifies a map objective lifecycle observation.
 	EventObjective EventType = "objective_event"
 )
@@ -89,6 +95,7 @@ type Event struct {
 	AbilityNotify        *AbilityNotifyEvent        `json:"ability_notify,omitempty"`
 	JumpState            *JumpStateEvent            `json:"jump_state,omitempty"`
 	AbilityCharges       *AbilityChargesEvent       `json:"ability_charges,omitempty"`
+	AbilityCast          *AbilityCastEvent          `json:"ability_cast,omitempty"`
 	Objective            *ObjectiveEvent            `json:"objective_event,omitempty"`
 }
 
@@ -215,6 +222,24 @@ type AbilityChargesEvent struct {
 	GameTime         float64 `json:"game_time"`
 	ClassName        string  `json:"class_name"`
 	RemainingCharges int32   `json:"remaining_charges"`
+}
+
+// AbilityCastEvent is one use of an ability or item, observed as a new
+// cooldown start on the ability entity. Entity on the enclosing Event is the
+// ability entity; OwnerEntity is the hero pawn that holds it, or -1 when the
+// owner is not resolved. Times are game seconds.
+type AbilityCastEvent struct {
+	Tick              uint32  `json:"tick"`
+	GameTime          float64 `json:"game_time"`
+	ClassName         string  `json:"class_name"`
+	OwnerEntity       int32   `json:"owner_entity"`
+	CooldownStart     float32 `json:"cooldown_start"`
+	CooldownEnd       float32 `json:"cooldown_end"`
+	CastCompletedTime float32 `json:"cast_completed_time"`
+	AbilitySlot       uint32  `json:"ability_slot,omitempty"`
+	HasAbilitySlot    bool    `json:"has_ability_slot,omitempty"`
+	SubclassID        uint32  `json:"subclass_id,omitempty"`
+	HasSubclassID     bool    `json:"has_subclass_id,omitempty"`
 }
 
 // PostMatchObjective is one map objective in the post-match record.

@@ -3132,10 +3132,10 @@ func (this *CSVCMsg_GameSessionConfiguration) EqualVT(that *CSVCMsg_GameSessionC
 	if p, q := this.Landmarkname, that.Landmarkname; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
 		return false
 	}
-	if p, q := this.MaxCoord, that.MaxCoord; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
+	if p, q := this.NoSteamServer, that.NoSteamServer; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
 		return false
 	}
-	if p, q := this.NoSteamServer, that.NoSteamServer; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
+	if p, q := this.MaxCoord, that.MaxCoord; (p == nil && q != nil) || (p != nil && (q == nil || *p != *q)) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
