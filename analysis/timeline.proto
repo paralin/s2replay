@@ -99,6 +99,18 @@ message TimelinePlayer {
   // MidBossDamage is the damage the hero dealt to the Mid-Boss during each
   // sample's step.
   repeated int32 mid_boss_damage = 17;
+  // The columns below are the controller's live scoreboard at each sample, as
+  // running totals. Souls is the unspent souls held; Level the hero level.
+  repeated int32 souls = 18;
+  repeated int32 level = 19;
+  // LastHits and Denies are the scoreboard's last hits and denies. The game's
+  // last hit count runs above the match record's trooper kills.
+  repeated int32 last_hits = 20;
+  repeated int32 denies = 21;
+  // Kills, Assists and Deaths count hero kills, assists and deaths.
+  repeated int32 kills = 22;
+  repeated int32 assists = 23;
+  repeated int32 deaths = 24;
 }
 
 // TimelineHit is one instance of hero to hero damage.
@@ -135,6 +147,10 @@ message TimelineAbilityCast {
   string class_name = 3;
   // AbilityId is the ability's subclass ID, or 0 when the entity has none.
   uint32 ability_id = 4;
+  // CooldownEnd is the game time the ability is ready again, as the game
+  // computed it with the hero's upgrades and items; 0 when the entity had no
+  // cooldown end.
+  double cooldown_end = 5;
 }
 
 // TimelineTrooper is a lane trooper's position at one time.

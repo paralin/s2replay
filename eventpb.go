@@ -262,6 +262,13 @@ func (e *Event) ToProto() *protocol.ReplayEvent {
 			CreepGoldGroundOrb: cs.CreepGoldGroundOrb,
 			CreepGoldDeny:      cs.CreepGoldDeny,
 			CreepGoldSoloBonus: cs.CreepGoldSoloBonus,
+			Souls:              cs.Souls,
+			Level:              cs.Level,
+			LastHits:           cs.LastHits,
+			Denies:             cs.Denies,
+			Kills:              cs.Kills,
+			Assists:            cs.Assists,
+			Deaths:             cs.Deaths,
 		}
 	}
 	if e.KillStreak != nil {

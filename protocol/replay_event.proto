@@ -358,6 +358,17 @@ message ReplayControllerSample {
   sint32 creep_gold_ground_orb = 15;
   sint32 creep_gold_deny = 16;
   sint32 creep_gold_solo_bonus = 17;
+  // souls is the unspent souls the player holds.
+  sint32 souls = 18;
+  // level is the hero level.
+  sint32 level = 19;
+  // last_hits and denies count troopers the player killed and denied.
+  sint32 last_hits = 20;
+  sint32 denies = 21;
+  // kills, assists and deaths are the scoreboard counts against heroes.
+  sint32 kills = 22;
+  sint32 assists = 23;
+  sint32 deaths = 24;
 }
 
 message ReplayPostMatchItem {

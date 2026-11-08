@@ -1966,6 +1966,17 @@ type ReplayControllerSample struct {
 	CreepGoldGroundOrb int32   `protobuf:"zigzag32,15,opt,name=creep_gold_ground_orb,json=creepGoldGroundOrb,proto3" json:"creepGoldGroundOrb,omitempty"`
 	CreepGoldDeny      int32   `protobuf:"zigzag32,16,opt,name=creep_gold_deny,json=creepGoldDeny,proto3" json:"creepGoldDeny,omitempty"`
 	CreepGoldSoloBonus int32   `protobuf:"zigzag32,17,opt,name=creep_gold_solo_bonus,json=creepGoldSoloBonus,proto3" json:"creepGoldSoloBonus,omitempty"`
+	// souls is the unspent souls the player holds.
+	Souls int32 `protobuf:"zigzag32,18,opt,name=souls,proto3" json:"souls,omitempty"`
+	// level is the hero level.
+	Level int32 `protobuf:"zigzag32,19,opt,name=level,proto3" json:"level,omitempty"`
+	// last_hits and denies count troopers the player killed and denied.
+	LastHits int32 `protobuf:"zigzag32,20,opt,name=last_hits,json=lastHits,proto3" json:"lastHits,omitempty"`
+	Denies   int32 `protobuf:"zigzag32,21,opt,name=denies,proto3" json:"denies,omitempty"`
+	// kills, assists and deaths are the scoreboard counts against heroes.
+	Kills   int32 `protobuf:"zigzag32,22,opt,name=kills,proto3" json:"kills,omitempty"`
+	Assists int32 `protobuf:"zigzag32,23,opt,name=assists,proto3" json:"assists,omitempty"`
+	Deaths  int32 `protobuf:"zigzag32,24,opt,name=deaths,proto3" json:"deaths,omitempty"`
 }
 
 func (x *ReplayControllerSample) Reset() {
@@ -2089,6 +2100,55 @@ func (x *ReplayControllerSample) GetCreepGoldDeny() int32 {
 func (x *ReplayControllerSample) GetCreepGoldSoloBonus() int32 {
 	if x != nil {
 		return x.CreepGoldSoloBonus
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetSouls() int32 {
+	if x != nil {
+		return x.Souls
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetLastHits() int32 {
+	if x != nil {
+		return x.LastHits
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetDenies() int32 {
+	if x != nil {
+		return x.Denies
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetKills() int32 {
+	if x != nil {
+		return x.Kills
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetAssists() int32 {
+	if x != nil {
+		return x.Assists
+	}
+	return 0
+}
+
+func (x *ReplayControllerSample) GetDeaths() int32 {
+	if x != nil {
+		return x.Deaths
 	}
 	return 0
 }
@@ -3196,6 +3256,13 @@ func (m *ReplayControllerSample) CloneVT() *ReplayControllerSample {
 	r.CreepGoldGroundOrb = m.CreepGoldGroundOrb
 	r.CreepGoldDeny = m.CreepGoldDeny
 	r.CreepGoldSoloBonus = m.CreepGoldSoloBonus
+	r.Souls = m.Souls
+	r.Level = m.Level
+	r.LastHits = m.LastHits
+	r.Denies = m.Denies
+	r.Kills = m.Kills
+	r.Assists = m.Assists
+	r.Deaths = m.Deaths
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -4366,6 +4433,27 @@ func (this *ReplayControllerSample) EqualVT(that *ReplayControllerSample) bool {
 		return false
 	}
 	if this.CreepGoldSoloBonus != that.CreepGoldSoloBonus {
+		return false
+	}
+	if this.Souls != that.Souls {
+		return false
+	}
+	if this.Level != that.Level {
+		return false
+	}
+	if this.LastHits != that.LastHits {
+		return false
+	}
+	if this.Denies != that.Denies {
+		return false
+	}
+	if this.Kills != that.Kills {
+		return false
+	}
+	if this.Assists != that.Assists {
+		return false
+	}
+	if this.Deaths != that.Deaths {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -7152,6 +7240,41 @@ func (x *ReplayControllerSample) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("creepGoldSoloBonus")
 		s.WriteInt32(x.CreepGoldSoloBonus)
 	}
+	if x.Souls != 0 || s.HasField("souls") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("souls")
+		s.WriteInt32(x.Souls)
+	}
+	if x.Level != 0 || s.HasField("level") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("level")
+		s.WriteInt32(x.Level)
+	}
+	if x.LastHits != 0 || s.HasField("lastHits") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("lastHits")
+		s.WriteInt32(x.LastHits)
+	}
+	if x.Denies != 0 || s.HasField("denies") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("denies")
+		s.WriteInt32(x.Denies)
+	}
+	if x.Kills != 0 || s.HasField("kills") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("kills")
+		s.WriteInt32(x.Kills)
+	}
+	if x.Assists != 0 || s.HasField("assists") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("assists")
+		s.WriteInt32(x.Assists)
+	}
+	if x.Deaths != 0 || s.HasField("deaths") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("deaths")
+		s.WriteInt32(x.Deaths)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -7220,6 +7343,27 @@ func (x *ReplayControllerSample) UnmarshalProtoJSON(s *json.UnmarshalState) {
 		case "creep_gold_solo_bonus", "creepGoldSoloBonus":
 			s.AddField("creep_gold_solo_bonus")
 			x.CreepGoldSoloBonus = s.ReadInt32()
+		case "souls":
+			s.AddField("souls")
+			x.Souls = s.ReadInt32()
+		case "level":
+			s.AddField("level")
+			x.Level = s.ReadInt32()
+		case "last_hits", "lastHits":
+			s.AddField("last_hits")
+			x.LastHits = s.ReadInt32()
+		case "denies":
+			s.AddField("denies")
+			x.Denies = s.ReadInt32()
+		case "kills":
+			s.AddField("kills")
+			x.Kills = s.ReadInt32()
+		case "assists":
+			s.AddField("assists")
+			x.Assists = s.ReadInt32()
+		case "deaths":
+			s.AddField("deaths")
+			x.Deaths = s.ReadInt32()
 		}
 	})
 }
@@ -10187,6 +10331,55 @@ func (m *ReplayControllerSample) MarshalToSizedBufferVT(dAtA []byte) (int, error
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.Deaths != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Deaths)<<1)^uint32((m.Deaths>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc0
+	}
+	if m.Assists != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Assists)<<1)^uint32((m.Assists>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.Kills != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Kills)<<1)^uint32((m.Kills>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
+	if m.Denies != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Denies)<<1)^uint32((m.Denies>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa8
+	}
+	if m.LastHits != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.LastHits)<<1)^uint32((m.LastHits>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa0
+	}
+	if m.Level != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Level)<<1)^uint32((m.Level>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.Souls != 0 {
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.Souls)<<1)^uint32((m.Souls>>31))))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
 	if m.CreepGoldSoloBonus != 0 {
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64((uint32(m.CreepGoldSoloBonus)<<1)^uint32((m.CreepGoldSoloBonus>>31))))
 		i--
@@ -11765,6 +11958,27 @@ func (m *ReplayControllerSample) SizeVT() (n int) {
 	}
 	if m.CreepGoldSoloBonus != 0 {
 		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.CreepGoldSoloBonus))
+	}
+	if m.Souls != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Souls))
+	}
+	if m.Level != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Level))
+	}
+	if m.LastHits != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.LastHits))
+	}
+	if m.Denies != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Denies))
+	}
+	if m.Kills != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Kills))
+	}
+	if m.Assists != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Assists))
+	}
+	if m.Deaths != 0 {
+		n += 2 + protobuf_go_lite.SizeOfZigzag(uint64(m.Deaths))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -13851,6 +14065,55 @@ func (x *ReplayControllerSample) MarshalProtoText() string {
 		}
 		sb.WriteString("creep_gold_solo_bonus: ")
 		sb.WriteString(strconv.FormatInt(int64(x.CreepGoldSoloBonus), 10))
+	}
+	if x.Souls != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("souls: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Souls), 10))
+	}
+	if x.Level != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("level: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Level), 10))
+	}
+	if x.LastHits != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("last_hits: ")
+		sb.WriteString(strconv.FormatInt(int64(x.LastHits), 10))
+	}
+	if x.Denies != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("denies: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Denies), 10))
+	}
+	if x.Kills != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("kills: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Kills), 10))
+	}
+	if x.Assists != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("assists: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Assists), 10))
+	}
+	if x.Deaths != 0 {
+		if sb.Len() > 24 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("deaths: ")
+		sb.WriteString(strconv.FormatInt(int64(x.Deaths), 10))
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -18058,6 +18321,83 @@ func (m *ReplayControllerSample) UnmarshalVT(dAtA []byte) error {
 			}
 			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
 			m.CreepGoldSoloBonus = v
+		case 18:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Souls", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Souls = v
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Level", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Level = v
+		case 20:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastHits", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.LastHits = v
+		case 21:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Denies", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Denies = v
+		case 22:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kills", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Kills = v
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Assists", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Assists = v
+		case 24:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Deaths", wireType)
+			}
+			var v int32
+			v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = int32((uint32(v) >> 1) ^ uint32(((v&1)<<31)>>31))
+			m.Deaths = v
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

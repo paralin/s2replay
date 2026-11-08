@@ -55,7 +55,7 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 	}
 	byAccount := make(map[uint32]*TimelinePlayer)
 	for _, pl := range tl.GetPlayers() {
-		for name, n := range map[string]int{"alive": len(pl.GetAlive()), "net worth": len(pl.GetNetWorth()), "farm damage": len(pl.GetFarmDamage())} {
+		for name, n := range map[string]int{"alive": len(pl.GetAlive()), "net worth": len(pl.GetNetWorth()), "farm damage": len(pl.GetFarmDamage()), "kills": len(pl.GetKills()), "last hits": len(pl.GetLastHits())} {
 			if n != samples {
 				t.Fatalf("player %d has %d %s samples, want %d", pl.GetAccountId(), n, name, samples)
 			}
@@ -96,6 +96,23 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 		}
 		if deaths != int(rec.Deaths) {
 			t.Errorf("player %d died %d times, post-match %d", rec.AccountID, deaths, rec.Deaths)
+		}
+
+		// The scoreboard columns end on the record's counts.
+		for name, got := range map[string][2]int32{
+			"kills": {pl.GetKills()[samples-1], int32(rec.Kills)}, "assists": {pl.GetAssists()[samples-1], int32(rec.Assists)},
+			"deaths": {pl.GetDeaths()[samples-1], int32(rec.Deaths)}, "denies": {pl.GetDenies()[samples-1], int32(rec.Denies)},
+		} {
+			if got[0] != got[1] {
+				t.Errorf("player %d ends with %d %s, post-match %d", rec.AccountID, got[0], name, got[1])
+			}
+		}
+	}
+
+	// Each ability cast with a cooldown is ready again after it was used.
+	for _, c := range tl.GetAbilityCasts() {
+		if end := c.GetCooldownEnd(); end != 0 && end <= c.GetSeconds() {
+			t.Errorf("%s at %.1f s is ready at %.1f s, before its use", c.GetClassName(), c.GetSeconds(), end)
 		}
 	}
 	// The match clock reaches the record's duration by the end of the replay.

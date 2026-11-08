@@ -248,6 +248,17 @@ type ControllerSample struct {
 	CreepGoldGroundOrb int32   `json:"creep_gold_ground_orb"`
 	CreepGoldDeny      int32   `json:"creep_gold_deny"`
 	CreepGoldSoloBonus int32   `json:"creep_gold_solo_bonus"`
+	// Souls is the unspent souls the player holds.
+	Souls int32 `json:"souls"`
+	// Level is the hero level, which the souls earned set.
+	Level int32 `json:"level"`
+	// LastHits and Denies count troopers the player killed and denied.
+	LastHits int32 `json:"last_hits"`
+	Denies   int32 `json:"denies"`
+	// Kills, Assists and Deaths are the scoreboard counts against heroes.
+	Kills   int32 `json:"kills"`
+	Assists int32 `json:"assists"`
+	Deaths  int32 `json:"deaths"`
 }
 
 // ObjectiveEvent is one map-objective lifecycle observation: mid boss spawn,
@@ -943,6 +954,13 @@ func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 		{"m_PlayerDataGlobal.m_iCreepGoldGroundOrb", &cs.CreepGoldGroundOrb},
 		{"m_PlayerDataGlobal.m_iCreepGoldDeny", &cs.CreepGoldDeny},
 		{"m_PlayerDataGlobal.m_iCreepGoldSoloBonus", &cs.CreepGoldSoloBonus},
+		{"m_PlayerDataGlobal.m_iGold", &cs.Souls},
+		{"m_PlayerDataGlobal.m_iLevel", &cs.Level},
+		{"m_PlayerDataGlobal.m_iLastHits", &cs.LastHits},
+		{"m_PlayerDataGlobal.m_iDenies", &cs.Denies},
+		{"m_PlayerDataGlobal.m_iPlayerKills", &cs.Kills},
+		{"m_PlayerDataGlobal.m_iPlayerAssists", &cs.Assists},
+		{"m_PlayerDataGlobal.m_iDeaths", &cs.Deaths},
 	}
 	for _, f := range intFields {
 		v, ok := e.Int32(f.name)

@@ -153,8 +153,10 @@ type timelinePlayer struct {
 	row *TimelinePlayer
 	// controller is the controller entity.
 	controller int32
-	// netWorth is the controller's latest net worth.
+	// netWorth is the controller's latest net worth, and stats its latest
+	// scoreboard.
 	netWorth int32
+	stats    s2replay.ControllerSample
 	// damagedMaxHealth is the hero's maximum health from damage events, which
 	// includes items where the pawn's own field does not.
 	damagedMaxHealth float32
@@ -265,6 +267,7 @@ func (b *timelineBuilder) acceptController(ev s2replay.Event) {
 		pl.row.Slot = ev.PlayerSlot
 	}
 	pl.netWorth = c.NetWorth
+	pl.stats = *c
 }
 
 // quietAbilityClasses are the parts of the class names of abilities every
@@ -277,7 +280,13 @@ func (b *timelineBuilder) acceptAbilityCast(t float64, c *s2replay.AbilityCastEv
 	if pl == nil || slices.ContainsFunc(quietAbilityClasses, func(part string) bool { return strings.Contains(c.ClassName, part) }) {
 		return
 	}
-	b.abilityCasts = append(b.abilityCasts, timelineAbilityCast{pl, &TimelineAbilityCast{Seconds: t, ClassName: c.ClassName, AbilityId: c.SubclassID}})
+	cast := &TimelineAbilityCast{Seconds: t, ClassName: c.ClassName, AbilityId: c.SubclassID}
+	// The entity's timers run on the server clock; their difference is the
+	// cooldown the game applied, which places the end on the match clock.
+	if c.CooldownEnd > c.CooldownStart {
+		cast.CooldownEnd = t + float64(c.CooldownEnd-c.CooldownStart)
+	}
+	b.abilityCasts = append(b.abilityCasts, timelineAbilityCast{pl, cast})
 }
 
 // acceptTrooper records a lane trooper's position.
@@ -406,6 +415,14 @@ func (pl *timelinePlayer) appendFrame() {
 	r.Alive = append(r.Alive, f.alive)
 	r.Yaw = append(r.Yaw, f.yaw)
 	r.NetWorth = append(r.NetWorth, pl.netWorth)
+	s := &pl.stats
+	r.Souls = append(r.Souls, s.Souls)
+	r.Level = append(r.Level, s.Level)
+	r.LastHits = append(r.LastHits, s.LastHits)
+	r.Denies = append(r.Denies, s.Denies)
+	r.Kills = append(r.Kills, s.Kills)
+	r.Assists = append(r.Assists, s.Assists)
+	r.Deaths = append(r.Deaths, s.Deaths)
 	r.Speed = append(r.Speed, f.speed)
 }
 

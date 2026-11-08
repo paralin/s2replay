@@ -348,6 +348,18 @@ type TimelinePlayer struct {
 	// MidBossDamage is the damage the hero dealt to the Mid-Boss during each
 	// sample's step.
 	MidBossDamage []int32 `protobuf:"varint,17,rep,packed,name=mid_boss_damage,json=midBossDamage,proto3" json:"midBossDamage,omitempty"`
+	// The columns below are the controller's live scoreboard at each sample, as
+	// running totals. Souls is the unspent souls held; Level the hero level.
+	Souls []int32 `protobuf:"varint,18,rep,packed,name=souls,proto3" json:"souls,omitempty"`
+	Level []int32 `protobuf:"varint,19,rep,packed,name=level,proto3" json:"level,omitempty"`
+	// LastHits and Denies are the scoreboard's last hits and denies. The game's
+	// last hit count runs above the match record's trooper kills.
+	LastHits []int32 `protobuf:"varint,20,rep,packed,name=last_hits,json=lastHits,proto3" json:"lastHits,omitempty"`
+	Denies   []int32 `protobuf:"varint,21,rep,packed,name=denies,proto3" json:"denies,omitempty"`
+	// Kills, Assists and Deaths count hero kills, assists and deaths.
+	Kills   []int32 `protobuf:"varint,22,rep,packed,name=kills,proto3" json:"kills,omitempty"`
+	Assists []int32 `protobuf:"varint,23,rep,packed,name=assists,proto3" json:"assists,omitempty"`
+	Deaths  []int32 `protobuf:"varint,24,rep,packed,name=deaths,proto3" json:"deaths,omitempty"`
 }
 
 func (x *TimelinePlayer) Reset() {
@@ -475,6 +487,55 @@ func (x *TimelinePlayer) GetMidBossDamage() []int32 {
 	return nil
 }
 
+func (x *TimelinePlayer) GetSouls() []int32 {
+	if x != nil {
+		return x.Souls
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetLevel() []int32 {
+	if x != nil {
+		return x.Level
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetLastHits() []int32 {
+	if x != nil {
+		return x.LastHits
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetDenies() []int32 {
+	if x != nil {
+		return x.Denies
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetKills() []int32 {
+	if x != nil {
+		return x.Kills
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetAssists() []int32 {
+	if x != nil {
+		return x.Assists
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetDeaths() []int32 {
+	if x != nil {
+		return x.Deaths
+	}
+	return nil
+}
+
 // TimelineHit is one instance of hero to hero damage.
 type TimelineHit struct {
 	unknownFields []byte
@@ -580,6 +641,10 @@ type TimelineAbilityCast struct {
 	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"className,omitempty"`
 	// AbilityId is the ability's subclass ID, or 0 when the entity has none.
 	AbilityId uint32 `protobuf:"varint,4,opt,name=ability_id,json=abilityId,proto3" json:"abilityId,omitempty"`
+	// CooldownEnd is the game time the ability is ready again, as the game
+	// computed it with the hero's upgrades and items; 0 when the entity had no
+	// cooldown end.
+	CooldownEnd float64 `protobuf:"fixed64,5,opt,name=cooldown_end,json=cooldownEnd,proto3" json:"cooldownEnd,omitempty"`
 }
 
 func (x *TimelineAbilityCast) Reset() {
@@ -612,6 +677,13 @@ func (x *TimelineAbilityCast) GetClassName() string {
 func (x *TimelineAbilityCast) GetAbilityId() uint32 {
 	if x != nil {
 		return x.AbilityId
+	}
+	return 0
+}
+
+func (x *TimelineAbilityCast) GetCooldownEnd() float64 {
+	if x != nil {
+		return x.CooldownEnd
 	}
 	return 0
 }
@@ -1043,6 +1115,27 @@ func (m *TimelinePlayer) CloneVT() *TimelinePlayer {
 	if rhs := m.MidBossDamage; rhs != nil {
 		r.MidBossDamage = slices.Clone(rhs)
 	}
+	if rhs := m.Souls; rhs != nil {
+		r.Souls = slices.Clone(rhs)
+	}
+	if rhs := m.Level; rhs != nil {
+		r.Level = slices.Clone(rhs)
+	}
+	if rhs := m.LastHits; rhs != nil {
+		r.LastHits = slices.Clone(rhs)
+	}
+	if rhs := m.Denies; rhs != nil {
+		r.Denies = slices.Clone(rhs)
+	}
+	if rhs := m.Kills; rhs != nil {
+		r.Kills = slices.Clone(rhs)
+	}
+	if rhs := m.Assists; rhs != nil {
+		r.Assists = slices.Clone(rhs)
+	}
+	if rhs := m.Deaths; rhs != nil {
+		r.Deaths = slices.Clone(rhs)
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -1100,6 +1193,7 @@ func (m *TimelineAbilityCast) CloneVT() *TimelineAbilityCast {
 	r.Player = m.Player
 	r.ClassName = m.ClassName
 	r.AbilityId = m.AbilityId
+	r.CooldownEnd = m.CooldownEnd
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -1541,6 +1635,69 @@ func (this *TimelinePlayer) EqualVT(that *TimelinePlayer) bool {
 			return false
 		}
 	}
+	if len(this.Souls) != len(that.Souls) {
+		return false
+	}
+	for i, vx := range this.Souls {
+		vy := that.Souls[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Level) != len(that.Level) {
+		return false
+	}
+	for i, vx := range this.Level {
+		vy := that.Level[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.LastHits) != len(that.LastHits) {
+		return false
+	}
+	for i, vx := range this.LastHits {
+		vy := that.LastHits[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Denies) != len(that.Denies) {
+		return false
+	}
+	for i, vx := range this.Denies {
+		vy := that.Denies[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Kills) != len(that.Kills) {
+		return false
+	}
+	for i, vx := range this.Kills {
+		vy := that.Kills[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Assists) != len(that.Assists) {
+		return false
+	}
+	for i, vx := range this.Assists {
+		vy := that.Assists[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Deaths) != len(that.Deaths) {
+		return false
+	}
+	for i, vx := range this.Deaths {
+		vy := that.Deaths[i]
+		if vx != vy {
+			return false
+		}
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
@@ -1626,6 +1783,9 @@ func (this *TimelineAbilityCast) EqualVT(that *TimelineAbilityCast) bool {
 		return false
 	}
 	if this.AbilityId != that.AbilityId {
+		return false
+	}
+	if this.CooldownEnd != that.CooldownEnd {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -2368,6 +2528,41 @@ func (x *TimelinePlayer) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("midBossDamage")
 		s.WriteInt32Array(x.MidBossDamage)
 	}
+	if len(x.Souls) > 0 || s.HasField("souls") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("souls")
+		s.WriteInt32Array(x.Souls)
+	}
+	if len(x.Level) > 0 || s.HasField("level") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("level")
+		s.WriteInt32Array(x.Level)
+	}
+	if len(x.LastHits) > 0 || s.HasField("lastHits") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("lastHits")
+		s.WriteInt32Array(x.LastHits)
+	}
+	if len(x.Denies) > 0 || s.HasField("denies") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("denies")
+		s.WriteInt32Array(x.Denies)
+	}
+	if len(x.Kills) > 0 || s.HasField("kills") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("kills")
+		s.WriteInt32Array(x.Kills)
+	}
+	if len(x.Assists) > 0 || s.HasField("assists") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("assists")
+		s.WriteInt32Array(x.Assists)
+	}
+	if len(x.Deaths) > 0 || s.HasField("deaths") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("deaths")
+		s.WriteInt32Array(x.Deaths)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -2484,6 +2679,55 @@ func (x *TimelinePlayer) UnmarshalProtoJSON(s *json.UnmarshalState) {
 				return
 			}
 			x.MidBossDamage = s.ReadInt32Array()
+		case "souls":
+			s.AddField("souls")
+			if s.ReadNil() {
+				x.Souls = nil
+				return
+			}
+			x.Souls = s.ReadInt32Array()
+		case "level":
+			s.AddField("level")
+			if s.ReadNil() {
+				x.Level = nil
+				return
+			}
+			x.Level = s.ReadInt32Array()
+		case "last_hits", "lastHits":
+			s.AddField("last_hits")
+			if s.ReadNil() {
+				x.LastHits = nil
+				return
+			}
+			x.LastHits = s.ReadInt32Array()
+		case "denies":
+			s.AddField("denies")
+			if s.ReadNil() {
+				x.Denies = nil
+				return
+			}
+			x.Denies = s.ReadInt32Array()
+		case "kills":
+			s.AddField("kills")
+			if s.ReadNil() {
+				x.Kills = nil
+				return
+			}
+			x.Kills = s.ReadInt32Array()
+		case "assists":
+			s.AddField("assists")
+			if s.ReadNil() {
+				x.Assists = nil
+				return
+			}
+			x.Assists = s.ReadInt32Array()
+		case "deaths":
+			s.AddField("deaths")
+			if s.ReadNil() {
+				x.Deaths = nil
+				return
+			}
+			x.Deaths = s.ReadInt32Array()
 		}
 	})
 }
@@ -2653,6 +2897,11 @@ func (x *TimelineAbilityCast) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("abilityId")
 		s.WriteUint32(x.AbilityId)
 	}
+	if x.CooldownEnd != 0 || s.HasField("cooldownEnd") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("cooldownEnd")
+		s.WriteFloat64(x.CooldownEnd)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -2682,6 +2931,9 @@ func (x *TimelineAbilityCast) UnmarshalProtoJSON(s *json.UnmarshalState) {
 		case "ability_id", "abilityId":
 			s.AddField("ability_id")
 			x.AbilityId = s.ReadUint32()
+		case "cooldown_end", "cooldownEnd":
+			s.AddField("cooldown_end")
+			x.CooldownEnd = s.ReadFloat64()
 		}
 	})
 }
@@ -3301,14 +3553,14 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if len(m.MidBossDamage) > 0 {
+	if len(m.Deaths) > 0 {
 		var pksize2 int
-		for _, num := range m.MidBossDamage {
+		for _, num := range m.Deaths {
 			pksize2 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize2
 		j1 := i
-		for _, num1 := range m.MidBossDamage {
+		for _, num1 := range m.Deaths {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j1] = uint8(uint64(num)&0x7f | 0x80)
@@ -3322,16 +3574,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x8a
+		dAtA[i] = 0xc2
 	}
-	if len(m.ObjectiveDamage) > 0 {
+	if len(m.Assists) > 0 {
 		var pksize4 int
-		for _, num := range m.ObjectiveDamage {
+		for _, num := range m.Assists {
 			pksize4 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize4
 		j3 := i
-		for _, num1 := range m.ObjectiveDamage {
+		for _, num1 := range m.Assists {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j3] = uint8(uint64(num)&0x7f | 0x80)
@@ -3345,16 +3597,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x82
+		dAtA[i] = 0xba
 	}
-	if len(m.FarmDamage) > 0 {
+	if len(m.Kills) > 0 {
 		var pksize6 int
-		for _, num := range m.FarmDamage {
+		for _, num := range m.Kills {
 			pksize6 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize6
 		j5 := i
-		for _, num1 := range m.FarmDamage {
+		for _, num1 := range m.Kills {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j5] = uint8(uint64(num)&0x7f | 0x80)
@@ -3366,44 +3618,205 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize6))
 		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb2
+	}
+	if len(m.Denies) > 0 {
+		var pksize8 int
+		for _, num := range m.Denies {
+			pksize8 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize8
+		j7 := i
+		for _, num1 := range m.Denies {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j7] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j7++
+			}
+			dAtA[j7] = uint8(num)
+			j7++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize8))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xaa
+	}
+	if len(m.LastHits) > 0 {
+		var pksize10 int
+		for _, num := range m.LastHits {
+			pksize10 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize10
+		j9 := i
+		for _, num1 := range m.LastHits {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j9] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j9++
+			}
+			dAtA[j9] = uint8(num)
+			j9++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize10))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa2
+	}
+	if len(m.Level) > 0 {
+		var pksize12 int
+		for _, num := range m.Level {
+			pksize12 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize12
+		j11 := i
+		for _, num1 := range m.Level {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j11] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j11++
+			}
+			dAtA[j11] = uint8(num)
+			j11++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize12))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x9a
+	}
+	if len(m.Souls) > 0 {
+		var pksize14 int
+		for _, num := range m.Souls {
+			pksize14 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize14
+		j13 := i
+		for _, num1 := range m.Souls {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j13] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j13++
+			}
+			dAtA[j13] = uint8(num)
+			j13++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize14))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
+	if len(m.MidBossDamage) > 0 {
+		var pksize16 int
+		for _, num := range m.MidBossDamage {
+			pksize16 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize16
+		j15 := i
+		for _, num1 := range m.MidBossDamage {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j15] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j15++
+			}
+			dAtA[j15] = uint8(num)
+			j15++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize16))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x8a
+	}
+	if len(m.ObjectiveDamage) > 0 {
+		var pksize18 int
+		for _, num := range m.ObjectiveDamage {
+			pksize18 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize18
+		j17 := i
+		for _, num1 := range m.ObjectiveDamage {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j17] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j17++
+			}
+			dAtA[j17] = uint8(num)
+			j17++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize18))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x82
+	}
+	if len(m.FarmDamage) > 0 {
+		var pksize20 int
+		for _, num := range m.FarmDamage {
+			pksize20 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize20
+		j19 := i
+		for _, num1 := range m.FarmDamage {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j19] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j19++
+			}
+			dAtA[j19] = uint8(num)
+			j19++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize20))
+		i--
 		dAtA[i] = 0x7a
 	}
 	if len(m.Speed) > 0 {
 		for iNdEx := len(m.Speed) - 1; iNdEx >= 0; iNdEx-- {
-			f7 := math.Float32bits(float32(m.Speed[iNdEx]))
+			f21 := math.Float32bits(float32(m.Speed[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f7))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f21))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Speed)*4))
 		i--
 		dAtA[i] = 0x72
 	}
 	if len(m.NetWorth) > 0 {
-		var pksize9 int
+		var pksize23 int
 		for _, num := range m.NetWorth {
-			pksize9 += protobuf_go_lite.SizeOfVarint(uint64(num))
+			pksize23 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
-		i -= pksize9
-		j8 := i
+		i -= pksize23
+		j22 := i
 		for _, num1 := range m.NetWorth {
 			num := uint64(num1)
 			for num >= 1<<7 {
-				dAtA[j8] = uint8(uint64(num)&0x7f | 0x80)
+				dAtA[j22] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
-				j8++
+				j22++
 			}
-			dAtA[j8] = uint8(num)
-			j8++
+			dAtA[j22] = uint8(num)
+			j22++
 		}
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize9))
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize23))
 		i--
 		dAtA[i] = 0x6a
 	}
 	if len(m.Yaw) > 0 {
 		for iNdEx := len(m.Yaw) - 1; iNdEx >= 0; iNdEx-- {
-			f10 := math.Float32bits(float32(m.Yaw[iNdEx]))
+			f24 := math.Float32bits(float32(m.Yaw[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f10))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f24))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Yaw)*4))
 		i--
@@ -3424,9 +3837,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.MaxHealth) > 0 {
 		for iNdEx := len(m.MaxHealth) - 1; iNdEx >= 0; iNdEx-- {
-			f11 := math.Float32bits(float32(m.MaxHealth[iNdEx]))
+			f25 := math.Float32bits(float32(m.MaxHealth[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f11))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f25))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.MaxHealth)*4))
 		i--
@@ -3434,9 +3847,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Health) > 0 {
 		for iNdEx := len(m.Health) - 1; iNdEx >= 0; iNdEx-- {
-			f12 := math.Float32bits(float32(m.Health[iNdEx]))
+			f26 := math.Float32bits(float32(m.Health[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f12))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f26))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Health)*4))
 		i--
@@ -3444,9 +3857,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Z) > 0 {
 		for iNdEx := len(m.Z) - 1; iNdEx >= 0; iNdEx-- {
-			f13 := math.Float32bits(float32(m.Z[iNdEx]))
+			f27 := math.Float32bits(float32(m.Z[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f13))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f27))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Z)*4))
 		i--
@@ -3454,9 +3867,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Y) > 0 {
 		for iNdEx := len(m.Y) - 1; iNdEx >= 0; iNdEx-- {
-			f14 := math.Float32bits(float32(m.Y[iNdEx]))
+			f28 := math.Float32bits(float32(m.Y[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f14))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f28))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Y)*4))
 		i--
@@ -3464,9 +3877,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.X) > 0 {
 		for iNdEx := len(m.X) - 1; iNdEx >= 0; iNdEx-- {
-			f15 := math.Float32bits(float32(m.X[iNdEx]))
+			f29 := math.Float32bits(float32(m.X[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f15))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f29))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.X)*4))
 		i--
@@ -3641,6 +4054,12 @@ func (m *TimelineAbilityCast) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.CooldownEnd != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.CooldownEnd))))
+		i--
+		dAtA[i] = 0x29
 	}
 	if m.AbilityId != 0 {
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.AbilityId))
@@ -4160,6 +4579,55 @@ func (m *TimelinePlayer) SizeVT() (n int) {
 		}
 		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
 	}
+	if len(m.Souls) > 0 {
+		l = 0
+		for _, e := range m.Souls {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.Level) > 0 {
+		l = 0
+		for _, e := range m.Level {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.LastHits) > 0 {
+		l = 0
+		for _, e := range m.LastHits {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.Denies) > 0 {
+		l = 0
+		for _, e := range m.Denies {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.Kills) > 0 {
+		l = 0
+		for _, e := range m.Kills {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.Assists) > 0 {
+		l = 0
+		for _, e := range m.Assists {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if len(m.Deaths) > 0 {
+		l = 0
+		for _, e := range m.Deaths {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -4227,6 +4695,9 @@ func (m *TimelineAbilityCast) SizeVT() (n int) {
 	}
 	if m.AbilityId != 0 {
 		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(m.AbilityId))
+	}
+	if m.CooldownEnd != 0 {
+		n += 9
 	}
 	n += len(m.unknownFields)
 	return n
@@ -4780,6 +5251,97 @@ func (x *TimelinePlayer) MarshalProtoText() string {
 		}
 		sb.WriteString("]")
 	}
+	if len(x.Souls) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("souls: [")
+		for i, v := range x.Souls {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Level) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("level: [")
+		for i, v := range x.Level {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.LastHits) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("last_hits: [")
+		for i, v := range x.LastHits {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Denies) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("denies: [")
+		for i, v := range x.Denies {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Kills) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("kills: [")
+		for i, v := range x.Kills {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Assists) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("assists: [")
+		for i, v := range x.Assists {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Deaths) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("deaths: [")
+		for i, v := range x.Deaths {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
+	}
 	sb.WriteString("}")
 	return sb.String()
 }
@@ -4896,6 +5458,13 @@ func (x *TimelineAbilityCast) MarshalProtoText() string {
 		}
 		sb.WriteString("ability_id: ")
 		sb.WriteString(strconv.FormatUint(uint64(x.AbilityId), 10))
+	}
+	if x.CooldownEnd != 0 {
+		if sb.Len() > 21 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("cooldown_end: ")
+		sb.WriteString(strconv.FormatFloat(x.CooldownEnd, 'g', -1, 64))
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -6210,6 +6779,342 @@ func (m *TimelinePlayer) UnmarshalVT(dAtA []byte) error {
 			} else {
 				return fmt.Errorf("proto: wrong wireType = %d for field MidBossDamage", wireType)
 			}
+		case 18:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Souls = append(m.Souls, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Souls) == 0 {
+					m.Souls = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Souls = append(m.Souls, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Souls", wireType)
+			}
+		case 19:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Level = append(m.Level, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Level) == 0 {
+					m.Level = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Level = append(m.Level, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Level", wireType)
+			}
+		case 20:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.LastHits = append(m.LastHits, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.LastHits) == 0 {
+					m.LastHits = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.LastHits = append(m.LastHits, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastHits", wireType)
+			}
+		case 21:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Denies = append(m.Denies, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Denies) == 0 {
+					m.Denies = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Denies = append(m.Denies, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Denies", wireType)
+			}
+		case 22:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Kills = append(m.Kills, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Kills) == 0 {
+					m.Kills = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Kills = append(m.Kills, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kills", wireType)
+			}
+		case 23:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Assists = append(m.Assists, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Assists) == 0 {
+					m.Assists = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Assists = append(m.Assists, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Assists", wireType)
+			}
+		case 24:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.Deaths = append(m.Deaths, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.Deaths) == 0 {
+					m.Deaths = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.Deaths = append(m.Deaths, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Deaths", wireType)
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
@@ -6482,6 +7387,18 @@ func (m *TimelineAbilityCast) UnmarshalVT(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
+		case 5:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CooldownEnd", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.CooldownEnd = float64(math.Float64frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
