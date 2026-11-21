@@ -64,6 +64,13 @@ func main() {
 			if len(fullTicks) == 1 && counts[name] < 4 {
 				peDump = 1
 			}
+			if verbose && counts[name] <= 3 {
+				// The first packets set up the client's first frame; list them.
+				peDump = 1
+				one := map[string]int{}
+				walk(pkt.GetData(), one, map[string]int{})
+				fmt.Printf("@%d %s tick=%d size=%d first=%v\n", start, name, int32(t), size, one)
+			}
 			walk(pkt.GetData(), kinds, kindBytes)
 			if kind == int32(protocol.EDemoCommands_DEM_SignonPacket) || verbose {
 				fmt.Printf("@%d %s tick=%d size=%d\n", start, name, int32(t), size)
@@ -123,11 +130,16 @@ func walk(data []byte, kinds, bytes map[string]int) {
 	for r.remaining() > 8 {
 		k := r.ubitvar()
 		sz := r.varint()
-		r.skip(int(sz) * 8)
 		name := msgName(int32(k))
-		if k == uint32(protocol.SVC_Messages_svc_PacketEntities) && peDump > 0 {
+		if k != uint32(protocol.SVC_Messages_svc_PacketEntities) || peDump == 0 {
+			r.skip(int(sz) * 8)
+		} else {
+			msg := make([]byte, sz)
+			for i := range msg {
+				msg[i] = byte(r.bits(8))
+			}
 			var pe protocol.CSVCMsg_PacketEntities
-			must(pe.UnmarshalVT(r.buf[r.pos/8-int(sz) : r.pos/8]))
+			must(pe.UnmarshalVT(msg))
 			fmt.Printf("    PE max=%d upd=%d delta=%v legacy_delta=%v baseline=%d upd_base=%v tick=%d pending_full=%v bytes=%d\n", pe.GetMaxEntries(), pe.GetUpdatedEntries(), pe.DeltaFrom, pe.GetLegacyIsDelta(), pe.GetBaseline(), pe.GetUpdateBaseline(), pe.GetServerTick(), pe.GetPendingFullFrame(), len(pe.GetEntityData()))
 			peDump--
 		}

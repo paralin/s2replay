@@ -3,12 +3,15 @@
 //
 //	democlip -o out.dem src.dem:A-B [src2.dem:C-D ...]
 //
-// Each segment starts with a synthetic full packet: every string table at its
-// latest copy and the entity snapshot of the source's last full packet at or
-// before A. The deltas between that snapshot and A follow at the segment's
-// first tick, stripped to state messages, so playback applies them in one
-// frame. Commands from A to B follow with their ticks moved so the output's
-// ticks rise from zero.
+// The game client builds its first frame from ordinary packets and reads a
+// full packet only when seeking, so each segment opens with one packet that
+// rebuilds the state at A: the entity frame of the source's last full packet
+// before A, and an update of every string table to that moment (a demo may
+// create each table only once). The source's state messages between that full
+// packet and A follow at the same tick, then a full packet for seeks, then
+// the commands from A to B. Game ticks in net_Tick and svc_PacketEntities are
+// renumbered to follow the output's ticks, which rise from zero across every
+// segment, because the client stalls on a game tick that runs backward.
 package main
 
 import (
@@ -134,6 +137,104 @@ func (s *tableState) snapshot() *protocol.CDemoStringTables {
 	return out
 }
 
+// tableSchema is how the client numbers a string table and encodes its
+// entries, as the table's svc_CreateStringTable in the signon set them.
+type tableSchema struct {
+	id       int32
+	fixed    bool
+	sizeBits int32
+	flags    int32
+	varint   bool
+}
+
+// tableSchemas reads the string tables the signon creates; ids follow the
+// order of creation.
+func (d *demo) tableSchemas() map[string]tableSchema {
+	out := map[string]tableSchema{}
+	for _, c := range d.signon {
+		if c.kind != protocol.EDemoCommands_DEM_SignonPacket {
+			continue
+		}
+		p := &protocol.CDemoPacket{}
+		must(p.UnmarshalVT(c.payload()))
+		eachMsg(p.GetData(), func(kind uint32, body []byte) {
+			switch kind {
+			case uint32(protocol.SVC_Messages_svc_ClearAllStringTables):
+				clear(out)
+			case uint32(protocol.SVC_Messages_svc_CreateStringTable):
+				m := &protocol.CSVCMsg_CreateStringTable{}
+				must(m.UnmarshalVT(body))
+				out[m.GetName()] = tableSchema{
+					id: int32(len(out)), fixed: m.GetUserDataFixedSize(), sizeBits: m.GetUserDataSizeBits(),
+					flags: m.GetFlags(), varint: m.GetUsingVarintBitcounts(),
+				}
+			}
+		})
+	}
+	return out
+}
+
+// rewriteTables returns a message stream of svc_UpdateStringTable messages
+// that set every entry of each table in st, by index, to st's key and value.
+// A demo may create each table only once, so a clip moves the client's tables
+// to a segment's state by updating them. Entries past st's length, and values
+// st leaves empty, keep what the client had: an update cannot remove them.
+func rewriteTables(st *protocol.CDemoStringTables, schemas map[string]tableSchema) []byte {
+	out := &bitWriter{}
+	for _, t := range st.GetTables() {
+		s, ok := schemas[t.GetTableName()]
+		if !ok || len(t.GetItems()) == 0 {
+			continue
+		}
+		e := &bitWriter{}
+		for _, it := range t.GetItems() {
+			e.bits(1, 1) // next index
+			e.bits(1, 1) // has key
+			e.bits(0, 1) // no key history
+			for _, b := range []byte(it.GetStr()) {
+				e.bits(uint32(b), 8)
+			}
+			e.bits(0, 8)
+			data := it.GetData()
+			if len(data) == 0 {
+				e.bits(0, 1)
+				continue
+			}
+			e.bits(1, 1)
+			n := len(data) * 8
+			if s.fixed {
+				n = int(s.sizeBits)
+			} else {
+				if s.flags&1 != 0 {
+					e.bits(0, 1) // not compressed
+				}
+				if s.varint {
+					e.ubitvar(uint32(len(data)))
+				} else {
+					e.bits(uint32(len(data)), 17)
+				}
+			}
+			for i := 0; i < n; i += 8 {
+				var b byte // a fixed-size value shorter than its size pads with zeros
+				if i/8 < len(data) {
+					b = data[i/8]
+				}
+				e.bits(uint32(b), min(8, n-i))
+			}
+		}
+		body, err := (&protocol.CSVCMsg_UpdateStringTable{
+			TableId: ptr(s.id), NumChangedEntries: ptr(int32(len(t.GetItems()))), StringData: e.finish(),
+		}).MarshalVT()
+		must(err)
+		out.ubitvar(uint32(protocol.SVC_Messages_svc_UpdateStringTable))
+		out.varint(uint32(len(body)))
+		for _, b := range body {
+			out.bits(uint32(b), 8)
+		}
+	}
+	return out.finish()
+}
+
 // segment is a tick range [from, to] of one source demo.
 type segment struct {
 	src      *demo
@@ -166,6 +267,13 @@ func (w *writer) putPayload(kind protocol.EDemoCommands, tick uint32, payload []
 	w.put(kind, false, tick, payload)
 }
 
+// putPacket writes a DEM_Packet holding the bit-packed messages data.
+func (w *writer) putPacket(tick uint32, data []byte) {
+	payload, err := (&protocol.CDemoPacket{Data: data}).MarshalVT()
+	must(err)
+	w.putPayload(protocol.EDemoCommands_DEM_Packet, tick, payload)
+}
+
 type options struct {
 	stripUserCmds bool
 }
@@ -174,20 +282,36 @@ func clip(segs []segment, opt options) []byte {
 	w := &writer{}
 	w.buf.WriteString("PBDEMS2\x00")
 	w.buf.Write(make([]byte, 8))
+	start := segs[0].src.serverStart() // game tick = start + output tick
 	for _, c := range segs[0].src.signon {
 		w.put(c.kind, c.compressed, c.tick, c.raw)
 	}
 	fp := segs[0].src.fingerprint()
-	var out uint32 // next output tick
+	schemas := segs[0].src.tableSchemas()
+	var out uint32 // last output tick
 	frames := 0
 	for i, seg := range segs {
 		if seg.src.fingerprint() != fp {
 			panic(fmt.Sprintf("segment %d: send tables or classes differ from the first segment's", i))
 		}
-		if i > 0 {
-			out++
+		// The opening sits one tick before the segment's first tick and
+		// after the previous segment's last.
+		open := out + 1
+		if i == 0 {
+			open = 0
 		}
-		base := out
+		base := open + 1
+		// Game ticks follow output ticks: the client orders frames by them
+		// and stalls when one runs backward. The opening's frames all take
+		// the opening's tick, so each prefix delta still applies to the frame
+		// before it.
+		first := seg.src.serverStart() + seg.from
+		retick := func(old uint32) uint32 {
+			if old < first {
+				return start + open
+			}
+			return start + base + (old - first)
+		}
 		tables := &tableState{tables: map[string]*protocol.CDemoStringTablesTableT{}}
 		for _, c := range seg.src.signon {
 			if c.kind == protocol.EDemoCommands_DEM_StringTables {
@@ -206,19 +330,18 @@ func clip(segs []segment, opt options) []byte {
 			if c.tick > seg.to {
 				break
 			}
-			if !started && c.tick < seg.from {
+			if c.tick < seg.from {
 				switch c.kind {
 				case protocol.EDemoCommands_DEM_FullPacket:
 					f := &protocol.CDemoFullPacket{}
 					must(f.UnmarshalVT(c.payload()))
 					tables.apply(f.GetStringTable())
-					last = f
-					prefix = nil
+					last, prefix = f, nil
 				case protocol.EDemoCommands_DEM_Packet:
 					if last != nil {
 						p := &protocol.CDemoPacket{}
 						must(p.UnmarshalVT(c.payload()))
-						if data := filterPacket(p.GetData(), keepState); len(data) > 0 {
+						if data := rewrite(p.GetData(), keepState, retick); len(data) > 0 {
 							prefix = append(prefix, data)
 						}
 					}
@@ -227,43 +350,45 @@ func clip(segs []segment, opt options) []byte {
 			}
 			if !started {
 				started = true
-				if c.kind != protocol.EDemoCommands_DEM_FullPacket {
-					if last == nil {
-						panic(fmt.Sprintf("segment %d: no full packet at or before tick %d", i, seg.from))
-					}
-					synth := &protocol.CDemoFullPacket{StringTable: tables.snapshot(), Packet: last.GetPacket()}
-					payload, err := synth.MarshalVT()
-					must(err)
-					w.putPayload(protocol.EDemoCommands_DEM_FullPacket, base, payload)
-					for _, data := range prefix {
-						payload, err := (&protocol.CDemoPacket{Data: data}).MarshalVT()
-						must(err)
-						w.putPayload(protocol.EDemoCommands_DEM_Packet, base, payload)
-					}
+				if last == nil {
+					panic(fmt.Sprintf("segment %d: no full packet before tick %d", i, seg.from))
+				}
+				// The client applies a full packet only when seeking; in
+				// playback it builds its first frame from ordinary packets,
+				// and it ends the demo at a packet without a net_Tick. So the
+				// opening is one packet: the last full packet's entity frame
+				// with every string table rewritten to that moment, then the
+				// state messages since. The full packet follows, for seeks.
+				frame := rewrite(last.GetPacket().GetData(), keepAll, retick)
+				w.putPacket(open, insertAfterTick(frame, rewriteTables(tables.snapshot(), schemas)))
+				synth := &protocol.CDemoFullPacket{StringTable: tables.snapshot(), Packet: &protocol.CDemoPacket{Data: frame}}
+				payload, err := synth.MarshalVT()
+				must(err)
+				w.putPayload(protocol.EDemoCommands_DEM_FullPacket, open, payload)
+				for _, data := range prefix {
+					w.putPacket(open, data)
 				}
 			}
 			t := base + (c.tick - seg.from)
-			switch {
-			case c.kind == protocol.EDemoCommands_DEM_FullPacket && t == base:
-				// The segment starts on a full packet: complete its tables.
-				f := &protocol.CDemoFullPacket{}
-				must(f.UnmarshalVT(c.payload()))
-				tables.apply(f.GetStringTable())
-				f.StringTable = tables.snapshot()
-				payload, err := f.MarshalVT()
-				must(err)
-				w.putPayload(c.kind, t, payload)
-			case c.kind == protocol.EDemoCommands_DEM_Packet && opt.stripUserCmds:
+			switch c.kind {
+			case protocol.EDemoCommands_DEM_Packet:
 				p := &protocol.CDemoPacket{}
 				must(p.UnmarshalVT(c.payload()))
-				payload, err := (&protocol.CDemoPacket{Data: filterPacket(p.GetData(), dropUserCmds)}).MarshalVT()
+				keep := keepAll
+				if opt.stripUserCmds {
+					keep = dropUserCmds
+				}
+				w.putPacket(t, rewrite(p.GetData(), keep, retick))
+				frames++
+			case protocol.EDemoCommands_DEM_FullPacket:
+				f := &protocol.CDemoFullPacket{}
+				must(f.UnmarshalVT(c.payload()))
+				f.Packet = &protocol.CDemoPacket{Data: rewrite(f.GetPacket().GetData(), keepAll, retick)}
+				payload, err := f.MarshalVT()
 				must(err)
 				w.putPayload(c.kind, t, payload)
 			default:
 				w.put(c.kind, c.compressed, t, c.raw)
-			}
-			if c.kind == protocol.EDemoCommands_DEM_Packet {
-				frames++
 			}
 			out = t
 		}
@@ -294,6 +419,58 @@ func clip(segs []segment, opt options) []byte {
 	return b
 }
 
+// serverStart returns the header's server_start_tick, the game tick of the
+// demo's tick zero.
+func (d *demo) serverStart() uint32 {
+	for _, c := range d.signon {
+		if c.kind == protocol.EDemoCommands_DEM_FileHeader {
+			h := &protocol.CDemoFileHeader{}
+			must(h.UnmarshalVT(c.payload()))
+			return uint32(h.GetServerStartTick())
+		}
+	}
+	return 0
+}
+
+// rewrite rewrites a packet's bit-packed message stream: it keeps each
+// message whose kind keep accepts, and moves the game ticks that net_Tick
+// and svc_PacketEntities carry through retick.
+func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32) []byte {
+	bw := &bitWriter{}
+	eachMsg(data, func(kind uint32, body []byte) {
+		if !keep(kind) {
+			return
+		}
+		switch kind {
+		case uint32(protocol.NET_Messages_net_Tick):
+			m := &protocol.CNETMsg_Tick{}
+			must(m.UnmarshalVT(body))
+			m.Tick = ptr(retick(m.GetTick()))
+			var err error
+			body, err = m.MarshalVT()
+			must(err)
+		case uint32(protocol.SVC_Messages_svc_PacketEntities):
+			m := &protocol.CSVCMsg_PacketEntities{}
+			must(m.UnmarshalVT(body))
+			m.ServerTick = ptr(retick(m.GetServerTick()))
+			if m.DeltaFrom != nil {
+				m.DeltaFrom = ptr(int32(retick(uint32(m.GetDeltaFrom()))))
+			}
+			var err error
+			body, err = m.MarshalVT()
+			must(err)
+		}
+		bw.ubitvar(kind)
+		bw.varint(uint32(len(body)))
+		for _, b := range body {
+			bw.bits(uint32(b), 8)
+		}
+	})
+	return bw.finish()
+}
+
+func keepAll(uint32) bool { return true }
+
 func ptr[T any](v T) *T { return &v }
 
 // keepState keeps the messages that carry world state, dropping user
@@ -311,24 +488,43 @@ func keepState(kind uint32) bool {
 
 func dropUserCmds(kind uint32) bool { return kind != uint32(protocol.SVC_Messages_svc_UserCmds) }
 
-// filterPacket rewrites a packet's bit-packed message stream, keeping each
-// message whose kind keep accepts.
-func filterPacket(data []byte, keep func(uint32) bool) []byte {
-	r := &bitReader{buf: data}
+// insertAfterTick returns data's message stream with the messages of extra
+// inserted after its net_Tick, so they apply in the same frame.
+func insertAfterTick(data []byte, extra ...[]byte) []byte {
 	bw := &bitWriter{}
-	for r.remaining() > 8 {
-		kind := r.ubitvar()
-		size := r.varint()
-		body := r.bytes(int(size))
-		if keep(kind) {
+	copyMsgs := func(data []byte, after func(kind uint32)) {
+		r := &bitReader{buf: data}
+		for r.remaining() > 8 {
+			kind := r.ubitvar()
+			size := r.varint()
+			body := r.bytes(int(size))
 			bw.ubitvar(kind)
 			bw.varint(size)
 			for _, b := range body {
 				bw.bits(uint32(b), 8)
 			}
+			after(kind)
 		}
 	}
+	copyMsgs(data, func(kind uint32) {
+		if kind == uint32(protocol.NET_Messages_net_Tick) {
+			for _, e := range extra {
+				copyMsgs(e, func(uint32) {})
+			}
+		}
+	})
 	return bw.finish()
+}
+
+// eachMsg calls fn with the kind and body of each message in a packet's
+// bit-packed message stream.
+func eachMsg(data []byte, fn func(kind uint32, body []byte)) {
+	r := &bitReader{buf: data}
+	for r.remaining() > 8 {
+		kind := r.ubitvar()
+		size := r.varint()
+		fn(kind, r.bytes(int(size)))
+	}
 }
 
 type bitReader struct {
