@@ -10,8 +10,8 @@
 // create each table only once). The source's state messages between that full
 // packet and A follow at the same tick, then a full packet for seeks, then
 // the commands from A to B. Game ticks in net_Tick and svc_PacketEntities are
-// renumbered to follow the output's ticks, which rise from zero across every
-// segment, because the client stalls on a game tick that runs backward.
+// shifted per segment so they rise across every segment, because the client
+// stalls on a game tick that runs backward.
 package main
 
 import (
@@ -20,12 +20,14 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/klauspost/compress/snappy"
+	"github.com/paralin/s2replay"
 	"github.com/paralin/s2replay/protocol"
 )
 
@@ -288,7 +290,8 @@ func clip(segs []segment, opt options) []byte {
 	}
 	fp := segs[0].src.fingerprint()
 	schemas := segs[0].src.tableSchemas()
-	var out uint32 // last output tick
+	var out uint32    // last output tick
+	game := start - 1 // last game tick written
 	frames := 0
 	for i, seg := range segs {
 		if seg.src.fingerprint() != fp {
@@ -301,16 +304,34 @@ func clip(segs []segment, opt options) []byte {
 			open = 0
 		}
 		base := open + 1
-		// Game ticks follow output ticks: the client orders frames by them
-		// and stalls when one runs backward. The opening's frames all take
-		// the opening's tick, so each prefix delta still applies to the frame
-		// before it.
-		first := seg.src.serverStart() + seg.from
-		retick := func(old uint32) uint32 {
-			if old < first {
-				return start + open
-			}
-			return start + base + (old - first)
+		// Game ticks keep their spacing from the source, shifted by one
+		// offset per segment so that the segment's keyframe follows the last
+		// game tick written: the client stalls on a game tick that runs
+		// backward, and it keeps one frame per game tick, so the prefix
+		// deltas need their own distinct ticks. Game ticks may run ahead of
+		// output ticks; the client seeks from each full packet's own tick.
+		var off int64
+		prev := game
+		// A full frame in an ordinary packet updates any entity already at
+		// its index instead of recreating it, so a later segment first
+		// deletes every entity the previous one left alive, one tick ahead
+		// of its keyframe.
+		var live []int32
+		if i > 0 {
+			live = liveEntities(clip(segs[i-1:i], opt))
+			prev++
+		}
+		retick := func(old uint32) uint32 { return uint32(int64(old) + off) }
+		keep := keepAll
+		if opt.stripUserCmds {
+			keep = dropUserCmds
+		}
+		// track reticks a written packet and records its game tick, so the
+		// next segment starts after it.
+		track := func(old uint32) uint32 {
+			t := retick(old)
+			game = max(game, t)
+			return t
 		}
 		tables := &tableState{tables: map[string]*protocol.CDemoStringTablesTableT{}}
 		for _, c := range seg.src.signon {
@@ -337,6 +358,7 @@ func clip(segs []segment, opt options) []byte {
 					must(f.UnmarshalVT(c.payload()))
 					tables.apply(f.GetStringTable())
 					last, prefix = f, nil
+					off = int64(prev+1) - int64(firstTick(f.GetPacket().GetData()))
 				case protocol.EDemoCommands_DEM_Packet:
 					if last != nil {
 						p := &protocol.CDemoPacket{}
@@ -359,7 +381,10 @@ func clip(segs []segment, opt options) []byte {
 				// opening is one packet: the last full packet's entity frame
 				// with every string table rewritten to that moment, then the
 				// state messages since. The full packet follows, for seeks.
-				frame := rewrite(last.GetPacket().GetData(), keepAll, retick)
+				frame := rewrite(last.GetPacket().GetData(), keep, retick)
+				if i > 0 && os.Getenv("DEMOCLIP_NORESET") == "" {
+					w.putPacket(open, deleteAll(live, prev-1, prev, maxEntries(frame)))
+				}
 				w.putPacket(open, insertAfterTick(frame, rewriteTables(tables.snapshot(), schemas)))
 				synth := &protocol.CDemoFullPacket{StringTable: tables.snapshot(), Packet: &protocol.CDemoPacket{Data: frame}}
 				payload, err := synth.MarshalVT()
@@ -374,16 +399,12 @@ func clip(segs []segment, opt options) []byte {
 			case protocol.EDemoCommands_DEM_Packet:
 				p := &protocol.CDemoPacket{}
 				must(p.UnmarshalVT(c.payload()))
-				keep := keepAll
-				if opt.stripUserCmds {
-					keep = dropUserCmds
-				}
-				w.putPacket(t, rewrite(p.GetData(), keep, retick))
+				w.putPacket(t, rewrite(p.GetData(), keep, track))
 				frames++
 			case protocol.EDemoCommands_DEM_FullPacket:
 				f := &protocol.CDemoFullPacket{}
 				must(f.UnmarshalVT(c.payload()))
-				f.Packet = &protocol.CDemoPacket{Data: rewrite(f.GetPacket().GetData(), keepAll, retick)}
+				f.Packet = &protocol.CDemoPacket{Data: rewrite(f.GetPacket().GetData(), keep, track)}
 				payload, err := f.MarshalVT()
 				must(err)
 				w.putPayload(c.kind, t, payload)
@@ -471,6 +492,90 @@ func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32) []
 
 func keepAll(uint32) bool { return true }
 
+// liveEntities returns the indices of the entities alive at the end of demo,
+// except the world at index 0: every segment shares its map, and the client
+// cannot survive losing it.
+func liveEntities(demo []byte) []int32 {
+	p, err := s2replay.NewParser(demo)
+	must(err)
+	for {
+		if _, err := p.NextMessage(); err != nil {
+			if err == io.EOF {
+				break
+			}
+			panic(err)
+		}
+	}
+	var live []int32
+	for i := int32(1); i < 1<<14; i++ {
+		if p.FindEntity(i) != nil {
+			live = append(live, i)
+		}
+	}
+	return live
+}
+
+// maxEntries returns the max_entries of a packet's svc_PacketEntities.
+func maxEntries(data []byte) int32 {
+	var n int32
+	eachMsg(data, func(kind uint32, body []byte) {
+		if kind == uint32(protocol.SVC_Messages_svc_PacketEntities) {
+			m := &protocol.CSVCMsg_PacketEntities{}
+			must(m.UnmarshalVT(body))
+			n = m.GetMaxEntries()
+		}
+	})
+	return n
+}
+
+// deleteAll returns a packet at game tick tick whose entity delta, from
+// game tick from, leaves and deletes each entity in live (ascending).
+func deleteAll(live []int32, from, tick uint32, max int32) []byte {
+	ents := &bitWriter{}
+	last := int32(-1)
+	for _, e := range live {
+		ents.ubitvar(uint32(e - last - 1))
+		ents.bits(3, 2) // leave and delete
+		last = e
+	}
+	pe := &protocol.CSVCMsg_PacketEntities{
+		MaxEntries:     ptr(max),
+		UpdatedEntries: ptr(int32(len(live))),
+		LegacyIsDelta:  ptr(true),
+		DeltaFrom:      ptr(int32(from)),
+		ServerTick:     ptr(tick),
+		EntityData:     ents.finish(),
+	}
+	bw := &bitWriter{}
+	for _, m := range []struct {
+		kind uint32
+		msg  interface{ MarshalVT() ([]byte, error) }
+	}{
+		{uint32(protocol.NET_Messages_net_Tick), &protocol.CNETMsg_Tick{Tick: ptr(tick)}},
+		{uint32(protocol.SVC_Messages_svc_PacketEntities), pe},
+	} {
+		body, err := m.msg.MarshalVT()
+		must(err)
+		bw.ubitvar(m.kind)
+		bw.varint(uint32(len(body)))
+		for _, b := range body {
+			bw.bits(uint32(b), 8)
+		}
+	}
+	return bw.finish()
+}
+
+// firstTick returns the lowest game tick a packet carries in its net_Tick
+// and svc_PacketEntities, which need not agree.
+func firstTick(data []byte) uint32 {
+	tick := ^uint32(0)
+	rewrite(data, keepAll, func(t uint32) uint32 {
+		tick = min(tick, t)
+		return t
+	})
+	return tick
+}
+
 func ptr[T any](v T) *T { return &v }
 
 // keepState keeps the messages that carry world state, dropping user
@@ -480,13 +585,22 @@ func keepState(kind uint32) bool {
 	switch kind {
 	case uint32(protocol.SVC_Messages_svc_UserCmds), uint32(protocol.SVC_Messages_svc_VoiceData),
 		uint32(protocol.SVC_Messages_svc_Sounds), uint32(protocol.SVC_Messages_svc_HLTVStatus),
-		uint32(protocol.SVC_Messages_svc_Print), uint32(protocol.SVC_Messages_svc_UserMessage):
+		uint32(protocol.SVC_Messages_svc_Print), uint32(protocol.SVC_Messages_svc_UserMessage),
+		svcUserCmdKeyframe:
 		return false
 	}
 	return kind < 100
 }
 
-func dropUserCmds(kind uint32) bool { return kind != uint32(protocol.SVC_Messages_svc_UserCmds) }
+// svcUserCmdKeyframe is svc_UserCmdKeyframe, which the protocol package
+// predates: a full frame of each player's input that later svc_UserCmds
+// deltas build on.
+const svcUserCmdKeyframe = 79
+
+// dropUserCmds drops recorded player input.
+func dropUserCmds(kind uint32) bool {
+	return kind != uint32(protocol.SVC_Messages_svc_UserCmds) && kind != svcUserCmdKeyframe
+}
 
 // insertAfterTick returns data's message stream with the messages of extra
 // inserted after its net_Tick, so they apply in the same frame.

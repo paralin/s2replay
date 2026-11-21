@@ -16,10 +16,16 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: demolayout <demo.dem> [-v]")
+		fmt.Fprintln(os.Stderr, "usage: demolayout <demo.dem> [-v | LO-HI]")
 		os.Exit(2)
 	}
+	// -v lists the first packets; LO-HI lists the packets in that tick range.
 	verbose := len(os.Args) > 2
+	lo, hi := uint32(0), uint32(2)
+	if verbose && os.Args[2] != "-v" {
+		_, err := fmt.Sscanf(os.Args[2], "%d-%d", &lo, &hi)
+		must(err)
+	}
 	buf, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		panic(err)
@@ -61,10 +67,7 @@ func main() {
 		case protocol.EDemoCommands_DEM_Packet, protocol.EDemoCommands_DEM_SignonPacket:
 			var pkt protocol.CDemoPacket
 			must(pkt.UnmarshalVT(payload))
-			if len(fullTicks) == 1 && counts[name] < 4 {
-				peDump = 1
-			}
-			if verbose && counts[name] <= 3 {
+			if verbose && (counts[name] <= 3 || lo <= t && t <= hi) {
 				// The first packets set up the client's first frame; list them.
 				peDump = 1
 				one := map[string]int{}
@@ -80,7 +83,7 @@ func main() {
 			must(fp.UnmarshalVT(payload))
 			fullTicks = append(fullTicks, t)
 			sub := map[string]int{}
-			if len(fullTicks) < 4 {
+			if verbose && lo <= t && t <= hi {
 				peDump = 1
 			}
 			walk(fp.GetPacket().GetData(), sub, map[string]int{})
@@ -131,9 +134,18 @@ func walk(data []byte, kinds, bytes map[string]int) {
 		k := r.ubitvar()
 		sz := r.varint()
 		name := msgName(int32(k))
-		if k != uint32(protocol.SVC_Messages_svc_PacketEntities) || peDump == 0 {
+		switch {
+		case k == uint32(protocol.NET_Messages_net_Tick) && peDump > 0:
+			msg := make([]byte, sz)
+			for i := range msg {
+				msg[i] = byte(r.bits(8))
+			}
+			var nt protocol.CNETMsg_Tick
+			must(nt.UnmarshalVT(msg))
+			fmt.Printf("    net_Tick %d\n", nt.GetTick())
+		case k != uint32(protocol.SVC_Messages_svc_PacketEntities) || peDump == 0:
 			r.skip(int(sz) * 8)
-		} else {
+		default:
 			msg := make([]byte, sz)
 			for i := range msg {
 				msg[i] = byte(r.bits(8))
