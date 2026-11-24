@@ -42,6 +42,10 @@ message MatchTimeline {
   // Troopers lists samples of the lane troopers' positions, in time order, up
   // to four a second for each trooper.
   repeated TimelineTrooper troopers = 13;
+  // TrackStepSeconds is the game time between the samples of the players'
+  // tracks, or 0 when the timeline has none. Track sample k is at game time
+  // k * track_step_seconds.
+  double track_step_seconds = 14;
 }
 
 // TimelineClock is the match clock at one sample, recorded at the first
@@ -111,6 +115,26 @@ message TimelinePlayer {
   repeated int32 kills = 22;
   repeated int32 assists = 23;
   repeated int32 deaths = 24;
+  // Track is the hero's movement at the timeline's track step, absent when
+  // the timeline has no tracks. Its columns have one entry per track sample.
+  TimelineTrack track = 25;
+}
+
+// TimelineTrack is one hero's movement, sampled often enough to redraw it: the
+// hero's last observed state at or before each track sample. Before the hero
+// first appears, the columns repeat its first observed state.
+message TimelineTrack {
+  // X is the hero's world X position at each track sample.
+  repeated float x = 1;
+  // Y is the hero's world Y position at each track sample.
+  repeated float y = 2;
+  // Z is the hero's world Z position at each track sample.
+  repeated float z = 3;
+  // Yaw is the camera's yaw in degrees at each track sample.
+  repeated float yaw = 4;
+  // Pitch is the camera's pitch in degrees at each track sample, positive
+  // looking down.
+  repeated float pitch = 5;
 }
 
 // TimelineHit is one instance of hero to hero damage.

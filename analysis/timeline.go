@@ -90,10 +90,34 @@ func damageTargetOf(victimClass uint32) damageTarget {
 	return targetNone
 }
 
+// TimelineOptions selects what reading a timeline records beyond the half
+// second columns, and whether it shows the timeline while it reads.
+type TimelineOptions struct {
+	// TrackStepSeconds is the game time between samples of each hero's track,
+	// or 0 to record no tracks.
+	TrackStepSeconds float64
+	// SpanSeconds is the game time between calls of Span; 0 makes no calls.
+	SpanSeconds float64
+	// Span is called with the timeline so far each time another SpanSeconds of
+	// the replay has been read, and may be nil. The timeline holds every record
+	// and sample through the span's end. It changes when Span returns, so Span
+	// copies what it keeps and writes nothing. An error ends the reading.
+	Span func(tl *MatchTimeline) error
+}
+
 // BuildMatchTimeline reads a replay from the parser's current position to its
 // end and reduces it to a timeline.
 func BuildMatchTimeline(p *s2replay.Parser) (*MatchTimeline, error) {
-	b := newTimelineBuilder(p)
+	return ReadMatchTimeline(p, TimelineOptions{})
+}
+
+// ReadMatchTimeline reads a replay from the parser's current position to its
+// end and reduces it to a timeline, as the options select. The last span may
+// be shorter than the rest and is not passed to Span.
+func ReadMatchTimeline(p *s2replay.Parser, opts TimelineOptions) (*MatchTimeline, error) {
+	// Read the replay, showing the timeline at each span's end.
+	b := newTimelineBuilder(p, opts)
+	spans := 0
 	for {
 		ev, err := p.NextEvent()
 		if errors.Is(err, io.EOF) {
@@ -103,15 +127,21 @@ func BuildMatchTimeline(p *s2replay.Parser) (*MatchTimeline, error) {
 			return nil, err
 		}
 		b.accept(ev)
+		for opts.Span != nil && opts.SpanSeconds > 0 && float64(spans+1)*opts.SpanSeconds < ev.GameTime {
+			spans++
+			if err := opts.Span(b.publish()); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return b.finish(), nil
 }
 
 // newTimelineBuilder starts an empty timeline of the parser's replay.
-func newTimelineBuilder(p *s2replay.Parser) *timelineBuilder {
+func newTimelineBuilder(p *s2replay.Parser, opts TimelineOptions) *timelineBuilder {
 	return &timelineBuilder{
 		parser:  p,
-		out:     &MatchTimeline{StepSeconds: timelineStep},
+		out:     &MatchTimeline{StepSeconds: timelineStep, TrackStepSeconds: max(opts.TrackStepSeconds, 0)},
 		byCtrl:  make(map[int32]*timelinePlayer),
 		byPawn:  make(map[int32]*timelinePlayer),
 		objects: make(map[int32]*timelineObject),
@@ -134,8 +164,10 @@ type timelineBuilder struct {
 	objects map[int32]*timelineObject
 	// allObjects lists every tracked map object, in order of first sighting.
 	allObjects []*timelineObject
-	// samples is the number of samples taken.
-	samples int
+	// samples is the number of samples taken, and trackSamples the number of
+	// track samples.
+	samples      int
+	trackSamples int
 	// rules is the game rules entity, or -1 until a scan finds it.
 	rules int32
 	// hits, casts and purchases hold events by player until the player list
@@ -145,6 +177,14 @@ type timelineBuilder struct {
 	// abilityCasts hold every ability use until the player list is final.
 	abilityCasts []timelineAbilityCast
 	purchases    []timelinePurchase
+	// published counts the events of each kind, and the objects, that out
+	// already lists for the players it names.
+	published timelinePublished
+}
+
+// timelinePublished counts the records already resolved into the output.
+type timelinePublished struct {
+	hits, casts, abilityCasts, purchases, objects int
 }
 
 // timelinePlayer is a controller and its hero's latest state.
@@ -170,7 +210,9 @@ type timelinePlayer struct {
 // timelineFrame is one hero's state.
 type timelineFrame struct {
 	x, y, z, health, maxHealth, yaw, speed float32
-	alive                                  bool
+	// cameraYaw and cameraPitch are the camera's angles.
+	cameraYaw, cameraPitch float32
+	alive                  bool
 }
 
 // timelineHit, timelineCast and timelinePurchase are events waiting for their
@@ -205,8 +247,17 @@ type timelineObject struct {
 
 // accept folds one event into the timeline, then samples up to its time.
 func (b *timelineBuilder) accept(ev s2replay.Event) {
+	// Take the track samples due before the event, from the state at them.
 	t := ev.GameTime
 	b.out.DurationSeconds = max(b.out.DurationSeconds, t)
+	if step := b.out.TrackStepSeconds; step > 0 {
+		for float64(b.trackSamples)*step < t {
+			b.trackSamples++
+			b.fillTracks()
+		}
+	}
+
+	// Fold the event into the timeline.
 	switch ev.Type {
 	case s2replay.EventControllerSample:
 		b.acceptController(ev)
@@ -237,8 +288,28 @@ func (b *timelineBuilder) accept(ev s2replay.Event) {
 			b.out.WinningTeam = ev.PostMatch.WinningTeam + entityTeamOffset
 		}
 	}
+
+	// Take the samples due at the event's time.
 	for float64(b.samples)*timelineStep <= t {
 		b.sample()
+	}
+}
+
+// fillTracks appends each seen hero's latest state to its track until the
+// track reaches the track sample count.
+func (b *timelineBuilder) fillTracks() {
+	for _, pl := range b.players {
+		// A hero not yet seen is backfilled when it appears.
+		if !pl.seen {
+			continue
+		}
+		if pl.row.Track == nil {
+			pl.row.Track = &TimelineTrack{}
+		}
+		for tr, f := pl.row.Track, &pl.frame; len(tr.X) < b.trackSamples; {
+			tr.X, tr.Y, tr.Z = append(tr.X, f.x), append(tr.Y, f.y), append(tr.Z, f.z)
+			tr.Yaw, tr.Pitch = append(tr.Yaw, f.cameraYaw), append(tr.Pitch, f.cameraPitch)
+		}
 	}
 }
 
@@ -343,6 +414,11 @@ func (b *timelineBuilder) acceptPawn(s *s2replay.EntitySample) {
 		f.yaw = s.FacingY
 	} else if s.HasCameraAngles[1] {
 		f.yaw = s.CameraAngles[1]
+	}
+	if s.HasCameraAngles[0] && s.HasCameraAngles[1] {
+		f.cameraPitch, f.cameraYaw = s.CameraAngles[0], s.CameraAngles[1]
+	} else if s.HasFacing {
+		f.cameraPitch, f.cameraYaw = s.FacingX, s.FacingY
 	}
 	if s.HasVelocity {
 		f.speed = float32(math.Hypot(float64(s.VelocityX), float64(s.VelocityY)))
@@ -509,21 +585,29 @@ func (b *timelineBuilder) sampleObjects(k int) {
 	}
 }
 
-// finish keeps the players who controlled a hero, aligns their columns to the
-// sample count, and resolves events to player indexes.
+// finish completes the timeline at the replay's end.
 func (b *timelineBuilder) finish() *MatchTimeline {
+	if step := b.out.TrackStepSeconds; step > 0 {
+		b.trackSamples = int(b.out.DurationSeconds/step) + 1
+		b.fillTracks()
+	}
+	return b.publish()
+}
+
+// publish brings the output up to the events read so far: it lists the players
+// who controlled a hero, aligns their columns to the sample count, and
+// resolves events to player indexes.
+func (b *timelineBuilder) publish() *MatchTimeline {
 	// Keep the hero players and align their columns.
 	out := b.out
 	out.TickInterval = b.parser.Clock().TickInterval()
-	kept := func(pl *timelinePlayer) bool {
-		return pl.row.GetHeroId() != 0 && pl.seen
-	}
+	var players []*TimelinePlayer
 	for _, pl := range b.players {
-		if !kept(pl) {
+		if !pl.kept() {
 			continue
 		}
-		pl.index = uint32(len(out.Players))
-		out.Players = append(out.Players, pl.row)
+		pl.index = uint32(len(players))
+		players = append(players, pl.row)
 		for len(pl.row.X) < b.samples {
 			pl.appendFrame()
 		}
@@ -533,33 +617,46 @@ func (b *timelineBuilder) finish() *MatchTimeline {
 		}
 	}
 
-	// Resolve the events of kept players.
-	for _, h := range b.hits {
-		if kept(h.attacker) && kept(h.victim) {
+	// Resolve every event again when the player list changed.
+	done := &b.published
+	if !slices.Equal(players, out.Players) {
+		out.Players = players
+		out.Hits, out.Casts, out.AbilityCasts, out.Purchases = nil, nil, nil, nil
+		*done = timelinePublished{objects: done.objects}
+	}
+
+	// Resolve the new events of kept players.
+	for _, h := range b.hits[done.hits:] {
+		if h.attacker.kept() && h.victim.kept() {
 			h.hit.Attacker, h.hit.Victim = h.attacker.index, h.victim.index
 			out.Hits = append(out.Hits, h.hit)
 		}
 	}
-	for _, c := range b.casts {
-		if kept(c.player) {
+	for _, c := range b.casts[done.casts:] {
+		if c.player.kept() {
 			c.cast.Player = c.player.index
 			out.Casts = append(out.Casts, c.cast)
 		}
 	}
-	for _, c := range b.abilityCasts {
-		if kept(c.player) {
+	for _, c := range b.abilityCasts[done.abilityCasts:] {
+		if c.player.kept() {
 			c.cast.Player = c.player.index
 			out.AbilityCasts = append(out.AbilityCasts, c.cast)
 		}
 	}
-	for _, pu := range b.purchases {
-		if kept(pu.player) {
+	for _, pu := range b.purchases[done.purchases:] {
+		if pu.player.kept() {
 			pu.purchase.Player = pu.player.index
 			out.Purchases = append(out.Purchases, pu.purchase)
 		}
 	}
-	for _, o := range b.allObjects {
+	for _, o := range b.allObjects[done.objects:] {
 		out.Objects = append(out.Objects, o.row)
 	}
+	*done = timelinePublished{len(b.hits), len(b.casts), len(b.abilityCasts), len(b.purchases), len(b.allObjects)}
 	return out
 }
+
+// kept reports whether the player controlled a hero, so the timeline lists
+// them.
+func (pl *timelinePlayer) kept() bool { return pl.row.GetHeroId() != 0 && pl.seen }

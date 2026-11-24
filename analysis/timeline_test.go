@@ -27,7 +27,7 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := newTimelineBuilder(p)
+	b := newTimelineBuilder(p, TimelineOptions{})
 	var post *s2replay.PostMatchEvent
 	for {
 		ev, err := p.NextEvent()
@@ -126,4 +126,147 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 	}
 	t.Logf("tick interval %v, clock %v", tl.GetTickInterval(), clock)
 	t.Logf("%d players, %d samples, %d hits, %d objects", len(tl.GetPlayers()), samples, len(tl.GetHits()), len(tl.GetObjects()))
+}
+
+// TestMatchTimelineSpans reads a whole match with tracks and spans and checks
+// that a span never changes what the timeline reads: the result equals the
+// plain timeline without its tracks, each span holds every sample and event
+// through its end, and no later span changes them. It also checks each track
+// against the positions the replay itself records.
+func TestMatchTimelineSpans(t *testing.T) {
+	path := os.Getenv("S2REPLAY_PINNED_DEMO")
+	if path == "" {
+		t.Skip("set S2REPLAY_PINNED_DEMO to a whole match to run the span check")
+	}
+	demo, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parse := func() *s2replay.Parser {
+		p, err := s2replay.NewParser(demo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	// Read the match with tracks, keeping what each span showed.
+	const step, span = 0.125, 25.0
+	type shown struct {
+		hits, casts int
+		x           []float32
+	}
+	var spans []shown
+	tl, err := ReadMatchTimeline(parse(), TimelineOptions{TrackStepSeconds: step, SpanSeconds: span, Span: func(tl *MatchTimeline) error {
+		end := float64(len(spans)+1) * span
+		var at shown
+		for _, h := range tl.GetHits() {
+			if h.GetSeconds() <= end {
+				at.hits++
+			}
+		}
+		for _, c := range tl.GetAbilityCasts() {
+			if c.GetSeconds() <= end {
+				at.casts++
+			}
+		}
+		for _, pl := range tl.GetPlayers() {
+			x := pl.GetTrack().GetX()
+			if len(x) <= int(end/step) {
+				t.Fatalf("span %d: player %d has %d track samples, want past %d", len(spans), pl.GetAccountId(), len(x), int(end/step))
+			}
+			at.x = append(at.x, x[int(end/step)])
+		}
+		spans = append(spans, at)
+		return nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Later reading changed nothing a span showed, once every hero is listed.
+	for i, at := range spans {
+		if len(at.x) != len(tl.GetPlayers()) {
+			continue
+		}
+		end := float64(i+1) * span
+		hits, casts := 0, 0
+		for _, h := range tl.GetHits() {
+			if h.GetSeconds() <= end {
+				hits++
+			}
+		}
+		for _, c := range tl.GetAbilityCasts() {
+			if c.GetSeconds() <= end {
+				casts++
+			}
+		}
+		if hits != at.hits || casts != at.casts {
+			t.Errorf("span %d showed %d hits and %d casts, the timeline has %d and %d", i, at.hits, at.casts, hits, casts)
+		}
+		for j, pl := range tl.GetPlayers() {
+			if pl.GetTrack().GetX()[int(end/step)] != at.x[j] {
+				t.Errorf("span %d: player %d moved after it was shown", i, j)
+			}
+		}
+	}
+
+	// The track columns align, and stay within a tick's movement of the
+	// positions the replay records.
+	samples := int(tl.GetDurationSeconds()/step) + 1
+	byAccount := make(map[uint32]*TimelineTrack)
+	for _, pl := range tl.GetPlayers() {
+		tr := pl.GetTrack()
+		for _, n := range []int{len(tr.GetX()), len(tr.GetY()), len(tr.GetZ()), len(tr.GetYaw()), len(tr.GetPitch())} {
+			if n != samples {
+				t.Fatalf("player %d has a track column of %d samples, want %d", pl.GetAccountId(), n, samples)
+			}
+		}
+		byAccount[pl.GetAccountId()] = tr
+	}
+	accounts := make(map[int32]uint32)
+	differ, checked, p := 0, 0, parse()
+	for {
+		ev, err := p.NextEvent()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := ev.ControllerSample; c != nil && c.SteamID != 0 {
+			accounts[c.Entity] = uint32(c.SteamID - steamID64Base)
+		}
+		s := ev.EntitySample
+		if s == nil || s.ClassName != "CCitadelPlayerPawn" || !s.HasPosition || !s.HasCameraAngles[0] {
+			continue
+		}
+		tr := byAccount[accounts[s.OwnerEntity]]
+		k := math.Round(ev.GameTime / step)
+		if tr == nil || math.Abs(ev.GameTime-k*step) > 1e-6 || int(k) >= samples {
+			continue
+		}
+		checked++
+		i := int(k)
+		if math.Hypot(float64(tr.X[i]-s.PositionX), float64(tr.Y[i]-s.PositionY)) > 0.01 || tr.Pitch[i] != s.CameraAngles[0] {
+			differ++
+		}
+	}
+	if checked == 0 || differ*200 > checked {
+		t.Errorf("%d of %d track samples differ from the replay's own sample at that time", differ, checked)
+	}
+
+	// Without its tracks it is the plain timeline.
+	plain, err := BuildMatchTimeline(parse())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tl.TrackStepSeconds = 0
+	for _, pl := range tl.GetPlayers() {
+		pl.Track = nil
+	}
+	if !tl.EqualVT(plain) {
+		t.Error("reading tracks and spans changed the timeline")
+	}
+	t.Logf("%d spans, %d track samples, %d checked, %d differ", len(spans), samples, checked, differ)
 }

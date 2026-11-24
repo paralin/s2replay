@@ -11,7 +11,7 @@ import (
 // and melee uses are left out, and a use by an unknown owner is dropped.
 func TestTimelineCastsAndFacing(t *testing.T) {
 	// Introduce a hero pawn that faces 90 degrees.
-	b := newTimelineBuilder(nil)
+	b := newTimelineBuilder(nil, TimelineOptions{})
 	b.acceptPawn(&s2replay.EntitySample{
 		ClassName: "CCitadelPlayerPawn", Entity: 7, HasOwnerEntity: true, OwnerEntity: 3, HasHeroID: true, HeroID: 17,
 		HasFacing: true, FacingY: 90,

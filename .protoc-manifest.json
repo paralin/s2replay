@@ -4,7 +4,7 @@
   "toolVersions": "protoc=embedded,protobuf-go-lite=v0.14.0,starpc=v0.49.18",
   "packages": {
     "github.com/paralin/s2replay/analysis": {
-      "hash": "b82e5e313592ebc8620157a1556e85fc9bc4585f6e9cd40befd401a4df1d6040",
+      "hash": "15ae6bff91bac43b8e532c211b45ff2ab98828ea9c386b6af67c6809fbbb9003",
       "generatedFiles": [
         "analysis/timeline.pb.go"
       ],

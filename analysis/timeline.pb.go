@@ -172,6 +172,10 @@ type MatchTimeline struct {
 	// Troopers lists samples of the lane troopers' positions, in time order, up
 	// to four a second for each trooper.
 	Troopers []*TimelineTrooper `protobuf:"bytes,13,rep,name=troopers,proto3" json:"troopers,omitempty"`
+	// TrackStepSeconds is the game time between the samples of the players'
+	// tracks, or 0 when the timeline has none. Track sample k is at game time
+	// k * track_step_seconds.
+	TrackStepSeconds float64 `protobuf:"fixed64,14,opt,name=track_step_seconds,json=trackStepSeconds,proto3" json:"trackStepSeconds,omitempty"`
 }
 
 func (x *MatchTimeline) Reset() {
@@ -271,6 +275,13 @@ func (x *MatchTimeline) GetTroopers() []*TimelineTrooper {
 	return nil
 }
 
+func (x *MatchTimeline) GetTrackStepSeconds() float64 {
+	if x != nil {
+		return x.TrackStepSeconds
+	}
+	return 0
+}
+
 // TimelineClock is the match clock at one sample, recorded at the first
 // sample that sees the game rules and at every sample where the clock has not
 // advanced with the samples, so each paused sample has an entry. The last
@@ -360,6 +371,9 @@ type TimelinePlayer struct {
 	Kills   []int32 `protobuf:"varint,22,rep,packed,name=kills,proto3" json:"kills,omitempty"`
 	Assists []int32 `protobuf:"varint,23,rep,packed,name=assists,proto3" json:"assists,omitempty"`
 	Deaths  []int32 `protobuf:"varint,24,rep,packed,name=deaths,proto3" json:"deaths,omitempty"`
+	// Track is the hero's movement at the timeline's track step, absent when
+	// the timeline has no tracks. Its columns have one entry per track sample.
+	Track *TimelineTrack `protobuf:"bytes,25,opt,name=track,proto3" json:"track,omitempty"`
 }
 
 func (x *TimelinePlayer) Reset() {
@@ -532,6 +546,72 @@ func (x *TimelinePlayer) GetAssists() []int32 {
 func (x *TimelinePlayer) GetDeaths() []int32 {
 	if x != nil {
 		return x.Deaths
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetTrack() *TimelineTrack {
+	if x != nil {
+		return x.Track
+	}
+	return nil
+}
+
+// TimelineTrack is one hero's movement, sampled often enough to redraw it: the
+// hero's last observed state at or before each track sample. Before the hero
+// first appears, the columns repeat its first observed state.
+type TimelineTrack struct {
+	unknownFields []byte
+	// X is the hero's world X position at each track sample.
+	X []float32 `protobuf:"fixed32,1,rep,packed,name=x,proto3" json:"x,omitempty"`
+	// Y is the hero's world Y position at each track sample.
+	Y []float32 `protobuf:"fixed32,2,rep,packed,name=y,proto3" json:"y,omitempty"`
+	// Z is the hero's world Z position at each track sample.
+	Z []float32 `protobuf:"fixed32,3,rep,packed,name=z,proto3" json:"z,omitempty"`
+	// Yaw is the camera's yaw in degrees at each track sample.
+	Yaw []float32 `protobuf:"fixed32,4,rep,packed,name=yaw,proto3" json:"yaw,omitempty"`
+	// Pitch is the camera's pitch in degrees at each track sample, positive
+	// looking down.
+	Pitch []float32 `protobuf:"fixed32,5,rep,packed,name=pitch,proto3" json:"pitch,omitempty"`
+}
+
+func (x *TimelineTrack) Reset() {
+	*x = TimelineTrack{}
+}
+
+func (*TimelineTrack) ProtoMessage() {}
+
+func (x *TimelineTrack) GetX() []float32 {
+	if x != nil {
+		return x.X
+	}
+	return nil
+}
+
+func (x *TimelineTrack) GetY() []float32 {
+	if x != nil {
+		return x.Y
+	}
+	return nil
+}
+
+func (x *TimelineTrack) GetZ() []float32 {
+	if x != nil {
+		return x.Z
+	}
+	return nil
+}
+
+func (x *TimelineTrack) GetYaw() []float32 {
+	if x != nil {
+		return x.Yaw
+	}
+	return nil
+}
+
+func (x *TimelineTrack) GetPitch() []float32 {
+	if x != nil {
+		return x.Pitch
 	}
 	return nil
 }
@@ -988,6 +1068,7 @@ func (m *MatchTimeline) CloneVT() *MatchTimeline {
 	r.StepSeconds = m.StepSeconds
 	r.WinningTeam = m.WinningTeam
 	r.TickInterval = m.TickInterval
+	r.TrackStepSeconds = m.TrackStepSeconds
 	if rhs := m.Players; rhs != nil {
 		r.Players = make([]*TimelinePlayer, len(rhs))
 		for k, v := range rhs {
@@ -1079,6 +1160,7 @@ func (m *TimelinePlayer) CloneVT() *TimelinePlayer {
 	r.Name = m.Name
 	r.HeroId = m.HeroId
 	r.Team = m.Team
+	r.Track = m.Track.CloneVT()
 	if rhs := m.X; rhs != nil {
 		r.X = slices.Clone(rhs)
 	}
@@ -1143,6 +1225,36 @@ func (m *TimelinePlayer) CloneVT() *TimelinePlayer {
 }
 
 func (m *TimelinePlayer) CloneMessageVT() protobuf_go_lite.CloneMessage {
+	return m.CloneVT()
+}
+
+func (m *TimelineTrack) CloneVT() *TimelineTrack {
+	if m == nil {
+		return (*TimelineTrack)(nil)
+	}
+	r := new(TimelineTrack)
+	if rhs := m.X; rhs != nil {
+		r.X = slices.Clone(rhs)
+	}
+	if rhs := m.Y; rhs != nil {
+		r.Y = slices.Clone(rhs)
+	}
+	if rhs := m.Z; rhs != nil {
+		r.Z = slices.Clone(rhs)
+	}
+	if rhs := m.Yaw; rhs != nil {
+		r.Yaw = slices.Clone(rhs)
+	}
+	if rhs := m.Pitch; rhs != nil {
+		r.Pitch = slices.Clone(rhs)
+	}
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = slices.Clone(m.unknownFields)
+	}
+	return r
+}
+
+func (m *TimelineTrack) CloneMessageVT() protobuf_go_lite.CloneMessage {
 	return m.CloneVT()
 }
 
@@ -1472,6 +1584,9 @@ func (this *MatchTimeline) EqualVT(that *MatchTimeline) bool {
 			}
 		}
 	}
+	if this.TrackStepSeconds != that.TrackStepSeconds {
+		return false
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
@@ -1698,11 +1813,76 @@ func (this *TimelinePlayer) EqualVT(that *TimelinePlayer) bool {
 			return false
 		}
 	}
+	if !this.Track.EqualVT(that.Track) {
+		return false
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
 func (this *TimelinePlayer) EqualMessageVT(thatMsg any) bool {
 	that, ok := thatMsg.(*TimelinePlayer)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
+
+func (this *TimelineTrack) EqualVT(that *TimelineTrack) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	if len(this.X) != len(that.X) {
+		return false
+	}
+	for i, vx := range this.X {
+		vy := that.X[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Y) != len(that.Y) {
+		return false
+	}
+	for i, vx := range this.Y {
+		vy := that.Y[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Z) != len(that.Z) {
+		return false
+	}
+	for i, vx := range this.Z {
+		vy := that.Z[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Yaw) != len(that.Yaw) {
+		return false
+	}
+	for i, vx := range this.Yaw {
+		vy := that.Yaw[i]
+		if vx != vy {
+			return false
+		}
+	}
+	if len(this.Pitch) != len(that.Pitch) {
+		return false
+	}
+	for i, vx := range this.Pitch {
+		vy := that.Pitch[i]
+		if vx != vy {
+			return false
+		}
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *TimelineTrack) EqualMessageVT(thatMsg any) bool {
+	that, ok := thatMsg.(*TimelineTrack)
 	if !ok {
 		return false
 	}
@@ -2185,6 +2365,11 @@ func (x *MatchTimeline) MarshalProtoJSON(s *json.MarshalState) {
 		}
 		s.WriteArrayEnd()
 	}
+	if x.TrackStepSeconds != 0 || s.HasField("trackStepSeconds") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("trackStepSeconds")
+		s.WriteFloat64(x.TrackStepSeconds)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -2376,6 +2561,9 @@ func (x *MatchTimeline) UnmarshalProtoJSON(s *json.UnmarshalState) {
 				}
 				x.Troopers = append(x.Troopers, v)
 			})
+		case "track_step_seconds", "trackStepSeconds":
+			s.AddField("track_step_seconds")
+			x.TrackStepSeconds = s.ReadFloat64()
 		}
 	})
 }
@@ -2563,6 +2751,11 @@ func (x *TimelinePlayer) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("deaths")
 		s.WriteInt32Array(x.Deaths)
 	}
+	if x.Track != nil || s.HasField("track") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("track")
+		x.Track.MarshalProtoJSON(s.WithField("track"))
+	}
 	s.WriteObjectEnd()
 }
 
@@ -2728,12 +2921,113 @@ func (x *TimelinePlayer) UnmarshalProtoJSON(s *json.UnmarshalState) {
 				return
 			}
 			x.Deaths = s.ReadInt32Array()
+		case "track":
+			if s.ReadNil() {
+				x.Track = nil
+				return
+			}
+			x.Track = &TimelineTrack{}
+			x.Track.UnmarshalProtoJSON(s.WithField("track", true))
 		}
 	})
 }
 
 // UnmarshalJSON unmarshals the TimelinePlayer from JSON.
 func (x *TimelinePlayer) UnmarshalJSON(b []byte) error {
+	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
+}
+
+// MarshalProtoJSON marshals the TimelineTrack message to JSON.
+func (x *TimelineTrack) MarshalProtoJSON(s *json.MarshalState) {
+	if x == nil {
+		s.WriteNil()
+		return
+	}
+	s.WriteObjectStart()
+	var wroteField bool
+	if len(x.X) > 0 || s.HasField("x") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("x")
+		s.WriteFloat32Array(x.X)
+	}
+	if len(x.Y) > 0 || s.HasField("y") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("y")
+		s.WriteFloat32Array(x.Y)
+	}
+	if len(x.Z) > 0 || s.HasField("z") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("z")
+		s.WriteFloat32Array(x.Z)
+	}
+	if len(x.Yaw) > 0 || s.HasField("yaw") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("yaw")
+		s.WriteFloat32Array(x.Yaw)
+	}
+	if len(x.Pitch) > 0 || s.HasField("pitch") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("pitch")
+		s.WriteFloat32Array(x.Pitch)
+	}
+	s.WriteObjectEnd()
+}
+
+// MarshalJSON marshals the TimelineTrack to JSON.
+func (x *TimelineTrack) MarshalJSON() ([]byte, error) {
+	return json.DefaultMarshalerConfig.Marshal(x)
+}
+
+// UnmarshalProtoJSON unmarshals the TimelineTrack message from JSON.
+func (x *TimelineTrack) UnmarshalProtoJSON(s *json.UnmarshalState) {
+	if s.ReadNil() {
+		return
+	}
+	s.ReadObject(func(key string) {
+		switch key {
+		default:
+			s.Skip() // ignore unknown field
+		case "x":
+			s.AddField("x")
+			if s.ReadNil() {
+				x.X = nil
+				return
+			}
+			x.X = s.ReadFloat32Array()
+		case "y":
+			s.AddField("y")
+			if s.ReadNil() {
+				x.Y = nil
+				return
+			}
+			x.Y = s.ReadFloat32Array()
+		case "z":
+			s.AddField("z")
+			if s.ReadNil() {
+				x.Z = nil
+				return
+			}
+			x.Z = s.ReadFloat32Array()
+		case "yaw":
+			s.AddField("yaw")
+			if s.ReadNil() {
+				x.Yaw = nil
+				return
+			}
+			x.Yaw = s.ReadFloat32Array()
+		case "pitch":
+			s.AddField("pitch")
+			if s.ReadNil() {
+				x.Pitch = nil
+				return
+			}
+			x.Pitch = s.ReadFloat32Array()
+		}
+	})
+}
+
+// UnmarshalJSON unmarshals the TimelineTrack from JSON.
+func (x *TimelineTrack) UnmarshalJSON(b []byte) error {
 	return json.DefaultUnmarshalerConfig.Unmarshal(b, x)
 }
 
@@ -3345,6 +3639,12 @@ func (m *MatchTimeline) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.TrackStepSeconds != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.TrackStepSeconds))))
+		i--
+		dAtA[i] = 0x71
+	}
 	if len(m.Troopers) > 0 {
 		for iNdEx := len(m.Troopers) - 1; iNdEx >= 0; iNdEx-- {
 			size, err := m.Troopers[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
@@ -3552,6 +3852,18 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.Track != nil {
+		size, err := m.Track.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xca
 	}
 	if len(m.Deaths) > 0 {
 		var pksize2 int
@@ -3911,6 +4223,89 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(m.Slot))
 		i--
 		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TimelineTrack) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TimelineTrack) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *TimelineTrack) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if len(m.Pitch) > 0 {
+		for iNdEx := len(m.Pitch) - 1; iNdEx >= 0; iNdEx-- {
+			f1 := math.Float32bits(float32(m.Pitch[iNdEx]))
+			i -= 4
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f1))
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Pitch)*4))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.Yaw) > 0 {
+		for iNdEx := len(m.Yaw) - 1; iNdEx >= 0; iNdEx-- {
+			f2 := math.Float32bits(float32(m.Yaw[iNdEx]))
+			i -= 4
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f2))
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Yaw)*4))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Z) > 0 {
+		for iNdEx := len(m.Z) - 1; iNdEx >= 0; iNdEx-- {
+			f3 := math.Float32bits(float32(m.Z[iNdEx]))
+			i -= 4
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f3))
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Z)*4))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Y) > 0 {
+		for iNdEx := len(m.Y) - 1; iNdEx >= 0; iNdEx-- {
+			f4 := math.Float32bits(float32(m.Y[iNdEx]))
+			i -= 4
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f4))
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Y)*4))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.X) > 0 {
+		for iNdEx := len(m.X) - 1; iNdEx >= 0; iNdEx-- {
+			f5 := math.Float32bits(float32(m.X[iNdEx]))
+			i -= 4
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f5))
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.X)*4))
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -4485,6 +4880,9 @@ func (m *MatchTimeline) SizeVT() (n int) {
 			n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 		}
 	}
+	if m.TrackStepSeconds != 0 {
+		n += 9
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -4627,6 +5025,35 @@ func (m *TimelinePlayer) SizeVT() (n int) {
 			l += protobuf_go_lite.SizeOfVarint(uint64(e))
 		}
 		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
+	if m.Track != nil {
+		l = m.Track.SizeVT()
+		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *TimelineTrack) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.X) > 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(len(m.X)*4)) + len(m.X)*4
+	}
+	if len(m.Y) > 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(len(m.Y)*4)) + len(m.Y)*4
+	}
+	if len(m.Z) > 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(len(m.Z)*4)) + len(m.Z)*4
+	}
+	if len(m.Yaw) > 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(len(m.Yaw)*4)) + len(m.Yaw)*4
+	}
+	if len(m.Pitch) > 0 {
+		n += 1 + protobuf_go_lite.SizeOfVarint(uint64(len(m.Pitch)*4)) + len(m.Pitch)*4
 	}
 	n += len(m.unknownFields)
 	return n
@@ -5024,6 +5451,13 @@ func (x *MatchTimeline) MarshalProtoText() string {
 		}
 		sb.WriteString("]")
 	}
+	if x.TrackStepSeconds != 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("track_step_seconds: ")
+		sb.WriteString(strconv.FormatFloat(x.TrackStepSeconds, 'g', -1, 64))
+	}
 	sb.WriteString("}")
 	return sb.String()
 }
@@ -5342,11 +5776,94 @@ func (x *TimelinePlayer) MarshalProtoText() string {
 		}
 		sb.WriteString("]")
 	}
+	if x.Track != nil {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("track: ")
+		sb.WriteString(x.Track.MarshalProtoText())
+	}
 	sb.WriteString("}")
 	return sb.String()
 }
 
 func (x *TimelinePlayer) String() string {
+	return x.MarshalProtoText()
+}
+
+func (x *TimelineTrack) MarshalProtoText() string {
+	var sb strings.Builder
+	sb.WriteString("TimelineTrack {")
+	if len(x.X) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("x: [")
+		for i, v := range x.X {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatFloat(float64(v), 'g', -1, 32))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Y) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("y: [")
+		for i, v := range x.Y {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatFloat(float64(v), 'g', -1, 32))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Z) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("z: [")
+		for i, v := range x.Z {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatFloat(float64(v), 'g', -1, 32))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Yaw) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("yaw: [")
+		for i, v := range x.Yaw {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatFloat(float64(v), 'g', -1, 32))
+		}
+		sb.WriteString("]")
+	}
+	if len(x.Pitch) > 0 {
+		if sb.Len() > 15 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("pitch: [")
+		for i, v := range x.Pitch {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatFloat(float64(v), 'g', -1, 32))
+		}
+		sb.WriteString("]")
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (x *TimelineTrack) String() string {
 	return x.MarshalProtoText()
 }
 
@@ -6040,6 +6557,18 @@ func (m *MatchTimeline) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 14:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TrackStepSeconds", wireType)
+			}
+			var v uint64
+			var _v64 uint64
+			_v64, iNdEx, err = protobuf_go_lite.DecodeFixed64(dAtA, iNdEx)
+			if err != nil {
+				return err
+			}
+			v = uint64(_v64)
+			m.TrackStepSeconds = float64(math.Float64frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
@@ -7114,6 +7643,317 @@ func (m *TimelinePlayer) UnmarshalVT(dAtA []byte) error {
 				}
 			} else {
 				return fmt.Errorf("proto: wrong wireType = %d for field Deaths", wireType)
+			}
+		case 25:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Track", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Track == nil {
+				m.Track = &TimelineTrack{}
+			}
+			if err := m.Track.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func (m *TimelineTrack) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TimelineTrack: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TimelineTrack: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType == 5 {
+				var v uint32
+				var _v32 uint32
+				_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				v = uint32(_v32)
+				v2 := float32(math.Float32frombits(v))
+				m.X = append(m.X, v2)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				elementCount = packedLen / 4
+				if elementCount != 0 && len(m.X) == 0 {
+					m.X = make([]float32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					v = uint32(_v32)
+					v2 := float32(math.Float32frombits(v))
+					m.X = append(m.X, v2)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field X", wireType)
+			}
+		case 2:
+			if wireType == 5 {
+				var v uint32
+				var _v32 uint32
+				_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				v = uint32(_v32)
+				v2 := float32(math.Float32frombits(v))
+				m.Y = append(m.Y, v2)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				elementCount = packedLen / 4
+				if elementCount != 0 && len(m.Y) == 0 {
+					m.Y = make([]float32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					v = uint32(_v32)
+					v2 := float32(math.Float32frombits(v))
+					m.Y = append(m.Y, v2)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Y", wireType)
+			}
+		case 3:
+			if wireType == 5 {
+				var v uint32
+				var _v32 uint32
+				_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				v = uint32(_v32)
+				v2 := float32(math.Float32frombits(v))
+				m.Z = append(m.Z, v2)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				elementCount = packedLen / 4
+				if elementCount != 0 && len(m.Z) == 0 {
+					m.Z = make([]float32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					v = uint32(_v32)
+					v2 := float32(math.Float32frombits(v))
+					m.Z = append(m.Z, v2)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Z", wireType)
+			}
+		case 4:
+			if wireType == 5 {
+				var v uint32
+				var _v32 uint32
+				_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				v = uint32(_v32)
+				v2 := float32(math.Float32frombits(v))
+				m.Yaw = append(m.Yaw, v2)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				elementCount = packedLen / 4
+				if elementCount != 0 && len(m.Yaw) == 0 {
+					m.Yaw = make([]float32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					v = uint32(_v32)
+					v2 := float32(math.Float32frombits(v))
+					m.Yaw = append(m.Yaw, v2)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Yaw", wireType)
+			}
+		case 5:
+			if wireType == 5 {
+				var v uint32
+				var _v32 uint32
+				_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				v = uint32(_v32)
+				v2 := float32(math.Float32frombits(v))
+				m.Pitch = append(m.Pitch, v2)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				elementCount = packedLen / 4
+				if elementCount != 0 && len(m.Pitch) == 0 {
+					m.Pitch = make([]float32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					var _v32 uint32
+					_v32, iNdEx, err = protobuf_go_lite.DecodeFixed32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					v = uint32(_v32)
+					v2 := float32(math.Float32frombits(v))
+					m.Pitch = append(m.Pitch, v2)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pitch", wireType)
 			}
 		default:
 			iNdEx = preIndex
