@@ -288,6 +288,9 @@ func newEntity(index, serial int32, class *entityClass) *Entity {
 // Index returns the networked entity index.
 func (e *Entity) Index() int32 { return e.index }
 
+// Active reports whether the entity belongs to the parser's current frame.
+func (e *Entity) Active() bool { return e.active }
+
 // ClassID returns the entity class id.
 func (e *Entity) ClassID() int32 { return e.class.id }
 

@@ -290,8 +290,10 @@ func clip(segs []segment, opt options) []byte {
 	}
 	fp := segs[0].src.fingerprint()
 	schemas := segs[0].src.tableSchemas()
+	var baselineSlots baselineOrder
 	var out uint32    // last output tick
 	game := start - 1 // last game tick written
+	var entityFrame uint32
 	frames := 0
 	for i, seg := range segs {
 		if seg.src.fingerprint() != fp {
@@ -311,14 +313,13 @@ func clip(segs []segment, opt options) []byte {
 		// deltas need their own distinct ticks. Game ticks may run ahead of
 		// output ticks; the client seeks from each full packet's own tick.
 		var off int64
-		prev := game
-		// A full frame in an ordinary packet updates any entity already at
-		// its index instead of recreating it, so a later segment first
-		// deletes every entity the previous one left alive, one tick ahead
-		// of its keyframe.
-		var live []int32
+		prev := max(game, entityFrame)
+		// Reset the old base before writing a different entity snapshot.
+		// The last clock packet can be newer than the last entity frame.
+		var active, inactive []int32
+		baseFrame := entityFrame
 		if i > 0 {
-			live = liveEntities(clip(segs[i-1:i], opt))
+			active, inactive = resetMembership(clip(segs[i-1:i], opt))
 			prev++
 		}
 		retick := func(old uint32) uint32 { return uint32(int64(old) + off) }
@@ -343,6 +344,9 @@ func clip(segs []segment, opt options) []byte {
 		}
 		var last *protocol.CDemoFullPacket
 		var prefix [][]byte
+		var remappedBaseline bool
+		var sourceBaselineID int32
+		var prefixFrame uint32
 		started := false
 		for _, c := range seg.src.game {
 			if c.tick == preGameTick {
@@ -357,13 +361,13 @@ func clip(segs []segment, opt options) []byte {
 					f := &protocol.CDemoFullPacket{}
 					must(f.UnmarshalVT(c.payload()))
 					tables.apply(f.GetStringTable())
-					last, prefix = f, nil
+					last, prefix, prefixFrame = f, nil, 0
 					off = int64(prev+1) - int64(firstTick(f.GetPacket().GetData()))
 				case protocol.EDemoCommands_DEM_Packet:
 					if last != nil {
 						p := &protocol.CDemoPacket{}
 						must(p.UnmarshalVT(c.payload()))
-						if data := rewrite(p.GetData(), keepState, retick); len(data) > 0 {
+						if data := rewrite(p.GetData(), keepState, retick, &prefixFrame); len(data) > 0 {
 							prefix = append(prefix, data)
 						}
 					}
@@ -381,30 +385,52 @@ func clip(segs []segment, opt options) []byte {
 				// opening is one packet: the last full packet's entity frame
 				// with every string table rewritten to that moment, then the
 				// state messages since. The full packet follows, for seeks.
-				frame := rewrite(last.GetPacket().GetData(), keep, retick)
+				frame := rewrite(last.GetPacket().GetData(), keep, retick, &entityFrame)
 				if i > 0 && os.Getenv("DEMOCLIP_NORESET") == "" {
-					w.putPacket(open, deleteAll(live, prev-1, prev, maxEntries(frame)))
+					w.putPacket(open, resetEntities(active, inactive, baseFrame, prev, maxEntries(frame)))
 				}
-				w.putPacket(open, insertAfterTick(frame, rewriteTables(tables.snapshot(), schemas)))
-				synth := &protocol.CDemoFullPacket{StringTable: tables.snapshot(), Packet: &protocol.CDemoPacket{Data: frame}}
+				// Both the live update and seek snapshot must use the same slots.
+				snapshot := tables.snapshot()
+				if len(segs) > 1 {
+					remappedBaseline = baselineSlots.align(snapshot)
+					if remappedBaseline {
+						sourceBaselineID = seg.src.tableSchemas()[classBaselineTable].id
+						if sourceBaselineID != schemas[classBaselineTable].id {
+							panic("splice baseline table has a different table ID")
+						}
+					}
+				}
+				w.putPacket(open, insertAfterTick(frame, rewriteTables(snapshot, schemas)))
+				synth := &protocol.CDemoFullPacket{StringTable: snapshot, Packet: &protocol.CDemoPacket{Data: frame}}
 				payload, err := synth.MarshalVT()
 				must(err)
 				w.putPayload(protocol.EDemoCommands_DEM_FullPacket, open, payload)
 				for _, data := range prefix {
+					if remappedBaseline {
+						requireNoBaselineUpdate(data, sourceBaselineID)
+					}
 					w.putPacket(open, data)
 				}
+				entityFrame = max(entityFrame, prefixFrame)
 			}
 			t := base + (c.tick - seg.from)
 			switch c.kind {
 			case protocol.EDemoCommands_DEM_Packet:
 				p := &protocol.CDemoPacket{}
 				must(p.UnmarshalVT(c.payload()))
-				w.putPacket(t, rewrite(p.GetData(), keep, track))
+				if remappedBaseline {
+					requireNoBaselineUpdate(p.GetData(), sourceBaselineID)
+				}
+				w.putPacket(t, rewrite(p.GetData(), keep, track, &entityFrame))
 				frames++
 			case protocol.EDemoCommands_DEM_FullPacket:
 				f := &protocol.CDemoFullPacket{}
 				must(f.UnmarshalVT(c.payload()))
-				f.Packet = &protocol.CDemoPacket{Data: rewrite(f.GetPacket().GetData(), keep, track)}
+				if remappedBaseline {
+					baselineSlots.align(f.GetStringTable())
+					requireNoBaselineUpdate(f.GetPacket().GetData(), sourceBaselineID)
+				}
+				f.Packet = &protocol.CDemoPacket{Data: rewrite(f.GetPacket().GetData(), keep, track, nil)}
 				payload, err := f.MarshalVT()
 				must(err)
 				w.putPayload(c.kind, t, payload)
@@ -455,8 +481,9 @@ func (d *demo) serverStart() uint32 {
 
 // rewrite rewrites a packet's bit-packed message stream: it keeps each
 // message whose kind keep accepts, and moves the game ticks that net_Tick
-// and svc_PacketEntities carry through retick.
-func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32) []byte {
+// and svc_PacketEntities carry through retick. If frame is non-nil, record
+// the latest entity frame written in an ordinary playback packet.
+func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32, frame *uint32) []byte {
 	bw := &bitWriter{}
 	eachMsg(data, func(kind uint32, body []byte) {
 		if !keep(kind) {
@@ -474,6 +501,9 @@ func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32) []
 			m := &protocol.CSVCMsg_PacketEntities{}
 			must(m.UnmarshalVT(body))
 			m.ServerTick = ptr(retick(m.GetServerTick()))
+			if frame != nil {
+				*frame = max(*frame, m.GetServerTick())
+			}
 			if m.DeltaFrom != nil {
 				m.DeltaFrom = ptr(int32(retick(uint32(m.GetDeltaFrom()))))
 			}
@@ -492,10 +522,10 @@ func rewrite(data []byte, keep func(uint32) bool, retick func(uint32) uint32) []
 
 func keepAll(uint32) bool { return true }
 
-// liveEntities returns the indices of the entities alive at the end of demo,
-// except the world at index 0: every segment shares its map, and the client
-// cannot survive losing it.
-func liveEntities(demo []byte) []int32 {
+// resetMembership returns active and retained non-world indices in wire order.
+// An inline removal must never consume a slot for an inactive index.
+func resetMembership(demo []byte) (active, inactive []int32) {
+	// Decode the previous clip as written, not its untrimmed source.
 	p, err := s2replay.NewParser(demo)
 	must(err)
 	for {
@@ -506,13 +536,19 @@ func liveEntities(demo []byte) []int32 {
 			panic(err)
 		}
 	}
-	var live []int32
+	// Preserve the world and partition the other tracked indices by membership.
 	for i := int32(1); i < 1<<14; i++ {
-		if p.FindEntity(i) != nil {
-			live = append(live, i)
+		entity := p.FindEntity(i)
+		if entity == nil {
+			continue
+		}
+		if entity.Active() {
+			active = append(active, i)
+		} else {
+			inactive = append(inactive, i)
 		}
 	}
-	return live
+	return active, inactive
 }
 
 // maxEntries returns the max_entries of a packet's svc_PacketEntities.
@@ -528,24 +564,41 @@ func maxEntries(data []byte) int32 {
 	return n
 }
 
-// deleteAll returns a packet at game tick tick whose entity delta, from
-// game tick from, leaves and deletes each entity in live (ascending).
-func deleteAll(live []int32, from, tick uint32, max int32) []byte {
+// resetEntities removes active frame members and clears the non-transmitted
+// membership of inactive entities. The client removes entities absent from both sets.
+func resetEntities(active, inactive []int32, from, tick uint32, max int32) []byte {
+	// Encode only members of the base frame in the inline removal stream.
 	ents := &bitWriter{}
 	last := int32(-1)
-	for _, e := range live {
+	for _, e := range active {
 		ents.ubitvar(uint32(e - last - 1))
 		ents.bits(3, 2) // leave and delete
 		last = e
 	}
-	pe := &protocol.CSVCMsg_PacketEntities{
-		MaxEntries:     ptr(max),
-		UpdatedEntries: ptr(int32(len(live))),
-		LegacyIsDelta:  ptr(true),
-		DeltaFrom:      ptr(int32(from)),
-		ServerTick:     ptr(tick),
-		EntityData:     ents.finish(),
+
+	// Clear the inactive bits inherited from the base frame. This stream uses
+	// the same index deltas as the inline stream, followed by one membership bit.
+	var dormant bitWriter
+	last = -1
+	for _, e := range inactive {
+		dormant.ubitvar(uint32(e - last - 1))
+		dormant.bits(0, 1)
+		last = e
 	}
+	pe := &protocol.CSVCMsg_PacketEntities{
+		MaxEntries:             ptr(max),
+		UpdatedEntries:         ptr(int32(len(active))),
+		LegacyIsDelta:          ptr(true),
+		DeltaFrom:              ptr(int32(from)),
+		ServerTick:             ptr(tick),
+		EntityData:             ents.finish(),
+		NonTransmittedEntities: &protocol.CSVCMsg_PacketEntitiesNonTransmittedEntitiesT{
+			HeaderCount: ptr(int32(len(inactive))),
+			Data:        dormant.finish(),
+		},
+	}
+
+	// Send the clock and its matching entity delta together.
 	bw := &bitWriter{}
 	for _, m := range []struct {
 		kind uint32
@@ -572,7 +625,7 @@ func firstTick(data []byte) uint32 {
 	rewrite(data, keepAll, func(t uint32) uint32 {
 		tick = min(tick, t)
 		return t
-	})
+	}, nil)
 	return tick
 }
 
