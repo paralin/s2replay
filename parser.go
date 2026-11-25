@@ -52,6 +52,8 @@ type Parser struct {
 	serverGame string
 	// rootWorlds maps spawn group handles to their world names.
 	rootWorlds map[uint32]string
+	// compressed is the reused buffer for a command's compressed bytes.
+	compressed []byte
 	// lookahead holds a command read past the requested boundary.
 	lookahead *Command
 	// pending is the queue of decoded messages awaiting consumption.
@@ -90,8 +92,8 @@ type Parser struct {
 	classesByName map[string]*entityClass
 	// fieldPaths is the scratch buffer readFields decodes each update's paths into.
 	fieldPaths []fieldPath
-	// classBaselines maps class ids to their serialized baseline state.
-	classBaselines map[int32][]byte
+	// classBaselines maps class ids to their instance baselines.
+	classBaselines map[int32]*classBaseline
 	// serializers maps serializer names to their field layout.
 	serializers map[string]*serializer
 	// entities maps entity indices to their current state.
@@ -158,7 +160,7 @@ func NewParserFromReader(ctx context.Context, src io.Reader) (*Parser, error) {
 		clock:                newClock(),
 		classesByID:          make(map[int32]*entityClass),
 		classesByName:        make(map[string]*entityClass),
-		classBaselines:       make(map[int32][]byte),
+		classBaselines:       make(map[int32]*classBaseline),
 		maxCoord:             deadlockDefaultMaxCoord,
 		serializers:          make(map[string]*serializer),
 		entities:             make(map[int32]*Entity),
@@ -209,6 +211,23 @@ func (p *Parser) readPayload(size uint64) ([]byte, error) {
 		return nil, errShortRead
 	}
 	return payload, nil
+}
+
+// readCompressed reads the next size bytes into the parser's reused
+// compressed-payload buffer. The buffer grows only up to the readPayload
+// bound; a larger command reads through readPayload.
+func (p *Parser) readCompressed(size uint64) ([]byte, error) {
+	if size > 1<<20 {
+		return p.readPayload(size)
+	}
+	if uint64(cap(p.compressed)) < size {
+		p.compressed = make([]byte, size)
+	}
+	buf := p.compressed[:size]
+	if _, err := io.ReadFull(p.src, buf); err != nil {
+		return nil, errShortRead
+	}
+	return buf, nil
 }
 
 // Clock returns the game-time clock advanced by Next.
@@ -264,15 +283,20 @@ func (p *Parser) Next() (*Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	payload, err := p.readPayload(size)
-	if err != nil {
-		return nil, err
-	}
+	var payload []byte
 	if compressed {
-		payload, err = snappy.Decode(nil, payload)
+		// The compressed bytes die once decoded, so they reuse one buffer;
+		// the decoded payload is fresh because the command owns it.
+		raw, err := p.readCompressed(size)
 		if err != nil {
 			return nil, err
 		}
+		payload, err = snappy.Decode(nil, raw)
+		if err != nil {
+			return nil, err
+		}
+	} else if payload, err = p.readPayload(size); err != nil {
+		return nil, err
 	}
 
 	// Only gameplay commands advance the visible clock.

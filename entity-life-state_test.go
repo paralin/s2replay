@@ -9,13 +9,11 @@ func TestWorldEntitySnapshotPreservesLifeState(t *testing.T) {
 		class := &entityClass{name: "CNPC_Trooper", serializer: &serializer{fields: []*field{{varName: "m_iHealth"}, {varName: "m_lifeState"}}}}
 		entity := newEntity(7, 3, class)
 		healthPath := fieldPath{last: 0}
-		entity.state.set(healthPath, int32(1))
-		entity.fieldTicks[healthPath] = 4
+		entity.state.set(healthPath, int32(1), 4)
 		if state != nil {
 			lifePath := fieldPath{last: 0}
 			lifePath.path[0] = 1
-			entity.state.set(lifePath, state)
-			entity.fieldTicks[lifePath] = 9
+			entity.state.set(lifePath, state, 9)
 		}
 		parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 		parser.clock.setTick(10)

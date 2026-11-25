@@ -17,8 +17,7 @@ func TestAbilityTimerSnapshotPreservesZeroAndSourceTicks(t *testing.T) {
 	for index, value := range []float32{0, 14.5, 9.25} {
 		path := fieldPath{last: 0}
 		path.path[0] = index
-		entity.state.set(path, value)
-		entity.fieldTicks[path] = uint32(90 + index)
+		entity.state.set(path, value, uint32(90+index))
 	}
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	parser.clock.setTick(100)

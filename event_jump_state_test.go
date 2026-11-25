@@ -12,7 +12,7 @@ func jumpTestEntity(index, serial int32, values map[string]any) *Entity {
 		fp := fieldPath{last: 0}
 		fp.path[0] = i
 		e.class.paths[name] = namedPath{path: fp, found: true}
-		e.state.set(fp, value)
+		e.state.set(fp, value, 0)
 		i++
 	}
 	return e
@@ -73,14 +73,14 @@ func TestAppendJumpStateEventTracksChangesAndPresence(t *testing.T) {
 	}
 
 	fp := jump.class.paths["m_nConsecutiveWallJumps"].path
-	jump.state.set(fp, int32(1))
+	jump.state.set(fp, int32(1), 0)
 	p.appendJumpStateEvent(12, jump)
 	changed := p.pendingEvents[1].JumpState
 	if changed.InitialObservation || changed.ConsecutiveWallJumps != 1 || !changed.ChangedConsecutiveWallJumps {
 		t.Fatalf("0 -> 1 wall count: %+v", changed)
 	}
 
-	jump.state.set(fp, int32(0))
+	jump.state.set(fp, int32(0), 0)
 	p.appendJumpStateEvent(13, jump)
 	reset := p.pendingEvents[2].JumpState
 	if reset.ConsecutiveWallJumps != 0 || !reset.ChangedConsecutiveWallJumps {

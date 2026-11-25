@@ -12,7 +12,7 @@ func TestMatchClockUsesRulesAndPauseTicks(t *testing.T) {
 		path := fieldPath{last: 0}
 		path.path[0] = i
 		rules.class.paths["m_pGameRules."+name] = namedPath{path: path, found: true}
-		rules.state.set(path, values[i])
+		rules.state.set(path, values[i], 0)
 	}
 	clock := newClock()
 	clock.SetInterval(1.0 / 64)
@@ -21,7 +21,7 @@ func TestMatchClockUsesRulesAndPauseTicks(t *testing.T) {
 
 	// A prior pause reduces elapsed time; a current pause freezes it at its start.
 	for _, paused := range []bool{false, true} {
-		rules.state.set(rules.class.paths["m_pGameRules.m_bGamePaused"].path, paused)
+		rules.state.set(rules.class.paths["m_pGameRules.m_bGamePaused"].path, paused, 0)
 		got, err := MatchClock(rules, clock)
 		if err != nil {
 			t.Fatal(err)

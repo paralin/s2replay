@@ -31,29 +31,40 @@ func (r *packetReader) bitsRemaining() int {
 // readBits reads the next n bits (at most 32) as the low bits of a uint32,
 // consuming buffered bits before pulling new bytes from the payload.
 func (r *packetReader) readBits(n uint8) (uint32, error) {
-	if n > 32 {
-		return 0, errBitReadOverflow
-	}
-
-	// Refill the accumulator a byte at a time until the request is satisfied.
-	for n > r.bitCount {
-		if r.pos >= len(r.buf) {
+	if n > r.bitCount {
+		if n > 32 {
 			return 0, errBitReadOverflow
 		}
+		r.refill()
+		if n > r.bitCount {
+			return 0, errBitReadOverflow
+		}
+	}
+	v := uint32(r.bitVal & (1<<n - 1))
+	r.bitVal >>= n
+	r.bitCount -= n
+	return v, nil
+}
+
+// refill tops the accumulator up to at least 57 bits, or to the end of the
+// payload. With eight bytes left it loads them as one word and keeps the whole
+// bytes that fit; the bits it drops above bitCount are cleared, so the
+// accumulator never holds a bit past bitCount and an aligned byte read may
+// bypass it.
+func (r *packetReader) refill() {
+	if r.pos+8 <= len(r.buf) {
+		r.bitVal |= binary.LittleEndian.Uint64(r.buf[r.pos:]) << r.bitCount
+		whole := (63 - r.bitCount) >> 3
+		r.pos += int(whole)
+		r.bitCount += whole << 3
+		r.bitVal &= 1<<r.bitCount - 1
+		return
+	}
+	for r.bitCount <= 56 && r.pos < len(r.buf) {
 		r.bitVal |= uint64(r.buf[r.pos]) << r.bitCount
 		r.pos++
 		r.bitCount += 8
 	}
-
-	// Mask the low n bits and retire them from the accumulator.
-	mask := uint64(1<<n) - 1
-	if n == 32 {
-		mask = 1<<32 - 1
-	}
-	v := uint32(r.bitVal & mask)
-	r.bitVal >>= n
-	r.bitCount -= n
-	return v, nil
 }
 
 // readByte reads the next whole byte, taking the fast byte-aligned path when

@@ -16,6 +16,8 @@ type entityClass struct {
 	// serializer's fixed layout. Entity reads resolve the same few names on
 	// every update.
 	paths map[string]namedPath
+	// keyed caches pathForKey by key id.
+	keyed []keyedPath
 }
 
 // namedPath is one cached pathForName result.

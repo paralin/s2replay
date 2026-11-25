@@ -15,8 +15,7 @@ func TestCameraSnapshotKeepsViewSeparateFromAim(t *testing.T) {
 	for i, value := range [][]float32{{4.21875, 270, 0}, {3.8671875, 268.2422, 0}} {
 		path := fieldPath{last: 0}
 		path.path[0] = i
-		entity.state.set(path, value)
-		entity.fieldTicks[path] = uint32(80 + i)
+		entity.state.set(path, value, uint32(80+i))
 	}
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	parser.clock.setTick(100)

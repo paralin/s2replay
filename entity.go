@@ -25,10 +25,8 @@ type Entity struct {
 	class *entityClass
 	// active indicates whether the entity exists in the current snapshot.
 	active bool
-	// state holds the decoded field values.
+	// state holds the decoded field values with the tick each was last written.
 	state *fieldState
-	// fieldTicks records the tick at which each field path was last updated.
-	fieldTicks map[fieldPath]uint32
 }
 
 // EntitySample is a typed snapshot of one entity's state at a tick, consumed
@@ -276,12 +274,11 @@ type ObjectiveEvent struct {
 // newEntity constructs an active entity with empty field state.
 func newEntity(index, serial int32, class *entityClass) *Entity {
 	return &Entity{
-		index:      index,
-		serial:     serial,
-		class:      class,
-		active:     true,
-		state:      newFieldState(),
-		fieldTicks: make(map[fieldPath]uint32),
+		index:  index,
+		serial: serial,
+		class:  class,
+		active: true,
+		state:  newFieldState(),
 	}
 }
 
@@ -296,19 +293,18 @@ func (e *Entity) ClassName() string { return e.class.name }
 
 // Get returns the current decoded field value for name.
 func (e *Entity) Get(name string) any {
-	if e.class == nil {
-		return nil
-	}
-	fp, ok := e.class.pathForName(name)
-	if !ok {
-		return nil
-	}
-	return e.state.get(fp)
+	v, _, _ := e.fieldValue(name)
+	return v
 }
 
 // Float32 returns the current field value as a float32 when possible.
 func (e *Entity) Float32(name string) (float32, bool) {
-	switch v := e.Get(name).(type) {
+	return asFloat32(e.Get(name))
+}
+
+// asFloat32 converts a decoded numeric field value to float32.
+func asFloat32(v any) (float32, bool) {
+	switch v := v.(type) {
 	case float32:
 		return v, true
 	case float64:
@@ -347,7 +343,12 @@ func (e *Entity) Bool(name string) (bool, bool) {
 
 // UInt32 returns the current field value as a uint32 when it fits.
 func (e *Entity) UInt32(name string) (uint32, bool) {
-	switch v := e.Get(name).(type) {
+	return asUint32(e.Get(name))
+}
+
+// asUint32 converts a decoded field value to uint32 when it fits.
+func asUint32(v any) (uint32, bool) {
+	switch v := v.(type) {
 	case uint32:
 		return v, true
 	case int32:
@@ -373,7 +374,12 @@ func (e *Entity) UInt32(name string) (uint32, bool) {
 // Int32 returns the current field value as an int32 when it can be represented
 // without changing sign.
 func (e *Entity) Int32(name string) (int32, bool) {
-	switch v := e.Get(name).(type) {
+	return asInt32(e.Get(name))
+}
+
+// asInt32 converts a decoded field value to int32 when it keeps its sign.
+func asInt32(v any) (int32, bool) {
+	switch v := v.(type) {
 	case int32:
 		return v, true
 	case uint32:
@@ -386,6 +392,106 @@ func (e *Entity) Int32(name string) (int32, bool) {
 		}
 	}
 	return 0, false
+}
+
+// Field keys sample and the event detectors read, in the order each read
+// tries them.
+var (
+	lifeStateField               = newFieldKey("m_lifeState")
+	healthFields                 = fieldKeys("m_iHealth", "m_iCurrentHealth", "m_flHealth", "m_CCitadelHealthComponent.m_iHealth")
+	maxHealthFields              = fieldKeys("m_iMaxHealth", "m_flMaxHealth", "m_CCitadelHealthComponent.m_iMaxHealth")
+	shieldFields                 = fieldKeys("m_iShield", "m_flShield", "m_CCitadelHealthComponent.m_iShield")
+	maxShieldFields              = fieldKeys("m_iMaxShield", "m_flMaxShield", "m_CCitadelHealthComponent.m_iMaxShield")
+	heroIDFields                 = fieldKeys("m_CCitadelHeroComponent.m_spawnedHero.m_nHeroID", "m_CCitadelHeroComponent.m_loadingHero.m_nHeroID")
+	teamNumField                 = newFieldKey("m_iTeamNum")
+	subclassIDField              = newFieldKey("m_nSubclassID")
+	abilitySlotField             = newFieldKey("m_eAbilitySlot")
+	upgradeInfoField             = newFieldKey("m_nUpgradeInfo")
+	levelFields                  = fieldKeys("m_nLevel", "m_PlayerDataGlobal.m_iLevel")
+	ownerEntityField             = newFieldKey("m_hOwnerEntity")
+	heroPawnFields               = fieldKeys("m_hHeroPawn", "m_hPawn")
+	goldNetWorthField            = newFieldKey("m_PlayerDataGlobal.m_iGoldNetWorth")
+	goldField                    = newFieldKey("m_PlayerDataGlobal.m_iGold")
+	originalLaneAssignmentFields = fieldKeys("m_nOriginalLaneAssignment", "m_nAssignedLane")
+	remainingChargesField        = newFieldKey("m_iRemainingCharges")
+	latchTimeField               = newFieldKey("m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchTime")
+	latchValueField              = newFieldKey("m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchValue")
+	cooldownStartField           = newFieldKey("m_flCooldownStart")
+	chargeRechargeStartField     = newFieldKey("m_flChargeRechargeStart")
+	chargeRechargeEndField       = newFieldKey("m_flChargeRechargeEnd")
+	cooldownEndField             = newFieldKey("m_flCooldownEnd")
+	deathsField                  = newFieldKey("m_PlayerDataGlobal.m_iDeaths")
+	lastHitsField                = newFieldKey("m_PlayerDataGlobal.m_iLastHits")
+	deniesField                  = newFieldKey("m_PlayerDataGlobal.m_iDenies")
+	killStreakField              = newFieldKey("m_PlayerDataGlobal.m_iKillStreak")
+	heroDamageField              = newFieldKey("m_PlayerDataGlobal.m_iHeroDamage")
+	playerSlotFields             = fieldKeys("m_iPlayerSlot", "m_nPlayerSlot", "m_iPlayerID", "m_nPlayerID", "m_iPlayerIndex", "m_nPlayerIndex", "m_unLobbyPlayerSlot")
+	groundEntityField            = newFieldKey("m_hGroundEntity")
+	duckedField                  = newFieldKey("m_pMovementServices.m_bDucked")
+	steamIDField                 = newFieldKey("m_steamID")
+	playerNameField              = newFieldKey("m_iszPlayerName")
+	lobbyPlayerSlotField         = newFieldKey("m_unLobbyPlayerSlot")
+	jumpedField                  = newFieldKey("m_bJumped")
+	desiredAirJumpCountField     = newFieldKey("m_nDesiredAirJumpCount")
+	executedAirJumpCountField    = newFieldKey("m_nExecutedAirJumpCount")
+	consecutiveAirJumpsField     = newFieldKey("m_nConsecutiveAirJumps")
+	consecutiveWallJumpsField    = newFieldKey("m_nConsecutiveWallJumps")
+	canDashJumpField             = newFieldKey("m_bCanDashJump")
+	inSlideJumpField             = newFieldKey("m_bInSlideJump")
+	castCompletedTimeField       = newFieldKey("m_flCastCompletedTime")
+	clientCameraFields           = fieldKeys("m_angClientCamera")
+	clientCameraAxisFields       = fieldKeys("m_angClientCamera.m_x", "m_angClientCamera.m_y", "m_angClientCamera.m_z")
+	eyeAnglesFields              = fieldKeys("m_angEyeAngles", "CBodyComponent.m_skeletonInstance.m_angRotation")
+	eyeAngleAxisFields           = fieldKeys("m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z")
+	velocityFields               = fieldKeys("m_vecVelocity")
+	velocityAxisFields           = fieldKeys("m_vecVelocity.m_vecX", "m_vecVelocity.m_vecY", "m_vecVelocity.m_vecZ")
+	playerIDFields               = fieldKeys("m_iPlayerSlot", "m_nPlayerSlot", "m_iPlayerID", "m_nPlayerID", "m_iPlayerIndex", "m_nPlayerIndex")
+)
+
+// bodyOrigins are the fields that hold an entity's origin. Modern flattened
+// serializers nest it under the skeleton instance; older replays expose it
+// directly on CBodyComponent.
+var bodyOrigins = []string{
+	"CBodyComponent.m_skeletonInstance.m_vecOrigin",
+	"m_CBodyComponent.m_skeletonInstance.m_vecOrigin",
+	"CBodyComponent",
+	"m_CBodyComponent",
+}
+
+// bodyCellFields and bodyVecFields list, for each axis, the cell and in-cell
+// offset field of every body origin, in bodyOrigins order.
+var bodyCellFields, bodyVecFields = bodyAxisFields()
+
+func bodyAxisFields() (cells, vecs [3][]fieldKey) {
+	for i, axis := range [3]string{"X", "Y", "Z"} {
+		for _, base := range bodyOrigins {
+			cells[i] = append(cells[i], newFieldKey(base+".m_cell"+axis))
+			vecs[i] = append(vecs[i], newFieldKey(base+".m_vec"+axis))
+		}
+	}
+	return cells, vecs
+}
+
+// positionSources holds every "cell+offset" source field name sample can
+// report, so building a sample allocates no string.
+var positionSources = func() map[[2]string]string {
+	m := make(map[[2]string]string)
+	for axis := range 3 {
+		for _, cell := range bodyCellFields[axis] {
+			for _, vec := range bodyVecFields[axis] {
+				m[[2]string{cell.name, vec.name}] = cell.name + "+" + vec.name
+			}
+		}
+	}
+	return m
+}()
+
+// positionSourceField names the cell and offset fields one position axis came from.
+func positionSourceField(cell, vec string) string {
+	if name, ok := positionSources[[2]string{cell, vec}]; ok {
+		return name
+	}
+	return cell + "+" + vec
 }
 
 // sample builds a typed snapshot of the entity's current state at a tick.
@@ -401,93 +507,45 @@ func (e *Entity) sample(tick uint32, gameTime float64, maxCoord float32) (Entity
 	}
 
 	// Preserve lifecycle separately because dead entities can retain positive health.
-	s.LifeState, s.LifeStateTick, s.HasLifeState = firstUInt32AtAny(e, "m_lifeState")
-	s.Health, s.HealthTick, s.HasHealth = firstFloat32AtAny(e,
-		"m_iHealth",
-		"m_iCurrentHealth",
-		"m_flHealth",
-		"m_CCitadelHealthComponent.m_iHealth",
-	)
-	s.MaxHealth, s.MaxHealthTick, _ = firstFloat32AtAny(e,
-		"m_iMaxHealth",
-		"m_flMaxHealth",
-		"m_CCitadelHealthComponent.m_iMaxHealth",
-	)
-	s.Shield, s.ShieldTick, s.HasShield = firstFloat32AtAny(e,
-		"m_iShield",
-		"m_flShield",
-		"m_CCitadelHealthComponent.m_iShield",
-	)
-	s.MaxShield, s.MaxShieldTick, _ = firstFloat32AtAny(e,
-		"m_iMaxShield",
-		"m_flMaxShield",
-		"m_CCitadelHealthComponent.m_iMaxShield",
-	)
-	s.HeroID, s.HeroIDTick, s.HasHeroID = firstUInt32AtAny(e,
-		"m_CCitadelHeroComponent.m_spawnedHero.m_nHeroID",
-		"m_CCitadelHeroComponent.m_loadingHero.m_nHeroID",
-	)
-	s.Team, s.TeamTick, s.HasTeam = firstInt32AtAny(e, "m_iTeamNum")
+	s.LifeState, s.LifeStateTick, s.HasLifeState = firstUInt32AtAny(e, lifeStateField)
+	s.Health, s.HealthTick, s.HasHealth = firstFloat32AtAny(e, healthFields...)
+	s.MaxHealth, s.MaxHealthTick, _ = firstFloat32AtAny(e, maxHealthFields...)
+	s.Shield, s.ShieldTick, s.HasShield = firstFloat32AtAny(e, shieldFields...)
+	s.MaxShield, s.MaxShieldTick, _ = firstFloat32AtAny(e, maxShieldFields...)
+	s.HeroID, s.HeroIDTick, s.HasHeroID = firstUInt32AtAny(e, heroIDFields...)
+	s.Team, s.TeamTick, s.HasTeam = firstInt32AtAny(e, teamNumField)
 	s.CameraAngles, s.CameraAnglesTicks, s.CameraAnglesSourceFields, s.HasCameraAngles = e.vector3(
-		[]string{"m_angClientCamera"},
-		[]string{"m_angClientCamera.m_x", "m_angClientCamera.m_y", "m_angClientCamera.m_z"},
+		clientCameraFields,
+		clientCameraAxisFields,
 	)
-	if facing, ticks, fields, present := e.vector3([]string{
-		"m_angEyeAngles", "CBodyComponent.m_skeletonInstance.m_angRotation",
-	}, []string{
-		"m_angEyeAngles.m_x", "m_angEyeAngles.m_y", "m_angEyeAngles.m_z",
-	}); present[0] || present[1] || present[2] {
+	if facing, ticks, fields, present := e.vector3(eyeAnglesFields, eyeAngleAxisFields); present[0] || present[1] || present[2] {
 		s.FacingX, s.FacingY, s.FacingZ = facing[0], facing[1], facing[2]
 		s.FacingXTick, s.FacingYTick, s.FacingZTick = ticks[0], ticks[1], ticks[2]
 		s.FacingXSourceField, s.FacingYSourceField, s.FacingZSourceField = fields[0], fields[1], fields[2]
 		s.HasFacingX, s.HasFacingY, s.HasFacingZ = present[0], present[1], present[2]
 		s.HasFacing = present[0] && present[1] && present[2]
 	}
-	if velocity, ticks, fields, present := e.vector3([]string{"m_vecVelocity"}, []string{
-		"m_vecVelocity.m_vecX", "m_vecVelocity.m_vecY", "m_vecVelocity.m_vecZ",
-	}); present[0] || present[1] || present[2] {
+	if velocity, ticks, fields, present := e.vector3(velocityFields, velocityAxisFields); present[0] || present[1] || present[2] {
 		s.VelocityX, s.VelocityY, s.VelocityZ = velocity[0], velocity[1], velocity[2]
 		s.VelocityXTick, s.VelocityYTick, s.VelocityZTick = ticks[0], ticks[1], ticks[2]
 		s.VelocityXSourceField, s.VelocityYSourceField, s.VelocityZSourceField = fields[0], fields[1], fields[2]
 		s.HasVelocityX, s.HasVelocityY, s.HasVelocityZ = present[0], present[1], present[2]
 		s.HasVelocity = present[0] && present[1] && present[2]
 	}
-	if ground, ok := e.UInt32("m_hGroundEntity"); ok {
+	if ground, ok := asUint32(e.keyed(groundEntityField)); ok {
 		s.Grounded = validEntityHandle(ground)
 		s.HasGrounded = true
 	}
-	if crouching, ok := e.Bool("m_pMovementServices.m_bDucked"); ok {
+	if crouching, ok := e.keyed(duckedField).(bool); ok {
 		s.Crouching = crouching
 		s.HasCrouching = true
 	}
-	// Modern flattened serializers nest body origin under the skeleton
-	// instance; older replays expose it directly on CBodyComponent.
-	bodyOrigin := []string{
-		"CBodyComponent.m_skeletonInstance.m_vecOrigin",
-		"m_CBodyComponent.m_skeletonInstance.m_vecOrigin",
-		"CBodyComponent",
-		"m_CBodyComponent",
-	}
-	cellNames := func(axis string) []string {
-		names := make([]string, 0, len(bodyOrigin))
-		for _, base := range bodyOrigin {
-			names = append(names, base+".m_"+axis)
-		}
-		return names
-	}
-	vecNames := func(axis string) []string {
-		names := make([]string, 0, len(bodyOrigin))
-		for _, base := range bodyOrigin {
-			names = append(names, base+".m_vec"+axis)
-		}
-		return names
-	}
-	x, xTick, xField, okX := firstFloat32At(e, cellNames("cellX")...)
-	y, yTick, yField, okY := firstFloat32At(e, cellNames("cellY")...)
-	z, zTick, zField, okZ := firstFloat32At(e, cellNames("cellZ")...)
-	vx, vxTick, vxField, vxOK := firstFloat32At(e, vecNames("X")...)
-	vy, vyTick, vyField, vyOK := firstFloat32At(e, vecNames("Y")...)
-	vz, vzTick, vzField, vzOK := firstFloat32At(e, vecNames("Z")...)
+	x, xTick, xField, okX := firstFloat32At(e, bodyCellFields[0]...)
+	y, yTick, yField, okY := firstFloat32At(e, bodyCellFields[1]...)
+	z, zTick, zField, okZ := firstFloat32At(e, bodyCellFields[2]...)
+	vx, vxTick, vxField, vxOK := firstFloat32At(e, bodyVecFields[0]...)
+	vy, vyTick, vyField, vyOK := firstFloat32At(e, bodyVecFields[1]...)
+	vz, vzTick, vzField, vzOK := firstFloat32At(e, bodyVecFields[2]...)
 	if okX && okY && okZ && vxOK && vyOK && vzOK {
 		s.PositionX = deadlockCoordFromCell(x, vx, maxCoord)
 		s.PositionY = deadlockCoordFromCell(y, vy, maxCoord)
@@ -495,77 +553,75 @@ func (e *Entity) sample(tick uint32, gameTime float64, maxCoord float32) (Entity
 		s.PositionXTick = minTick(xTick, vxTick)
 		s.PositionYTick = minTick(yTick, vyTick)
 		s.PositionZTick = minTick(zTick, vzTick)
-		s.PositionXSourceField = xField + "+" + vxField
-		s.PositionYSourceField = yField + "+" + vyField
-		s.PositionZSourceField = zField + "+" + vzField
+		s.PositionXSourceField = positionSourceField(xField, vxField)
+		s.PositionYSourceField = positionSourceField(yField, vyField)
+		s.PositionZSourceField = positionSourceField(zField, vzField)
 		s.HasPosition = true
 	}
-	s.SubclassID, s.SubclassIDTick, s.HasSubclassID = firstUInt32AtAny(e, "m_nSubclassID")
-	s.AbilitySlot, s.AbilitySlotTick, s.HasAbilitySlot = firstUInt32AtAny(e, "m_eAbilitySlot")
-	s.UpgradeInfo, s.UpgradeInfoTick, s.HasUpgradeInfo = firstUInt32AtAny(e, "m_nUpgradeInfo")
-	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, "m_nLevel", "m_PlayerDataGlobal.m_iLevel")
-	if handle, handleTick, ok := firstUInt32AtAny(e, "m_hOwnerEntity"); ok && validEntityHandle(handle) {
+	s.SubclassID, s.SubclassIDTick, s.HasSubclassID = firstUInt32AtAny(e, subclassIDField)
+	s.AbilitySlot, s.AbilitySlotTick, s.HasAbilitySlot = firstUInt32AtAny(e, abilitySlotField)
+	s.UpgradeInfo, s.UpgradeInfoTick, s.HasUpgradeInfo = firstUInt32AtAny(e, upgradeInfoField)
+	s.Level, s.LevelTick, s.HasLevel = firstUInt32AtAny(e, levelFields...)
+	if handle, handleTick, ok := firstUInt32AtAny(e, ownerEntityField); ok && validEntityHandle(handle) {
 		s.OwnerEntity = int32(handle & uint32(entityHandleMask))
 		s.OwnerEntitySerial = int32(handle >> 14)
 		s.OwnerEntityTick = handleTick
 		s.HasOwnerEntity = true
 	}
-	if handle, handleTick, ok := firstUInt32AtAny(e, "m_hHeroPawn", "m_hPawn"); ok && validEntityHandle(handle) {
+	if handle, handleTick, ok := firstUInt32AtAny(e, heroPawnFields...); ok && validEntityHandle(handle) {
 		s.PawnEntity = int32(handle & uint32(entityHandleMask))
 		s.PawnEntitySerial = int32(handle >> 14)
 		s.PawnEntityTick = handleTick
 		s.HasPawnEntity = true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGoldNetWorth"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, goldNetWorthField); ok {
 		s.NetWorth, s.NetWorthTick, s.HasNetWorth = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iGold"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, goldField); ok {
 		s.Souls, s.SoulsTick, s.HasSouls = value, valueTick, true
 	}
 	// The game clears the assigned lane once laning ends; the original
 	// assignment keeps the lane the hero started in.
-	if value, valueTick, ok := firstInt32AtAny(e, "m_nOriginalLaneAssignment", "m_nAssignedLane"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, originalLaneAssignmentFields...); ok {
 		s.Lane, s.LaneTick, s.HasLane = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_iRemainingCharges"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, remainingChargesField); ok {
 		s.RemainingCharges, s.RemainingChargesTick, s.HasRemainingCharges = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchTime"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, latchTimeField); ok {
 		s.StaminaLatchTime, s.StaminaLatchTimeTick, s.HasStaminaLatchTime = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_CCitadelAbilityComponent.m_ResourceStamina.m_flLatchValue"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, latchValueField); ok {
 		s.StaminaLatchValue, s.StaminaLatchValueTick, s.HasStaminaLatchValue = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownStart"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, cooldownStartField); ok {
 		s.CooldownStart, s.CooldownStartTick, s.HasCooldownStart = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_flChargeRechargeStart"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, chargeRechargeStartField); ok {
 		s.ChargeRechargeStart, s.ChargeRechargeStartTick, s.HasChargeRechargeStart = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_flChargeRechargeEnd"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, chargeRechargeEndField); ok {
 		s.ChargeRechargeEnd, s.ChargeRechargeEndTick, s.HasChargeRechargeEnd = value, valueTick, true
 	}
-	if value, valueTick, _, ok := firstFloat32At(e, "m_flCooldownEnd"); ok {
+	if value, valueTick, _, ok := firstFloat32At(e, cooldownEndField); ok {
 		s.CooldownEnd, s.CooldownEndTick, s.HasCooldownEnd = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iDeaths"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, deathsField); ok {
 		s.Deaths, s.DeathsTick, s.HasDeaths = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iLastHits"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, lastHitsField); ok {
 		s.LastHits, s.LastHitsTick, s.HasLastHits = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iDenies"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, deniesField); ok {
 		s.Denies, s.DeniesTick, s.HasDenies = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iKillStreak"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, killStreakField); ok {
 		s.KillStreak, s.KillStreakTick, s.HasKillStreak = value, valueTick, true
 	}
-	if value, valueTick, ok := firstInt32AtAny(e, "m_PlayerDataGlobal.m_iHeroDamage"); ok {
+	if value, valueTick, ok := firstInt32AtAny(e, heroDamageField); ok {
 		s.HeroDamage, s.HeroDamageTick, s.HasHeroDamage = value, valueTick, true
 	}
-	if slot, _, ok := firstInt32AtAny(e,
-		"m_iPlayerSlot", "m_nPlayerSlot", "m_iPlayerID", "m_nPlayerID", "m_iPlayerIndex", "m_nPlayerIndex", "m_unLobbyPlayerSlot",
-	); ok && slot >= 0 {
+	if slot, _, ok := firstInt32AtAny(e, playerSlotFields...); ok && slot >= 0 {
 		s.PlayerSlot = slot
 	}
 	hasSignal := s.HasCameraAngles[0] || s.HasCameraAngles[1] || s.HasCameraAngles[2] ||
@@ -578,60 +634,84 @@ func (e *Entity) sample(tick uint32, gameTime float64, maxCoord float32) (Entity
 
 // fieldValue returns a field value with the tick it was last updated.
 func (e *Entity) fieldValue(name string) (any, uint32, bool) {
+	if e.class == nil {
+		return nil, 0, false
+	}
 	fp, ok := e.class.pathForName(name)
 	if !ok {
 		return nil, 0, false
 	}
-	v := e.state.get(fp)
-	if v == nil {
+	return e.valueAt(&fp)
+}
+
+// keyValue is fieldValue for a registered key, resolved without hashing.
+func (e *Entity) keyValue(k fieldKey) (any, uint32, bool) {
+	if e.class == nil {
 		return nil, 0, false
 	}
-	return v, e.fieldTicks[fp], true
+	np := e.class.pathForKey(k)
+	if !np.found {
+		return nil, 0, false
+	}
+	return e.valueAt(&np.path)
+}
+
+// keyed returns a key's current value, or nil when it is unset.
+func (e *Entity) keyed(k fieldKey) any {
+	v, _, _ := e.keyValue(k)
+	return v
+}
+
+// valueAt reads the set, non-nil value at fp with its tick.
+func (e *Entity) valueAt(fp *fieldPath) (any, uint32, bool) {
+	v, tick, ok := e.state.get(fp)
+	if !ok || v == nil {
+		return nil, 0, false
+	}
+	return v, tick, true
 }
 
 // vector3 reads a 3-component value, preferring a single vector field and
 // falling back to per-component fields.
-func (e *Entity) vector3(vectorNames, componentNames []string) ([3]float32, [3]uint32, [3]string, [3]bool) {
+func (e *Entity) vector3(vectorKeys, componentKeys []fieldKey) ([3]float32, [3]uint32, [3]string, [3]bool) {
 	var values [3]float32
 	var ticks [3]uint32
 	var fields [3]string
 	var present [3]bool
-	for _, name := range vectorNames {
-		if v, tick, ok := e.fieldValue(name); ok {
+	for _, k := range vectorKeys {
+		if v, tick, ok := e.keyValue(k); ok {
 			if vector, ok := v.([]float32); ok && len(vector) >= 3 {
 				copy(values[:], vector[:3])
 				ticks = [3]uint32{tick, tick, tick}
-				fields = [3]string{name, name, name}
+				fields = [3]string{k.name, k.name, k.name}
 				present = [3]bool{true, true, true}
 				return values, ticks, fields, present
 			}
 		}
 	}
-	if len(componentNames) != 3 {
+	if len(componentKeys) != 3 {
 		return values, ticks, fields, present
 	}
-	for i, name := range componentNames {
-		_, tick, ok := e.fieldValue(name)
-		value, valueOK := e.Float32(name)
+	for i, k := range componentKeys {
+		v, tick, ok := e.keyValue(k)
+		value, valueOK := asFloat32(v)
 		if ok && valueOK {
-			values[i], ticks[i], fields[i], present[i] = value, tick, name, true
+			values[i], ticks[i], fields[i], present[i] = value, tick, k.name, true
 		}
 	}
 	return values, ticks, fields, present
 }
 
-// firstFloat32At returns the first readable float field among names with its tick and source name.
-func firstFloat32At(e *Entity, names ...string) (float32, uint32, string, bool) {
-	for _, name := range names {
-		value, ok := e.Float32(name)
+// firstFloat32At returns the first readable float field among keys with its tick and source name.
+func firstFloat32At(e *Entity, keys ...fieldKey) (float32, uint32, string, bool) {
+	for _, k := range keys {
+		v, tick, ok := e.keyValue(k)
 		if !ok {
 			continue
 		}
-		fp, pathOK := e.class.pathForName(name)
-		if !pathOK {
-			continue
+		if value, ok := asFloat32(v); ok {
+			return value, tick, k.name, true
 		}
-		return value, e.fieldTicks[fp], name, true
 	}
 	return 0, 0, "", false
 }
@@ -644,24 +724,24 @@ func minTick(a, b uint32) uint32 {
 	return b
 }
 
-// firstFloat32AtAny returns the first readable float field among names with its tick.
-func firstFloat32AtAny(e *Entity, names ...string) (float32, uint32, bool) {
-	for _, name := range names {
-		if value, tick, _, ok := firstFloat32At(e, name); ok {
+// firstFloat32AtAny returns the first readable float field among keys with its tick.
+func firstFloat32AtAny(e *Entity, keys ...fieldKey) (float32, uint32, bool) {
+	for _, k := range keys {
+		if value, tick, _, ok := firstFloat32At(e, k); ok {
 			return value, tick, true
 		}
 	}
 	return 0, 0, false
 }
 
-// firstUInt32AtAny returns the first uint32-convertible field among names with its tick.
-func firstUInt32AtAny(e *Entity, names ...string) (uint32, uint32, bool) {
-	for _, name := range names {
-		_, tick, ok := e.fieldValue(name)
+// firstUInt32AtAny returns the first uint32-convertible field among keys with its tick.
+func firstUInt32AtAny(e *Entity, keys ...fieldKey) (uint32, uint32, bool) {
+	for _, k := range keys {
+		v, tick, ok := e.keyValue(k)
 		if !ok {
 			continue
 		}
-		converted, ok := e.UInt32(name)
+		converted, ok := asUint32(v)
 		if ok {
 			return converted, tick, true
 		}
@@ -669,14 +749,14 @@ func firstUInt32AtAny(e *Entity, names ...string) (uint32, uint32, bool) {
 	return 0, 0, false
 }
 
-// firstInt32AtAny returns the first int32-convertible field among names with its tick.
-func firstInt32AtAny(e *Entity, names ...string) (int32, uint32, bool) {
-	for _, name := range names {
-		_, tick, ok := e.fieldValue(name)
+// firstInt32AtAny returns the first int32-convertible field among keys with its tick.
+func firstInt32AtAny(e *Entity, keys ...fieldKey) (int32, uint32, bool) {
+	for _, k := range keys {
+		v, tick, ok := e.keyValue(k)
 		if !ok {
 			continue
 		}
-		converted, ok := e.Int32(name)
+		converted, ok := asInt32(v)
 		if ok {
 			return converted, tick, true
 		}
@@ -789,10 +869,8 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 				delete(p.entityPlayerSlots, index)
 				e := newEntity(index, int32(serial), class)
 				p.entities[index] = e
-				if baseline := p.classBaselines[int32(classID)]; len(baseline) != 0 {
-					if err := p.readFields(e, newPacketReader(baseline), 0); err != nil {
-						return err
-					}
+				if err := p.applyBaseline(e); err != nil {
+					return err
 				}
 				if err := p.readFields(e, r, tick); err != nil {
 					return err
@@ -832,6 +910,36 @@ func (p *Parser) applyPacketEntities(tick uint32, msg *protocol.CSVCMsg_PacketEn
 	return nil
 }
 
+// classBaseline is one class's instance baseline: the serialized field values
+// every new entity of the class starts from, and their decoded form.
+type classBaseline struct {
+	// raw is the baseline as the instancebaseline string table carries it.
+	raw []byte
+	// class is the class state was decoded with.
+	class *entityClass
+	// state is raw decoded at tick 0, built by the class's first create.
+	state *fieldState
+}
+
+// applyBaseline sets a new entity's fields to its class baseline. The first
+// entity of a class decodes the baseline; later ones clone that decode, so a
+// create costs one copy instead of a full field decode.
+func (p *Parser) applyBaseline(e *Entity) error {
+	b := p.classBaselines[e.class.id]
+	if b == nil || len(b.raw) == 0 {
+		return nil
+	}
+	if b.state != nil && b.class == e.class {
+		e.state = b.state.clone()
+		return nil
+	}
+	if err := p.readFields(e, newPacketReader(b.raw), 0); err != nil {
+		return err
+	}
+	b.class, b.state = e.class, e.state.clone()
+	return nil
+}
+
 // readFields decodes field paths from the reader and stores e's values with
 // their tick. The paths decode into p.fieldPaths, which every update reuses.
 func (p *Parser) readFields(e *Entity, r *packetReader, tick uint32) error {
@@ -849,8 +957,7 @@ func (p *Parser) readFields(e *Entity, r *packetReader, tick uint32) error {
 		if err != nil {
 			return entityDecodeError{entity: e, path: fp, field: e.class.fieldByPath(fp), rootField: e.class.rootField(fp), fieldName: e.class.fieldName(fp), err: err}
 		}
-		e.state.set(fp, v)
-		e.fieldTicks[fp] = tick
+		e.state.set(fp, v, tick)
 	}
 	return nil
 }
@@ -936,10 +1043,10 @@ func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 		ClassID:   e.class.id,
 		ClassName: e.class.name,
 	}
-	if v, ok := e.Get("m_steamID").(uint64); ok {
+	if v, ok := e.keyed(steamIDField).(uint64); ok {
 		cs.SteamID = v
 	}
-	cs.PlayerName, _ = e.String("m_iszPlayerName")
+	cs.PlayerName, _ = e.keyed(playerNameField).(string)
 	intFields := []struct {
 		name string
 		dst  *int32
@@ -968,7 +1075,7 @@ func (p *Parser) appendControllerSample(tick uint32, e *Entity) {
 			*f.dst = v
 		}
 	}
-	slot, ok := e.Int32("m_unLobbyPlayerSlot")
+	slot, ok := asInt32(e.keyed(lobbyPlayerSlotField))
 	if !ok {
 		slot = -1
 	}
@@ -1089,13 +1196,13 @@ type jumpState struct {
 // appendJumpStateEvent emits initial or changed jump state for one incarnation.
 func (p *Parser) appendJumpStateEvent(tick uint32, e *Entity) {
 	current := jumpState{}
-	current.jumped, current.hasJumped = e.Bool("m_bJumped")
-	current.desiredAirJumpCount, current.hasDesiredAirJumpCount = e.Int32("m_nDesiredAirJumpCount")
-	current.executedAirJumpCount, current.hasExecutedAirJumpCount = e.Int32("m_nExecutedAirJumpCount")
-	current.consecutiveAirJumps, current.hasConsecutiveAirJumps = e.Int32("m_nConsecutiveAirJumps")
-	current.consecutiveWallJumps, current.hasConsecutiveWallJumps = e.Int32("m_nConsecutiveWallJumps")
-	current.canDashJump, current.hasCanDashJump = e.Bool("m_bCanDashJump")
-	current.inSlideJump, current.hasInSlideJump = e.Bool("m_bInSlideJump")
+	current.jumped, current.hasJumped = e.keyed(jumpedField).(bool)
+	current.desiredAirJumpCount, current.hasDesiredAirJumpCount = asInt32(e.keyed(desiredAirJumpCountField))
+	current.executedAirJumpCount, current.hasExecutedAirJumpCount = asInt32(e.keyed(executedAirJumpCountField))
+	current.consecutiveAirJumps, current.hasConsecutiveAirJumps = asInt32(e.keyed(consecutiveAirJumpsField))
+	current.consecutiveWallJumps, current.hasConsecutiveWallJumps = asInt32(e.keyed(consecutiveWallJumpsField))
+	current.canDashJump, current.hasCanDashJump = e.keyed(canDashJumpField).(bool)
+	current.inSlideJump, current.hasInSlideJump = e.keyed(inSlideJumpField).(bool)
 	if !current.hasJumped && !current.hasDesiredAirJumpCount && !current.hasExecutedAirJumpCount &&
 		!current.hasConsecutiveAirJumps && !current.hasConsecutiveWallJumps &&
 		!current.hasCanDashJump && !current.hasInSlideJump {
@@ -1113,7 +1220,7 @@ func (p *Parser) appendJumpStateEvent(tick uint32, e *Entity) {
 	p.jumpLastSeen[epoch] = current
 
 	slot := int32(-1)
-	if ownerHandle, ok := e.UInt32("m_hOwnerEntity"); ok {
+	if ownerHandle, ok := asUint32(e.keyed(ownerEntityField)); ok {
 		if owner := p.FindEntityByHandle(uint64(ownerHandle)); owner != nil && owner.active {
 			if mapped, mappedOK := p.entityPlayerSlots[owner.index]; mappedOK {
 				slot = mapped
@@ -1151,7 +1258,7 @@ func (p *Parser) appendJumpStateEvent(tick uint32, e *Entity) {
 // entity's m_iRemainingCharges differs from the last value seen for it.
 // Dash charges are the primary consumer; any charged ability flows here.
 func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
-	charges, ok := e.Int32("m_iRemainingCharges")
+	charges, ok := asInt32(e.keyed(remainingChargesField))
 	if !ok {
 		return
 	}
@@ -1165,7 +1272,7 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 	p.chargeLastSeen[epoch] = charges
 
 	slot := int32(-1)
-	if handle, ok := e.UInt32("m_hOwnerEntity"); ok {
+	if handle, ok := asUint32(e.keyed(ownerEntityField)); ok {
 		if owner := p.FindEntityByHandle(uint64(handle)); owner != nil && owner.active {
 			if mapped, mappedOk := p.entityPlayerSlots[owner.index]; mappedOk {
 				slot = mapped
@@ -1192,7 +1299,7 @@ func (p *Parser) appendAbilityChargeEvent(tick uint32, e *Entity) {
 // game time of the use, so a stale value on the entity's first observation is
 // ignored and a repeat of the same value is not a second cast.
 func (p *Parser) appendAbilityCastEvent(tick uint32, e *Entity) {
-	start, ok := e.Float32("m_flCooldownStart")
+	start, ok := asFloat32(e.keyed(cooldownStartField))
 	if !ok || start <= 0 {
 		return
 	}
@@ -1214,12 +1321,12 @@ func (p *Parser) appendAbilityCastEvent(tick uint32, e *Entity) {
 		CooldownStart: start,
 		OwnerEntity:   -1,
 	}
-	cast.CooldownEnd, _ = e.Float32("m_flCooldownEnd")
-	cast.CastCompletedTime, _ = e.Float32("m_flCastCompletedTime")
-	cast.AbilitySlot, cast.HasAbilitySlot = e.UInt32("m_eAbilitySlot")
-	cast.SubclassID, cast.HasSubclassID = e.UInt32("m_nSubclassID")
+	cast.CooldownEnd, _ = asFloat32(e.keyed(cooldownEndField))
+	cast.CastCompletedTime, _ = asFloat32(e.keyed(castCompletedTimeField))
+	cast.AbilitySlot, cast.HasAbilitySlot = asUint32(e.keyed(abilitySlotField))
+	cast.SubclassID, cast.HasSubclassID = asUint32(e.keyed(subclassIDField))
 	slot := int32(-1)
-	if handle, ok := e.UInt32("m_hOwnerEntity"); ok {
+	if handle, ok := asUint32(e.keyed(ownerEntityField)); ok {
 		if owner := p.FindEntityByHandle(uint64(handle)); owner != nil && owner.active {
 			cast.OwnerEntity = owner.index
 			if mapped, mappedOk := p.entityPlayerSlots[owner.index]; mappedOk {
@@ -1250,26 +1357,19 @@ func (p *Parser) cooldownStartIsRecent(start float32) bool {
 
 // updateEntityPlayerSlot maps an entity index to a player slot when the entity carries slot fields.
 func (p *Parser) updateEntityPlayerSlot(e *Entity) {
-	for _, name := range []string{
-		"m_iPlayerSlot",
-		"m_nPlayerSlot",
-		"m_iPlayerID",
-		"m_nPlayerID",
-		"m_iPlayerIndex",
-		"m_nPlayerIndex",
-	} {
-		slot, ok := e.Int32(name)
+	for _, k := range playerIDFields {
+		slot, ok := asInt32(e.keyed(k))
 		if ok && slot >= 0 {
 			p.entityPlayerSlots[e.index] = slot
 			return
 		}
 	}
-	slot, ok := e.Int32("m_unLobbyPlayerSlot")
+	slot, ok := asInt32(e.keyed(lobbyPlayerSlotField))
 	if !ok || slot < 0 {
 		return
 	}
-	for _, name := range []string{"m_hHeroPawn", "m_hPawn"} {
-		handle, ok := e.UInt32(name)
+	for _, k := range heroPawnFields {
+		handle, ok := asUint32(e.keyed(k))
 		if !ok {
 			continue
 		}

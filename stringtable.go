@@ -1,6 +1,7 @@
 package s2replay
 
 import (
+	"bytes"
 	"strconv"
 
 	"github.com/klauspost/compress/snappy"
@@ -258,7 +259,9 @@ func (p *Parser) updateInstanceBaseline() {
 		if err != nil {
 			continue
 		}
-		p.classBaselines[int32(classID)] = item.value
+		if b := p.classBaselines[int32(classID)]; b == nil || !bytes.Equal(b.raw, item.value) {
+			p.classBaselines[int32(classID)] = &classBaseline{raw: item.value}
+		}
 	}
 }
 

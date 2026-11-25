@@ -10,8 +10,7 @@ func TestNpcFacingPreservesSceneRotation(t *testing.T) {
 	}}}
 	entity := newEntity(7, 2, class)
 	path := fieldPath{last: 0}
-	entity.state.set(path, []float32{0, 60, 0})
-	entity.fieldTicks[path] = 100
+	entity.state.set(path, []float32{0, 60, 0}, 100)
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	parser.clock.setTick(110)
 

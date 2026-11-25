@@ -12,9 +12,8 @@ func TestSampleEntityReadsNonHero(t *testing.T) {
 	entity := newEntity(9, 1, class)
 	health := fieldPath{path: [fieldPathMaxDepth]int{0}}
 	team := fieldPath{path: [fieldPathMaxDepth]int{1}}
-	entity.state.set(health, int32(4200))
-	entity.state.set(team, int32(3))
-	entity.fieldTicks[health], entity.fieldTicks[team] = 50, 50
+	entity.state.set(health, int32(4200), 50)
+	entity.state.set(team, int32(3), 50)
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{9: entity}}
 	parser.clock.setTick(60)
 

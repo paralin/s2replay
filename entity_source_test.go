@@ -7,14 +7,16 @@ import (
 	"testing"
 )
 
+// fallbackCellFields tries a nested cell field before its flat fallback.
+var fallbackCellFields = fieldKeys("CBodyComponent.m_skeletonInstance.m_cellX", "m_cellX")
+
 func TestFirstFloat32AtReportsFallbackFieldPathAndTick(t *testing.T) {
 	class := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_cellX"}}}}
 	entity := newEntity(1, 1, class)
 	path := fieldPath{last: 0}
 	path.path[0] = 0
-	entity.state.set(path, uint32(12))
-	entity.fieldTicks[path] = 90
-	value, tick, name, ok := firstFloat32At(entity, "CBodyComponent.m_skeletonInstance.m_cellX", "m_cellX")
+	entity.state.set(path, uint32(12), 90)
+	value, tick, name, ok := firstFloat32At(entity, fallbackCellFields...)
 	if !ok || value != 12 || tick != 90 || name != "m_cellX" {
 		t.Fatalf("fallback field: value=%v tick=%d name=%q ok=%t", value, tick, name, ok)
 	}
@@ -105,8 +107,7 @@ func TestWorldEntitySnapshotRejectsNonFiniteSource(t *testing.T) {
 	var path fieldPath
 	path.path[0] = 0
 	path.last = 0
-	entity.state.set(path, float32(math.NaN()))
-	entity.fieldTicks[path] = 0
+	entity.state.set(path, float32(math.NaN()), 0)
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	samples, err := parser.WorldEntitySnapshot(0)
 	if samples != nil {
@@ -163,15 +164,15 @@ func TestWorldSnapshotKeepsPlayerSlotAttribution(t *testing.T) {
 	var ownerPath fieldPath
 	ownerPath.path[0] = 0
 	ownerPath.last = 0
-	owner.state.set(ownerPath, int32(4))
+	owner.state.set(ownerPath, int32(4), 0)
 
 	abilityClass := &entityClass{serializer: &serializer{fields: []*field{{varName: "m_iRemainingCharges"}, {varName: "m_hOwnerEntity"}}}}
 	ability := newEntity(2, 8, abilityClass)
 	var chargesPath, ownerPathInAbility fieldPath
 	chargesPath.path[0], chargesPath.last = 0, 0
 	ownerPathInAbility.path[0], ownerPathInAbility.last = 1, 0
-	ability.state.set(chargesPath, int32(2))
-	ability.state.set(ownerPathInAbility, uint32(7<<14|1))
+	ability.state.set(chargesPath, int32(2), 0)
+	ability.state.set(ownerPathInAbility, uint32(7<<14|1), 0)
 
 	parser := &Parser{entities: map[int32]*Entity{1: owner}, clock: newClock(), entityPlayerSlots: make(map[int32]int32), chargeLastSeen: make(map[entityEpoch]int32), worldSnapshotMode: true}
 	parser.appendEntitySample(10, owner)
@@ -189,8 +190,7 @@ func TestWorldEntitySnapshotPreservesUnsignedSubclassIdentity(t *testing.T) {
 	class := &entityClass{name: "CCitadel_Item_Empty", serializer: &serializer{fields: []*field{{varName: "m_nSubclassID"}}}}
 	entity := newEntity(7, 3, class)
 	path := fieldPath{last: 0}
-	entity.state.set(path, uint32(0xf1234567))
-	entity.fieldTicks[path] = 9
+	entity.state.set(path, uint32(0xf1234567), 9)
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	parser.clock.setTick(10)
 	samples, err := parser.WorldEntitySnapshot(10)
@@ -208,8 +208,7 @@ func TestWorldEntitySnapshotPreservesEquipmentSlotAndUpgradeInfo(t *testing.T) {
 	for i, value := range []uint32{12, 0xf1234567} {
 		path := fieldPath{last: 0}
 		path.path[0] = i
-		entity.state.set(path, value)
-		entity.fieldTicks[path] = 9
+		entity.state.set(path, value, 9)
 	}
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 	parser.clock.setTick(10)
@@ -238,8 +237,7 @@ func TestWorldEntitySnapshotPreservesHandleGenerations(t *testing.T) {
 		for i := range 2 {
 			path := fieldPath{last: 0}
 			path.path[0] = i
-			entity.state.set(path, tc.handle)
-			entity.fieldTicks[path] = 9
+			entity.state.set(path, tc.handle, 9)
 		}
 		parser := &Parser{clock: newClock(), entities: map[int32]*Entity{7: entity}}
 		parser.clock.setTick(10)
@@ -263,8 +261,8 @@ func TestAbilityChargeAttributionRejectsReusedOwnerIndex(t *testing.T) {
 	charges := fieldPath{last: 0}
 	ownerPath := fieldPath{last: 0}
 	ownerPath.path[0] = 1
-	ability.state.set(charges, int32(2))
-	ability.state.set(ownerPath, uint32(7<<14|1))
+	ability.state.set(charges, int32(2), 0)
+	ability.state.set(ownerPath, uint32(7<<14|1), 0)
 	parser := &Parser{clock: newClock(), entities: map[int32]*Entity{1: newEntity(1, 8, &entityClass{})}, entityPlayerSlots: map[int32]int32{1: 4}, chargeLastSeen: make(map[entityEpoch]int32)}
 	parser.appendAbilityChargeEvent(10, ability)
 	if len(parser.pendingEvents) != 1 || parser.pendingEvents[0].PlayerSlot != -1 {
@@ -278,8 +276,8 @@ func TestControllerAttributionRequiresCurrentPawnHandle(t *testing.T) {
 	slotPath := fieldPath{last: 0}
 	handlePath := fieldPath{last: 0}
 	handlePath.path[0] = 1
-	controller.state.set(slotPath, int32(4))
-	controller.state.set(handlePath, uint32(0x8000005c))
+	controller.state.set(slotPath, int32(4), 0)
+	controller.state.set(handlePath, uint32(0x8000005c), 0)
 	pawn := newEntity(92, 0x20000, &entityClass{})
 	parser := &Parser{entities: map[int32]*Entity{92: pawn}, entityPlayerSlots: make(map[int32]int32)}
 	parser.updateEntityPlayerSlot(controller)
