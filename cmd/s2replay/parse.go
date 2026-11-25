@@ -1,9 +1,9 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 
 	"github.com/paralin/s2replay"
@@ -13,14 +13,11 @@ import (
 // runParse walks a demo container, prints its file header, and reports a
 // monotonic tick / game-time stream. It is the Phase 2 container + clock proof.
 func runParse(path string) error {
-	demo, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	p, err := s2replay.NewParser(demo)
-	if err != nil {
-		return err
-	}
+	return withParser(path, parseReport)
+}
+
+// parseReport walks p's commands and prints the container and clock report.
+func parseReport(p *s2replay.Parser) error {
 
 	counts := map[protocol.EDemoCommands]int{}
 	var total int
@@ -90,7 +87,8 @@ func printCounts(counts map[protocol.EDemoCommands]int) {
 	for k, n := range counts {
 		rows = append(rows, row{k, n})
 	}
-	slices.SortFunc(rows, func(a, b row) int { return b.n - a.n })
+	// Most frequent first; ties by kind so the report is deterministic.
+	slices.SortFunc(rows, func(a, b row) int { return cmp.Or(b.n-a.n, int(a.kind-b.kind)) })
 	fmt.Println("command kinds:")
 	for _, r := range rows {
 		fmt.Printf("  %-28s %d\n", r.kind.String(), r.n)

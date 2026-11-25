@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -37,59 +38,48 @@ func runEmit(args []string) error {
 // emitPB writes the event stream as length-delimited ReplayEvent protobuf
 // frames: one varint byte count followed by that many message bytes.
 func emitPB(path string, out io.Writer) error {
-	demo, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	p, err := s2replay.NewParser(demo)
-	if err != nil {
-		return err
-	}
-	buf := make([]byte, 0, 64*1024)
-	for {
-		ev, err := p.NextEvent()
-		if errors.Is(err, io.EOF) {
-			_, err = out.Write(buf)
-			return err
-		}
-		if err != nil {
-			return err
-		}
-		buf, err = ev.EmitProto(buf)
-		if err != nil {
-			return err
-		}
-		if len(buf) >= 512*1024 {
-			if _, err := out.Write(buf); err != nil {
+	return withParser(path, func(p *s2replay.Parser) error {
+		buf := make([]byte, 0, 64*1024)
+		for {
+			ev, err := p.NextEvent()
+			if errors.Is(err, io.EOF) {
+				_, err = out.Write(buf)
 				return err
 			}
-			buf = buf[:0]
+			if err != nil {
+				return err
+			}
+			if buf, err = ev.EmitProto(buf); err != nil {
+				return err
+			}
+			if len(buf) >= 512*1024 {
+				if _, err := out.Write(buf); err != nil {
+					return err
+				}
+				buf = buf[:0]
+			}
 		}
-	}
+	})
 }
 
+// emitJSONL writes the event stream as one JSON object per line.
 func emitJSONL(path string, out io.Writer) error {
-	demo, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	p, err := s2replay.NewParser(demo)
-	if err != nil {
-		return err
-	}
-	enc := json.NewEncoder(out)
-	for {
-		ev, err := p.NextEvent()
-		if errors.Is(err, io.EOF) {
-			return nil
+	return withParser(path, func(p *s2replay.Parser) error {
+		w := bufio.NewWriterSize(out, 512*1024)
+		enc := json.NewEncoder(w)
+		for {
+			ev, err := p.NextEvent()
+			if errors.Is(err, io.EOF) {
+				return w.Flush()
+			}
+			if err != nil {
+				return err
+			}
+			if err := enc.Encode(ev); err != nil {
+				return err
+			}
 		}
-		if err != nil {
-			return err
-		}
-		if err := enc.Encode(ev); err != nil {
-			return err
-		}
-	}
+	})
 }
 
 type emitUsageError struct{}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"encoding/binary"
 	"errors"
 	"flag"
@@ -52,16 +51,9 @@ func runAnalyze(args []string) error {
 // analyzeStream parses one replay, reading it from disk as it parses, and
 // writes its analysis records.
 func analyzeStream(path string, out io.Writer, format string, opts analysis.AnalyzeOptions) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	p, err := s2replay.NewParserFromReader(context.Background(), f)
-	if err != nil {
-		return err
-	}
-	return writeAnalysis(p, out, format, opts)
+	return withParser(path, func(p *s2replay.Parser) error {
+		return writeAnalysis(p, out, format, opts)
+	})
 }
 
 // writeAnalysis writes each analysis record as it closes: jsonl writes one
