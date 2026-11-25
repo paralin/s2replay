@@ -40,6 +40,6 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "s2replay %s\n", s2replay.Version)
-	fmt.Fprintln(os.Stderr, "usage: s2replay [version|parse <demo.dem>|emit --format jsonl <demo.dem>|analyze --format json <demo.dem>]")
+	fmt.Fprintln(os.Stderr, "usage: s2replay [version|parse <demo.dem>|emit --format jsonl <demo.dem>|analyze [--format jsonl|pb] <demo.dem>]")
 	os.Exit(2)
 }

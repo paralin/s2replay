@@ -1,0 +1,112 @@
+syntax = "proto3";
+package analysis;
+
+// AnalysisRecord is one record of the analyze stream. A stream opens with one
+// header, carries each inventory interval, modifier interval and combat window
+// as soon as it closes, and ends with one summary. A reader that has not seen
+// the summary has a truncated stream. Records of one kind arrive in the order
+// they closed, not the order they opened.
+message AnalysisRecord {
+  oneof record {
+    // Header opens the stream.
+    AnalysisHeader header = 1;
+    // Inventory is one closed player item-set interval.
+    AnalysisInventory inventory = 2;
+    // Modifier is one closed or abandoned modifier interval.
+    AnalysisModifier modifier = 3;
+    // CombatWindow is one closed run of combat events.
+    AnalysisCombatWindow combat_window = 4;
+    // Summary closes the stream with the replay-wide counts.
+    AnalysisSummary summary = 5;
+  }
+}
+
+// AnalysisHeader identifies the stream's shape.
+message AnalysisHeader {
+  // SchemaVersion changes whenever a record's meaning changes.
+  uint32 schema_version = 1;
+}
+
+// AnalysisInventory is the set of items one player owned over a half-open
+// tick interval. A player's intervals arrive in time order and tile the time
+// from their first purchase to the end of the replay.
+message AnalysisInventory {
+  // PlayerSlot is the owning player's slot.
+  int32 player_slot = 1;
+  uint32 start_tick = 2;
+  uint32 end_tick = 3;
+  double start_time = 4;
+  double end_time = 5;
+  // OwnedItems lists the owned item ids, sorted ascending.
+  repeated uint32 owned_items = 6;
+}
+
+// AnalysisModifier is one modifier's life on an entity, from its add to its
+// remove. Open marks an interval that the replay ended or a new add replaced
+// before any remove arrived; its end is where that happened.
+message AnalysisModifier {
+  uint32 start_tick = 1;
+  uint32 end_tick = 2;
+  double start_time = 3;
+  double end_time = 4;
+  // LastObservedTick is the tick of the last add, refresh or remove.
+  uint32 last_observed_tick = 5;
+  // TableIndex is the modifier's slot in the active-modifier table.
+  int32 table_index = 6;
+  int32 entity_id = 7;
+  // PlayerSlot is the player that owns the entity, or -1.
+  int32 player_slot = 8;
+  // Parent is the entity handle the modifier is attached to.
+  uint32 parent = 9;
+  uint32 modifier_subclass = 10;
+  uint32 source_id = 11;
+  uint32 ability = 12;
+  uint32 caster = 13;
+  int32 stack_count = 14;
+  // Refreshes counts the refreshes between the add and the end.
+  uint32 refreshes = 15;
+  // SerialNumber, Duration and LastAppliedTime are set only when the
+  // modifier's payload carried them.
+  optional uint32 serial_number = 16;
+  optional float duration = 17;
+  optional float last_applied_time = 18;
+  bool open = 19;
+  // PayloadProto is the last raw modifier payload.
+  bytes payload_proto = 20;
+}
+
+// AnalysisCombatWindow is a run of combat events with no gap longer than the
+// requested maximum. Event indexes count every event the replay produced.
+message AnalysisCombatWindow {
+  uint32 start_tick = 1;
+  uint32 end_tick = 2;
+  double start_time = 3;
+  double end_time = 4;
+  uint32 events = 5;
+  uint32 damage_events = 6;
+  uint32 modifier_events = 7;
+  uint32 purchase_events = 8;
+  uint32 entity_samples = 9;
+  uint32 first_event_index = 10;
+  uint32 last_event_index = 11;
+  // The sets below are sorted ascending.
+  repeated int32 player_slots = 12;
+  repeated int32 entities = 13;
+  repeated int32 damage_attackers = 14;
+  repeated int32 damage_victims = 15;
+  repeated uint32 modifier_parents = 16;
+}
+
+// AnalysisSummary counts what the analysis saw and what it could not match.
+message AnalysisSummary {
+  uint32 events = 1;
+  uint32 inventory_transitions = 2;
+  uint32 entity_samples = 3;
+  uint32 modifier_adds = 4;
+  uint32 modifier_refreshes = 5;
+  uint32 modifier_removes = 6;
+  uint32 missing_player_slot_events = 7;
+  uint32 unmatched_modifier_refreshes = 8;
+  uint32 unmatched_modifier_removes = 9;
+  uint32 open_modifier_intervals = 10;
+}

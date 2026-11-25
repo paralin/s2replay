@@ -48,13 +48,13 @@ func (b *builder) acceptModifier(ev s2replay.Event) {
 	switch ev.Modifier.Transition {
 	case s2replay.ModifierAdd:
 		b.addModifierInterval(ev)
-		b.result.Quality.ModifierAdds++
+		b.quality.ModifierAdds++
 	case s2replay.ModifierRefresh:
 		b.refreshModifierInterval(ev)
-		b.result.Quality.ModifierRefreshes++
+		b.quality.ModifierRefreshes++
 	case s2replay.ModifierRemove:
 		b.removeModifierInterval(ev)
-		b.result.Quality.ModifierRemoves++
+		b.quality.ModifierRemoves++
 	}
 }
 
@@ -63,8 +63,8 @@ func (b *builder) addModifierInterval(ev s2replay.Event) {
 		active.EndTick = ev.Tick
 		active.EndTime = ev.GameTime
 		active.Open = true
-		b.result.Modifiers.Modifiers = append(b.result.Modifiers.Modifiers, active)
-		b.result.Quality.OpenModifierIntervals++
+		b.out.modifier(active)
+		b.quality.OpenModifierIntervals++
 	}
 	b.activeModifiers[ev.Modifier.TableIndex] = modifierIntervalFromEvent(ev)
 }
@@ -72,7 +72,7 @@ func (b *builder) addModifierInterval(ev s2replay.Event) {
 func (b *builder) refreshModifierInterval(ev s2replay.Event) {
 	active, ok := b.activeModifiers[ev.Modifier.TableIndex]
 	if !ok {
-		b.result.Quality.UnmatchedModifierRefreshes++
+		b.quality.UnmatchedModifierRefreshes++
 		b.activeModifiers[ev.Modifier.TableIndex] = modifierIntervalFromEvent(ev)
 		return
 	}
@@ -96,7 +96,7 @@ func (b *builder) refreshModifierInterval(ev s2replay.Event) {
 func (b *builder) removeModifierInterval(ev s2replay.Event) {
 	active, ok := b.activeModifiers[ev.Modifier.TableIndex]
 	if !ok {
-		b.result.Quality.UnmatchedModifierRemoves++
+		b.quality.UnmatchedModifierRemoves++
 		return
 	}
 	active.EndTick = ev.Tick
@@ -115,7 +115,7 @@ func (b *builder) removeModifierInterval(ev s2replay.Event) {
 	active.Ability = ev.Modifier.Ability
 	active.StackCount = ev.Modifier.StackCount
 	delete(b.activeModifiers, ev.Modifier.TableIndex)
-	b.result.Modifiers.Modifiers = append(b.result.Modifiers.Modifiers, active)
+	b.out.modifier(active)
 }
 
 func modifierIntervalFromEvent(ev s2replay.Event) ModifierInterval {

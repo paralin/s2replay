@@ -34,36 +34,59 @@ type CombatWindow struct {
 
 // BuildCombatWindows groups selected events with caller-supplied timing policy.
 func BuildCombatWindows(events []s2replay.Event, opts CombatWindowOptions) []CombatWindow {
-	include := opts.Include
-	if include == nil {
-		include = func(s2replay.Event) bool { return true }
-	}
 	var windows []CombatWindow
-	var active combatWindowState
-	entityPlayers := make(map[int32]int32)
-	var lastTime float64
-	activeWindow := false
+	w := newCombatWindower(opts, func(window CombatWindow) {
+		windows = append(windows, window)
+	})
 	for i, ev := range events {
-		rememberEntityPlayerSlot(entityPlayers, ev)
-		if !include(ev) {
-			continue
-		}
-		if !activeWindow || ev.GameTime-lastTime > opts.MaxGap {
-			if activeWindow {
-				windows = append(windows, active.finish())
-			}
-			active = newCombatWindowState(ev, i, entityPlayers)
-			activeWindow = true
-			lastTime = ev.GameTime
-			continue
-		}
-		active.add(ev, i)
-		lastTime = ev.GameTime
+		w.accept(ev, i)
 	}
-	if activeWindow {
-		windows = append(windows, active.finish())
-	}
+	w.finish()
 	return windows
+}
+
+// combatWindower groups events into combat windows one event at a time and
+// passes each window on as soon as an event past the gap closes it.
+type combatWindower struct {
+	opts          CombatWindowOptions
+	out           func(CombatWindow)
+	entityPlayers map[int32]int32
+	active        combatWindowState
+	activeWindow  bool
+	lastTime      float64
+}
+
+func newCombatWindower(opts CombatWindowOptions, out func(CombatWindow)) *combatWindower {
+	if opts.Include == nil {
+		opts.Include = func(s2replay.Event) bool { return true }
+	}
+	return &combatWindower{opts: opts, out: out, entityPlayers: make(map[int32]int32)}
+}
+
+// accept adds the event at index, its position among every replay event.
+func (w *combatWindower) accept(ev s2replay.Event, index int) {
+	rememberEntityPlayerSlot(w.entityPlayers, ev)
+	if !w.opts.Include(ev) {
+		return
+	}
+	if !w.activeWindow || ev.GameTime-w.lastTime > w.opts.MaxGap {
+		if w.activeWindow {
+			w.out(w.active.finish())
+		}
+		w.active = newCombatWindowState(ev, index, w.entityPlayers)
+		w.activeWindow = true
+	} else {
+		w.active.add(ev, index)
+	}
+	w.lastTime = ev.GameTime
+}
+
+// finish passes on the window still open at the end of the replay.
+func (w *combatWindower) finish() {
+	if w.activeWindow {
+		w.out(w.active.finish())
+		w.activeWindow = false
+	}
 }
 
 type combatWindowState struct {

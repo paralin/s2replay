@@ -161,14 +161,18 @@ type EntitySample struct {
 	HasHeroDamage   bool    `json:"has_hero_damage,omitempty"`
 }
 
-// acceptEntitySample records one entity sample in the per-player and
-// per-entity timelines.
+// acceptEntitySample counts one entity sample and, when the sinks take
+// samples, passes on a copy enriched with the owner's inventory.
 func (b *builder) acceptEntitySample(ev s2replay.Event) {
 	if ev.EntitySample == nil {
 		return
 	}
 	if ev.PlayerSlot < 0 {
-		b.result.Quality.MissingPlayerSlotEvents++
+		b.quality.MissingPlayerSlotEvents++
+	}
+	b.quality.EntitySamples++
+	if b.out.sample == nil {
+		return
 	}
 	ownedItems := cloneItemSet(ev.OwnedItems)
 	if len(ownedItems) == 0 && ev.PlayerSlot >= 0 {
@@ -297,9 +301,5 @@ func (b *builder) acceptEntitySample(ev s2replay.Event) {
 		HeroDamageTick:           ev.EntitySample.HeroDamageTick,
 		HasHeroDamage:            ev.EntitySample.HasHeroDamage,
 	}
-	if ev.PlayerSlot >= 0 {
-		b.result.Entities.Players[ev.PlayerSlot] = append(b.result.Entities.Players[ev.PlayerSlot], sample)
-	}
-	b.result.Entities.Entities[ev.Entity] = append(b.result.Entities.Entities[ev.Entity], sample)
-	b.result.Quality.EntitySamples++
+	b.out.sample(ev.PlayerSlot, sample)
 }

@@ -2,15 +2,16 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/paralin/s2replay"
+	"github.com/paralin/s2replay/analysis"
 )
 
-const analyzeGoldenPath = "testdata/analyze_golden.json"
+const analyzeGoldenPath = "testdata/analyze_golden.jsonl"
 
 func TestAnalyzeOutputGolden(t *testing.T) {
 	events := []s2replay.Event{
@@ -68,14 +69,13 @@ func TestAnalyzeOutputGolden(t *testing.T) {
 		},
 		{Type: s2replay.EventDamage, Tick: 6, GameTime: 6, Entity: 100, PlayerSlot: 2},
 	}
-	out, err := analysisOutputFromEvents(events, 8, "damage,modifier")
+	include, err := combatEventFilter("damage,modifier")
 	if err != nil {
 		t.Fatal(err)
 	}
+	opts := analysis.AnalyzeOptions{CombatWindows: &analysis.CombatWindowOptions{MaxGap: 8, Include: include}}
 	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
+	if err := writeAnalysis(&sliceEvents{events: events}, &buf, "jsonl", opts); err != nil {
 		t.Fatal(err)
 	}
 	if os.Getenv("S2REPLAY_UPDATE_GOLDEN") == "1" {
@@ -96,60 +96,22 @@ func TestAnalyzeOutputGolden(t *testing.T) {
 	}
 }
 
-func TestAnalyzeOutputPreservesHeroIdentity(t *testing.T) {
-	out, err := analysisOutputFromEvents([]s2replay.Event{{
-		Type:       s2replay.EventEntitySample,
-		Tick:       2,
-		GameTime:   2,
-		Entity:     100,
-		PlayerSlot: 2,
-		EntitySample: &s2replay.EntitySample{
-			ClassName: "CCitadelPlayerPawn",
-			HeroID:    42,
-			Team:      2,
-			HasHeroID: true,
-			HasTeam:   true,
-		},
-	}}, -1, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	payload, err := json.Marshal(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var decoded struct {
-		Analysis struct {
-			Entities struct {
-				Players map[string][]struct {
-					HeroID    uint32 `json:"hero_id"`
-					Team      int32  `json:"team"`
-					HasHeroID bool   `json:"has_hero_id"`
-					HasTeam   bool   `json:"has_team"`
-				} `json:"players"`
-			} `json:"entities"`
-		} `json:"analysis"`
-	}
-	if err := json.Unmarshal(payload, &decoded); err != nil {
-		t.Fatal(err)
-	}
-	sample := decoded.Analysis.Entities.Players["2"]
-	if len(sample) != 1 {
-		t.Fatalf("analyze player samples: want 1, got %d", len(sample))
-	}
-	got := sample[0]
-	if got.HeroID != 42 || got.Team != 2 || !got.HasHeroID || !got.HasTeam {
-		t.Fatalf("analyze hero identity: %+v", got)
-	}
-	identity, err := json.Marshal(got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("analyze entity sample: %s", identity)
-}
-
 func TestAnalyzeRejectsUnknownCombatEvent(t *testing.T) {
-	if _, err := analysisOutputFromEvents(nil, 8, "damage,bogus"); err == nil {
+	if _, err := combatEventFilter("damage,bogus"); err == nil {
 		t.Fatal("unknown combat event type should fail")
 	}
+}
+
+// sliceEvents yields a fixed event list as an analysis event source.
+type sliceEvents struct {
+	events []s2replay.Event
+}
+
+func (s *sliceEvents) NextEvent() (s2replay.Event, error) {
+	if len(s.events) == 0 {
+		return s2replay.Event{}, io.EOF
+	}
+	ev := s.events[0]
+	s.events = s.events[1:]
+	return ev, nil
 }

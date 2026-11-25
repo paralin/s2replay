@@ -4,4 +4,4 @@
 *.dem.bz2
 .tmp/
 .DS_Store
-s2replay
+/s2replay

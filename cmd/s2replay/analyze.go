@@ -1,11 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"bufio"
+	"context"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -13,25 +16,13 @@ import (
 	"github.com/paralin/s2replay/analysis"
 )
 
-// analysisSchemaVersion identifies the JSON shape emitted by the analyze command.
-const analysisSchemaVersion = 2
-
-// analysisOutput is the JSON document emitted by the analyze command.
-type analysisOutput struct {
-	// SchemaVersion identifies the JSON shape used by this document.
-	SchemaVersion int `json:"schema_version"`
-	// Analysis contains the replay-wide analysis results.
-	Analysis analysis.Result `json:"analysis"`
-	// CombatWindows contains selected combat event windows when requested.
-	CombatWindows []analysis.CombatWindow `json:"combat_windows,omitempty"`
-}
-
-// runAnalyze parses analyze flags and writes the requested replay analysis.
+// runAnalyze parses analyze flags and streams the replay analysis to
+// standard output.
 func runAnalyze(args []string) error {
 	// Define the command's flags and suppress the standard flag package output.
 	fs := flag.NewFlagSet("analyze", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	format := fs.String("format", "json", "analysis output format")
+	format := fs.String("format", "jsonl", "analysis output format: jsonl or pb")
 	combatGap := fs.Float64("combat-gap", -1, "maximum seconds between selected combat events; negative disables windows")
 	combatEvents := fs.String("combat-events", "", "comma-separated event types to include in combat windows")
 
@@ -39,76 +30,71 @@ func runAnalyze(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return analyzeUsageError{}
 	}
-
-	// Reject output formats that this command cannot encode.
-	if *format != "json" {
+	if *format != "jsonl" && *format != "pb" {
 		return errors.New("unsupported analyze format " + strconvQuote(*format))
 	}
-
-	// Require exactly one replay input path.
 	if fs.NArg() != 1 {
 		return analyzeUsageError{}
 	}
 
-	// Run the analysis and write its JSON representation to standard output.
-	return analyzeJSON(fs.Arg(0), os.Stdout, *combatGap, *combatEvents)
+	// Resolve the optional combat windows before reading the replay.
+	var opts analysis.AnalyzeOptions
+	if *combatGap >= 0 {
+		include, err := combatEventFilter(*combatEvents)
+		if err != nil {
+			return err
+		}
+		opts.CombatWindows = &analysis.CombatWindowOptions{MaxGap: *combatGap, Include: include}
+	}
+	return analyzeStream(fs.Arg(0), os.Stdout, *format, opts)
 }
 
-// analyzeJSON parses one replay and writes its analysis as indented JSON.
-func analyzeJSON(path string, out io.Writer, combatGap float64, combatEvents string) error {
-	// Read and parse the replay input.
-	demo, err := os.ReadFile(path)
+// analyzeStream parses one replay, reading it from disk as it parses, and
+// writes its analysis records.
+func analyzeStream(path string, out io.Writer, format string, opts analysis.AnalyzeOptions) error {
+	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	p, err := s2replay.NewParser(demo)
+	defer f.Close()
+	p, err := s2replay.NewParserFromReader(context.Background(), f)
 	if err != nil {
 		return err
 	}
-
-	// Collect replay events for the analysis builders.
-	events, err := p.CollectEvents(0)
-	if err != nil {
-		return err
-	}
-
-	// Build the requested analysis output.
-	result, err := analysisOutputFromEvents(events, combatGap, combatEvents)
-	if err != nil {
-		return err
-	}
-
-	// Encode the output with stable indentation for command consumers.
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return writeAnalysis(p, out, format, opts)
 }
 
-// analysisOutputFromEvents builds replay analysis and optional combat windows.
-func analysisOutputFromEvents(events []s2replay.Event, combatGap float64, combatEvents string) (analysisOutput, error) {
-	// Build the replay-wide analysis that is always present.
-	out := analysisOutput{
-		SchemaVersion: analysisSchemaVersion,
-		Analysis:      analysis.Build(events),
-	}
-
-	// Omit combat windows when the caller leaves them disabled.
-	if combatGap < 0 {
-		return out, nil
-	}
-
-	// Resolve the requested event filter before building combat windows.
-	include, err := combatEventFilter(combatEvents)
-	if err != nil {
-		return analysisOutput{}, err
-	}
-
-	// Build combat windows from the selected events.
-	out.CombatWindows = analysis.BuildCombatWindows(events, analysis.CombatWindowOptions{
-		MaxGap:  combatGap,
-		Include: include,
+// writeAnalysis writes each analysis record as it closes: jsonl writes one
+// JSON object per line, and pb writes length-delimited AnalysisRecord frames,
+// one varint byte count followed by that many message bytes.
+func writeAnalysis(src analysis.EventSource, out io.Writer, format string, opts analysis.AnalyzeOptions) error {
+	w := bufio.NewWriterSize(out, 512*1024)
+	var frame []byte
+	err := analysis.Analyze(src, opts, func(rec *analysis.AnalysisRecord) error {
+		if format == "pb" {
+			size := rec.SizeVT()
+			frame = binary.AppendUvarint(frame[:0], uint64(size))
+			n := len(frame)
+			frame = slices.Grow(frame, size)[:n+size]
+			if _, err := rec.MarshalToSizedBufferVT(frame[n:]); err != nil {
+				return err
+			}
+			_, err := w.Write(frame)
+			return err
+		}
+		line, err := rec.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(line); err != nil {
+			return err
+		}
+		return w.WriteByte('\n')
 	})
-	return out, nil
+	if err != nil {
+		return err
+	}
+	return w.Flush()
 }
 
 // combatEventFilter builds an event predicate from the supported filter names.
@@ -147,5 +133,5 @@ type analyzeUsageError struct{}
 
 // Error returns the analyze command usage message.
 func (analyzeUsageError) Error() string {
-	return "usage: s2replay analyze --format json [--combat-gap seconds] [--combat-events damage,modifier] <demo.dem>"
+	return "usage: s2replay analyze [--format jsonl|pb] [--combat-gap seconds] [--combat-events damage,modifier] <demo.dem>"
 }

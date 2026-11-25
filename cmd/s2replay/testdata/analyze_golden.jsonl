@@ -1,0 +1,5 @@
+{"header":{"schemaVersion":3}}
+{"modifier":{"startTick":3,"endTick":5,"startTime":3,"endTime":5,"lastObservedTick":5,"tableIndex":7,"entityId":100,"playerSlot":2,"parent":100,"modifierSubclass":20,"sourceId":10}}
+{"inventory":{"playerSlot":2,"startTick":1,"endTick":6,"startTime":1,"endTime":6,"ownedItems":[10]}}
+{"combatWindow":{"startTick":3,"endTick":6,"startTime":3,"endTime":6,"events":3,"damageEvents":1,"modifierEvents":2,"firstEventIndex":2,"lastEventIndex":4,"playerSlots":[2],"entities":[100],"modifierParents":[100]}}
+{"summary":{"events":5,"inventoryTransitions":1,"entitySamples":1,"modifierAdds":1,"modifierRemoves":1}}

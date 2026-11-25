@@ -18,27 +18,24 @@ type InventoryInterval struct {
 
 func (b *builder) acceptPurchase(ev s2replay.Event) {
 	if ev.PlayerSlot < 0 {
-		b.result.Quality.MissingPlayerSlotEvents++
+		b.quality.MissingPlayerSlotEvents++
 		return
 	}
 	ownedItems := cloneItemSet(ev.OwnedItems)
 	b.playerItems[ev.PlayerSlot] = ownedItems
-	intervals := b.result.Inventory.Players[ev.PlayerSlot]
-	if len(intervals) > 0 {
-		last := &intervals[len(intervals)-1]
-		if sameItemSet(last.OwnedItems, ownedItems) {
+	if open, ok := b.openInventory[ev.PlayerSlot]; ok {
+		if sameItemSet(open.OwnedItems, ownedItems) {
 			return
 		}
-		last.EndTick = ev.Tick
-		last.EndTime = ev.GameTime
+		open.EndTick, open.EndTime = ev.Tick, ev.GameTime
+		b.out.inventory(ev.PlayerSlot, open)
 	}
-	intervals = append(intervals, InventoryInterval{
+	b.openInventory[ev.PlayerSlot] = InventoryInterval{
 		StartTick:  ev.Tick,
 		EndTick:    ev.Tick,
 		StartTime:  ev.GameTime,
 		EndTime:    ev.GameTime,
 		OwnedItems: ownedItems,
-	})
-	b.result.Inventory.Players[ev.PlayerSlot] = intervals
-	b.result.Quality.InventoryTransitions++
+	}
+	b.quality.InventoryTransitions++
 }

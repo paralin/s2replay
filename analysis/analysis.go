@@ -2,6 +2,7 @@
 package analysis
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/paralin/s2replay"
@@ -32,37 +33,71 @@ type Quality struct {
 
 // Build derives deterministic timelines from a complete replay event slice.
 func Build(events []s2replay.Event) Result {
-	b := newBuilder()
+	result := Result{
+		Inventory: InventoryTimeline{Players: make(map[int32][]InventoryInterval)},
+		Entities: EntityTimeline{
+			Players:  make(map[int32][]EntitySample),
+			Entities: make(map[int32][]EntitySample),
+		},
+	}
+	b := newBuilder(builderSinks{
+		inventory: func(slot int32, iv InventoryInterval) {
+			result.Inventory.Players[slot] = append(result.Inventory.Players[slot], iv)
+		},
+		modifier: func(iv ModifierInterval) {
+			result.Modifiers.Modifiers = append(result.Modifiers.Modifiers, iv)
+		},
+		sample: func(slot int32, sample EntitySample) {
+			if slot >= 0 {
+				result.Entities.Players[slot] = append(result.Entities.Players[slot], sample)
+			}
+			result.Entities.Entities[sample.EntityID] = append(result.Entities.Entities[sample.EntityID], sample)
+		},
+	})
 	for _, ev := range events {
 		b.accept(ev)
 	}
-	return b.finalize()
+	b.finish()
+	slices.SortFunc(result.Modifiers.Modifiers, compareModifierInterval)
+	result.Quality = b.quality
+	return result
 }
 
+// builderSinks receive the builder's output as each piece closes, so a
+// streaming caller holds only the intervals still open.
+type builderSinks struct {
+	// inventory receives a player's closed item-set interval, in time order
+	// per player.
+	inventory func(slot int32, iv InventoryInterval)
+	// modifier receives each closed or abandoned modifier interval.
+	modifier func(iv ModifierInterval)
+	// sample receives each entity sample with its player slot. Nil skips
+	// building samples.
+	sample func(slot int32, sample EntitySample)
+}
+
+// builder folds replay events into timelines one event at a time.
 type builder struct {
-	result          Result
+	out             builderSinks
+	quality         Quality
 	lastTick        uint32
 	lastTime        float64
 	playerItems     map[int32][]uint32
+	openInventory   map[int32]InventoryInterval
 	activeModifiers map[int32]ModifierInterval
 }
 
-func newBuilder() *builder {
+func newBuilder(out builderSinks) *builder {
 	return &builder{
-		result: Result{
-			Inventory: InventoryTimeline{Players: make(map[int32][]InventoryInterval)},
-			Entities: EntityTimeline{
-				Players:  make(map[int32][]EntitySample),
-				Entities: make(map[int32][]EntitySample),
-			},
-		},
+		out:             out,
 		playerItems:     make(map[int32][]uint32),
+		openInventory:   make(map[int32]InventoryInterval),
 		activeModifiers: make(map[int32]ModifierInterval),
 	}
 }
 
 func (b *builder) accept(ev s2replay.Event) {
-	b.result.Quality.Events++
+	b.quality.Events++
 	b.lastTick = ev.Tick
 	b.lastTime = ev.GameTime
 	switch ev.Type {
@@ -75,24 +110,22 @@ func (b *builder) accept(ev s2replay.Event) {
 	}
 }
 
-func (b *builder) finalize() Result {
-	for slot, intervals := range b.result.Inventory.Players {
-		if len(intervals) == 0 {
-			continue
-		}
-		intervals[len(intervals)-1].EndTick = b.lastTick
-		intervals[len(intervals)-1].EndTime = b.lastTime
-		b.result.Inventory.Players[slot] = intervals
+// finish closes every open interval at the last event, in slot and table
+// index order so the output does not depend on map order.
+func (b *builder) finish() {
+	for _, slot := range slices.Sorted(maps.Keys(b.openInventory)) {
+		iv := b.openInventory[slot]
+		iv.EndTick, iv.EndTime = b.lastTick, b.lastTime
+		b.out.inventory(slot, iv)
 	}
-	for _, interval := range b.activeModifiers {
-		interval.EndTick = b.lastTick
-		interval.EndTime = b.lastTime
-		interval.Open = true
-		b.result.Modifiers.Modifiers = append(b.result.Modifiers.Modifiers, interval)
-		b.result.Quality.OpenModifierIntervals++
+	clear(b.openInventory)
+	for _, index := range slices.Sorted(maps.Keys(b.activeModifiers)) {
+		iv := b.activeModifiers[index]
+		iv.EndTick, iv.EndTime, iv.Open = b.lastTick, b.lastTime, true
+		b.out.modifier(iv)
+		b.quality.OpenModifierIntervals++
 	}
-	slices.SortFunc(b.result.Modifiers.Modifiers, compareModifierInterval)
-	return b.result
+	clear(b.activeModifiers)
 }
 
 func cloneItemSet(items []uint32) []uint32 {
