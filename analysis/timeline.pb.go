@@ -374,6 +374,9 @@ type TimelinePlayer struct {
 	// Track is the hero's movement at the timeline's track step, absent when
 	// the timeline has no tracks. Its columns have one entry per track sample.
 	Track *TimelineTrack `protobuf:"bytes,25,opt,name=track,proto3" json:"track,omitempty"`
+	// TrooperDamageTaken is the health lost plus the damage absorbed from lane
+	// troopers' attacks on the hero during each sample's step.
+	TrooperDamageTaken []int32 `protobuf:"varint,26,rep,packed,name=trooper_damage_taken,json=trooperDamageTaken,proto3" json:"trooperDamageTaken,omitempty"`
 }
 
 func (x *TimelinePlayer) Reset() {
@@ -553,6 +556,13 @@ func (x *TimelinePlayer) GetDeaths() []int32 {
 func (x *TimelinePlayer) GetTrack() *TimelineTrack {
 	if x != nil {
 		return x.Track
+	}
+	return nil
+}
+
+func (x *TimelinePlayer) GetTrooperDamageTaken() []int32 {
+	if x != nil {
+		return x.TrooperDamageTaken
 	}
 	return nil
 }
@@ -1218,6 +1228,9 @@ func (m *TimelinePlayer) CloneVT() *TimelinePlayer {
 	if rhs := m.Deaths; rhs != nil {
 		r.Deaths = slices.Clone(rhs)
 	}
+	if rhs := m.TrooperDamageTaken; rhs != nil {
+		r.TrooperDamageTaken = slices.Clone(rhs)
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = slices.Clone(m.unknownFields)
 	}
@@ -1815,6 +1828,15 @@ func (this *TimelinePlayer) EqualVT(that *TimelinePlayer) bool {
 	}
 	if !this.Track.EqualVT(that.Track) {
 		return false
+	}
+	if len(this.TrooperDamageTaken) != len(that.TrooperDamageTaken) {
+		return false
+	}
+	for i, vx := range this.TrooperDamageTaken {
+		vy := that.TrooperDamageTaken[i]
+		if vx != vy {
+			return false
+		}
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
@@ -2756,6 +2778,11 @@ func (x *TimelinePlayer) MarshalProtoJSON(s *json.MarshalState) {
 		s.WriteObjectField("track")
 		x.Track.MarshalProtoJSON(s.WithField("track"))
 	}
+	if len(x.TrooperDamageTaken) > 0 || s.HasField("trooperDamageTaken") {
+		s.WriteMoreIf(&wroteField)
+		s.WriteObjectField("trooperDamageTaken")
+		s.WriteInt32Array(x.TrooperDamageTaken)
+	}
 	s.WriteObjectEnd()
 }
 
@@ -2928,6 +2955,13 @@ func (x *TimelinePlayer) UnmarshalProtoJSON(s *json.UnmarshalState) {
 			}
 			x.Track = &TimelineTrack{}
 			x.Track.UnmarshalProtoJSON(s.WithField("track", true))
+		case "trooper_damage_taken", "trooperDamageTaken":
+			s.AddField("trooper_damage_taken")
+			if s.ReadNil() {
+				x.TrooperDamageTaken = nil
+				return
+			}
+			x.TrooperDamageTaken = s.ReadInt32Array()
 		}
 	})
 }
@@ -3853,26 +3887,14 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Track != nil {
-		size, err := m.Track.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0xca
-	}
-	if len(m.Deaths) > 0 {
+	if len(m.TrooperDamageTaken) > 0 {
 		var pksize2 int
-		for _, num := range m.Deaths {
+		for _, num := range m.TrooperDamageTaken {
 			pksize2 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize2
 		j1 := i
-		for _, num1 := range m.Deaths {
+		for _, num1 := range m.TrooperDamageTaken {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j1] = uint8(uint64(num)&0x7f | 0x80)
@@ -3886,16 +3908,28 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xc2
+		dAtA[i] = 0xd2
 	}
-	if len(m.Assists) > 0 {
+	if m.Track != nil {
+		size, err := m.Track.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xca
+	}
+	if len(m.Deaths) > 0 {
 		var pksize4 int
-		for _, num := range m.Assists {
+		for _, num := range m.Deaths {
 			pksize4 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize4
 		j3 := i
-		for _, num1 := range m.Assists {
+		for _, num1 := range m.Deaths {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j3] = uint8(uint64(num)&0x7f | 0x80)
@@ -3909,16 +3943,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xba
+		dAtA[i] = 0xc2
 	}
-	if len(m.Kills) > 0 {
+	if len(m.Assists) > 0 {
 		var pksize6 int
-		for _, num := range m.Kills {
+		for _, num := range m.Assists {
 			pksize6 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize6
 		j5 := i
-		for _, num1 := range m.Kills {
+		for _, num1 := range m.Assists {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j5] = uint8(uint64(num)&0x7f | 0x80)
@@ -3932,16 +3966,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xb2
+		dAtA[i] = 0xba
 	}
-	if len(m.Denies) > 0 {
+	if len(m.Kills) > 0 {
 		var pksize8 int
-		for _, num := range m.Denies {
+		for _, num := range m.Kills {
 			pksize8 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize8
 		j7 := i
-		for _, num1 := range m.Denies {
+		for _, num1 := range m.Kills {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j7] = uint8(uint64(num)&0x7f | 0x80)
@@ -3955,16 +3989,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xaa
+		dAtA[i] = 0xb2
 	}
-	if len(m.LastHits) > 0 {
+	if len(m.Denies) > 0 {
 		var pksize10 int
-		for _, num := range m.LastHits {
+		for _, num := range m.Denies {
 			pksize10 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize10
 		j9 := i
-		for _, num1 := range m.LastHits {
+		for _, num1 := range m.Denies {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j9] = uint8(uint64(num)&0x7f | 0x80)
@@ -3978,16 +4012,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xa2
+		dAtA[i] = 0xaa
 	}
-	if len(m.Level) > 0 {
+	if len(m.LastHits) > 0 {
 		var pksize12 int
-		for _, num := range m.Level {
+		for _, num := range m.LastHits {
 			pksize12 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize12
 		j11 := i
-		for _, num1 := range m.Level {
+		for _, num1 := range m.LastHits {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j11] = uint8(uint64(num)&0x7f | 0x80)
@@ -4001,16 +4035,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x9a
+		dAtA[i] = 0xa2
 	}
-	if len(m.Souls) > 0 {
+	if len(m.Level) > 0 {
 		var pksize14 int
-		for _, num := range m.Souls {
+		for _, num := range m.Level {
 			pksize14 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize14
 		j13 := i
-		for _, num1 := range m.Souls {
+		for _, num1 := range m.Level {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j13] = uint8(uint64(num)&0x7f | 0x80)
@@ -4024,16 +4058,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x92
+		dAtA[i] = 0x9a
 	}
-	if len(m.MidBossDamage) > 0 {
+	if len(m.Souls) > 0 {
 		var pksize16 int
-		for _, num := range m.MidBossDamage {
+		for _, num := range m.Souls {
 			pksize16 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize16
 		j15 := i
-		for _, num1 := range m.MidBossDamage {
+		for _, num1 := range m.Souls {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j15] = uint8(uint64(num)&0x7f | 0x80)
@@ -4047,16 +4081,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x8a
+		dAtA[i] = 0x92
 	}
-	if len(m.ObjectiveDamage) > 0 {
+	if len(m.MidBossDamage) > 0 {
 		var pksize18 int
-		for _, num := range m.ObjectiveDamage {
+		for _, num := range m.MidBossDamage {
 			pksize18 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize18
 		j17 := i
-		for _, num1 := range m.ObjectiveDamage {
+		for _, num1 := range m.MidBossDamage {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j17] = uint8(uint64(num)&0x7f | 0x80)
@@ -4070,16 +4104,16 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x82
+		dAtA[i] = 0x8a
 	}
-	if len(m.FarmDamage) > 0 {
+	if len(m.ObjectiveDamage) > 0 {
 		var pksize20 int
-		for _, num := range m.FarmDamage {
+		for _, num := range m.ObjectiveDamage {
 			pksize20 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
 		i -= pksize20
 		j19 := i
-		for _, num1 := range m.FarmDamage {
+		for _, num1 := range m.ObjectiveDamage {
 			num := uint64(num1)
 			for num >= 1<<7 {
 				dAtA[j19] = uint8(uint64(num)&0x7f | 0x80)
@@ -4091,44 +4125,67 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize20))
 		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x82
+	}
+	if len(m.FarmDamage) > 0 {
+		var pksize22 int
+		for _, num := range m.FarmDamage {
+			pksize22 += protobuf_go_lite.SizeOfVarint(uint64(num))
+		}
+		i -= pksize22
+		j21 := i
+		for _, num1 := range m.FarmDamage {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA[j21] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j21++
+			}
+			dAtA[j21] = uint8(num)
+			j21++
+		}
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize22))
+		i--
 		dAtA[i] = 0x7a
 	}
 	if len(m.Speed) > 0 {
 		for iNdEx := len(m.Speed) - 1; iNdEx >= 0; iNdEx-- {
-			f21 := math.Float32bits(float32(m.Speed[iNdEx]))
+			f23 := math.Float32bits(float32(m.Speed[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f21))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f23))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Speed)*4))
 		i--
 		dAtA[i] = 0x72
 	}
 	if len(m.NetWorth) > 0 {
-		var pksize23 int
+		var pksize25 int
 		for _, num := range m.NetWorth {
-			pksize23 += protobuf_go_lite.SizeOfVarint(uint64(num))
+			pksize25 += protobuf_go_lite.SizeOfVarint(uint64(num))
 		}
-		i -= pksize23
-		j22 := i
+		i -= pksize25
+		j24 := i
 		for _, num1 := range m.NetWorth {
 			num := uint64(num1)
 			for num >= 1<<7 {
-				dAtA[j22] = uint8(uint64(num)&0x7f | 0x80)
+				dAtA[j24] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
-				j22++
+				j24++
 			}
-			dAtA[j22] = uint8(num)
-			j22++
+			dAtA[j24] = uint8(num)
+			j24++
 		}
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize23))
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(pksize25))
 		i--
 		dAtA[i] = 0x6a
 	}
 	if len(m.Yaw) > 0 {
 		for iNdEx := len(m.Yaw) - 1; iNdEx >= 0; iNdEx-- {
-			f24 := math.Float32bits(float32(m.Yaw[iNdEx]))
+			f26 := math.Float32bits(float32(m.Yaw[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f24))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f26))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Yaw)*4))
 		i--
@@ -4149,9 +4206,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.MaxHealth) > 0 {
 		for iNdEx := len(m.MaxHealth) - 1; iNdEx >= 0; iNdEx-- {
-			f25 := math.Float32bits(float32(m.MaxHealth[iNdEx]))
+			f27 := math.Float32bits(float32(m.MaxHealth[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f25))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f27))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.MaxHealth)*4))
 		i--
@@ -4159,9 +4216,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Health) > 0 {
 		for iNdEx := len(m.Health) - 1; iNdEx >= 0; iNdEx-- {
-			f26 := math.Float32bits(float32(m.Health[iNdEx]))
+			f28 := math.Float32bits(float32(m.Health[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f26))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f28))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Health)*4))
 		i--
@@ -4169,9 +4226,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Z) > 0 {
 		for iNdEx := len(m.Z) - 1; iNdEx >= 0; iNdEx-- {
-			f27 := math.Float32bits(float32(m.Z[iNdEx]))
+			f29 := math.Float32bits(float32(m.Z[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f27))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f29))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Z)*4))
 		i--
@@ -4179,9 +4236,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.Y) > 0 {
 		for iNdEx := len(m.Y) - 1; iNdEx >= 0; iNdEx-- {
-			f28 := math.Float32bits(float32(m.Y[iNdEx]))
+			f30 := math.Float32bits(float32(m.Y[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f28))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f30))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.Y)*4))
 		i--
@@ -4189,9 +4246,9 @@ func (m *TimelinePlayer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	}
 	if len(m.X) > 0 {
 		for iNdEx := len(m.X) - 1; iNdEx >= 0; iNdEx-- {
-			f29 := math.Float32bits(float32(m.X[iNdEx]))
+			f31 := math.Float32bits(float32(m.X[iNdEx]))
 			i -= 4
-			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f29))
+			binary.LittleEndian.PutUint32(dAtA[i:], uint32(f31))
 		}
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(len(m.X)*4))
 		i--
@@ -5030,6 +5087,13 @@ func (m *TimelinePlayer) SizeVT() (n int) {
 		l = m.Track.SizeVT()
 		n += 2 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 	}
+	if len(m.TrooperDamageTaken) > 0 {
+		l = 0
+		for _, e := range m.TrooperDamageTaken {
+			l += protobuf_go_lite.SizeOfVarint(uint64(e))
+		}
+		n += 2 + protobuf_go_lite.SizeOfVarint(uint64(l)) + l
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -5782,6 +5846,19 @@ func (x *TimelinePlayer) MarshalProtoText() string {
 		}
 		sb.WriteString("track: ")
 		sb.WriteString(x.Track.MarshalProtoText())
+	}
+	if len(x.TrooperDamageTaken) > 0 {
+		if sb.Len() > 16 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("trooper_damage_taken: [")
+		for i, v := range x.TrooperDamageTaken {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(strconv.FormatInt(int64(v), 10))
+		}
+		sb.WriteString("]")
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -7672,6 +7749,54 @@ func (m *TimelinePlayer) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 26:
+			if wireType == 0 {
+				var v int32
+				v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+				if err != nil {
+					return err
+				}
+				m.TrooperDamageTaken = append(m.TrooperDamageTaken, v)
+			} else if wireType == 2 {
+				var packedLen int
+				var _v uint64
+				_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+				packedLen = int(_v)
+				if err != nil {
+					return err
+				}
+				if packedLen < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return protobuf_go_lite.ErrInvalidLength
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.TrooperDamageTaken) == 0 {
+					m.TrooperDamageTaken = make([]int32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v int32
+					v, iNdEx, err = protobuf_go_lite.DecodeVarintInt32(dAtA, iNdEx)
+					if err != nil {
+						return err
+					}
+					m.TrooperDamageTaken = append(m.TrooperDamageTaken, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field TrooperDamageTaken", wireType)
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

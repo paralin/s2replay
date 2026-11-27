@@ -55,12 +55,24 @@ func TestMatchTimelineMatchesPostMatch(t *testing.T) {
 	}
 	byAccount := make(map[uint32]*TimelinePlayer)
 	for _, pl := range tl.GetPlayers() {
-		for name, n := range map[string]int{"alive": len(pl.GetAlive()), "net worth": len(pl.GetNetWorth()), "farm damage": len(pl.GetFarmDamage()), "kills": len(pl.GetKills()), "last hits": len(pl.GetLastHits())} {
+		for name, n := range map[string]int{"alive": len(pl.GetAlive()), "net worth": len(pl.GetNetWorth()), "farm damage": len(pl.GetFarmDamage()), "trooper damage taken": len(pl.GetTrooperDamageTaken()), "kills": len(pl.GetKills()), "last hits": len(pl.GetLastHits())} {
 			if n != samples {
 				t.Fatalf("player %d has %d %s samples, want %d", pl.GetAccountId(), n, name, samples)
 			}
 		}
 		byAccount[pl.GetAccountId()] = pl
+	}
+
+	// Troopers hit the heroes: every hero in a whole match loses health to
+	// them in lane.
+	for _, pl := range tl.GetPlayers() {
+		var taken int32
+		for _, v := range pl.GetTrooperDamageTaken() {
+			taken += v
+		}
+		if taken <= 0 {
+			t.Fatalf("player %d took no trooper damage", pl.GetAccountId())
+		}
 	}
 	if tl.GetWinningTeam() != post.WinningTeam+entityTeamOffset {
 		t.Fatalf("winning team %d, post-match %d", tl.GetWinningTeam(), post.WinningTeam)

@@ -71,7 +71,14 @@ const (
 	targetObjective
 	// targetMidBoss is damage to the Mid-Boss.
 	targetMidBoss
+	// targetTrooperTaken is damage troopers dealt to the hero, the one column
+	// counted on the victim's side.
+	targetTrooperTaken
 )
+
+// trooperClass is the game's target type of a lane trooper, as
+// damageTargetOf lists it.
+const trooperClass = 4
 
 // damageTargetOf returns the column for a damage event's victim class. The
 // values are the game's own target types, measured against entity classes: 4
@@ -434,6 +441,9 @@ func (b *timelineBuilder) acceptDamage(t float64, d *s2replay.DamageEvent) {
 	}
 	switch {
 	case attacker == nil:
+		if victim != nil && d.AttackerClass == trooperClass {
+			victim.addDamage(targetTrooperTaken, t, d.HealthLost+int32(d.DamageAbsorbed))
+		}
 	case victim != nil:
 		if attacker.row.GetTeam() != victim.row.GetTeam() {
 			b.hits = append(b.hits, timelineHit{attacker, victim, &TimelineHit{
@@ -441,14 +451,22 @@ func (b *timelineBuilder) acceptDamage(t float64, d *s2replay.DamageEvent) {
 			}})
 		}
 	default:
-		if column := attacker.damage(damageTargetOf(d.VictimClass)); column != nil {
-			k := int(t / timelineStep)
-			for len(*column) <= k {
-				*column = append(*column, 0)
-			}
-			(*column)[k] += d.Damage
-		}
+		attacker.addDamage(damageTargetOf(d.VictimClass), t, d.Damage)
 	}
+}
+
+// addDamage adds an amount at game time t to the player's damage column for a
+// target, and ignores a target without a column.
+func (pl *timelinePlayer) addDamage(target damageTarget, t float64, amount int32) {
+	column := pl.damage(target)
+	if column == nil {
+		return
+	}
+	k := int(t / timelineStep)
+	for len(*column) <= k {
+		*column = append(*column, 0)
+	}
+	(*column)[k] += amount
 }
 
 // damage returns the player's damage column for a target, or nil.
@@ -460,6 +478,8 @@ func (pl *timelinePlayer) damage(target damageTarget) *[]int32 {
 		return &pl.row.ObjectiveDamage
 	case targetMidBoss:
 		return &pl.row.MidBossDamage
+	case targetTrooperTaken:
+		return &pl.row.TrooperDamageTaken
 	}
 	return nil
 }
@@ -611,7 +631,7 @@ func (b *timelineBuilder) publish() *MatchTimeline {
 		for len(pl.row.X) < b.samples {
 			pl.appendFrame()
 		}
-		for _, target := range []damageTarget{targetFarm, targetObjective, targetMidBoss} {
+		for _, target := range []damageTarget{targetFarm, targetObjective, targetMidBoss, targetTrooperTaken} {
 			column := pl.damage(target)
 			*column = append(*column, make([]int32, max(0, b.samples-len(*column)))...)[:b.samples]
 		}

@@ -118,6 +118,9 @@ message TimelinePlayer {
   // Track is the hero's movement at the timeline's track step, absent when
   // the timeline has no tracks. Its columns have one entry per track sample.
   TimelineTrack track = 25;
+  // TrooperDamageTaken is the health lost plus the damage absorbed from lane
+  // troopers' attacks on the hero during each sample's step.
+  repeated int32 trooper_damage_taken = 26;
 }
 
 // TimelineTrack is one hero's movement, sampled often enough to redraw it: the
